@@ -72,6 +72,28 @@ Start here:
 - `docs/local-development.md`
 - `docs/openapi-workflow.md`
 - `docs/testing-strategy.md`
+- `docs/scripting.md`
+
+## Scripting Approach
+
+Workspace automation is Ruby-first by design.
+
+- Prefer Ruby scripts in `bin/` for cross-repository workflows.
+- Use shell snippets only for small command invocation inside Ruby scripts.
+- Optimize for readability and maintainability over clever shell composition.
+
+## Essential Commands
+
+The first priority scripts for developer ergonomics:
+
+- `bin/preinstall`: verify Ruby compatibility and GitHub CLI authentication before install workflows.
+- `bin/bootstrap`: verify repos and install dependencies.
+- `bin/doctor`: check local workstation prerequisites and ports.
+- `bin/status`: show git branch and dirty state across repos.
+- `bin/pull`: update all repositories with `git pull --ff-only`.
+- `bin/sync-openapi`: copy OpenAPI from API template into shared targets.
+- `bin/dev`: start core local services.
+- `bin/start-day`: run daily coordination workflow.
 
 ## Guiding Principle
 
