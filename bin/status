@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Print branch and working-tree status across workspace repositories.
+
+require_relative "lib/commands/status_command"
+
+exit Workspace::Commands::StatusCommand.new.call

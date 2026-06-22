@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Validate workstation prerequisites before running dependency installation workflows.
+
+require_relative "lib/commands/preinstall_command"
+
+exit Workspace::Commands::PreinstallCommand.new.call
