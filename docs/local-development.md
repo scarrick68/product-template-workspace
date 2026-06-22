@@ -22,7 +22,8 @@ Template-specific setup details stay in each template repository.
 ## Operating Guidelines
 
 - Keep local environment assumptions explicit and documented.
-- Prefer repeatable scripts in `bin/` for shared tasks.
+- Prefer repeatable Ruby scripts in `bin/` for shared tasks.
+- Reserve shell-heavy automation for cases where Ruby cannot reasonably express the workflow.
 - Avoid embedding template-specific logic in workspace scripts.
 - Use this workspace to orchestrate interactions, not replace template setup.
 

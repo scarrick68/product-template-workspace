@@ -1,0 +1,8 @@
+repositories:
+  - name: api-template
+    path: repos/api-template
+    github: scarrick68/api-template
+
+  - name: web-template
+    path: repos/web-template
+    github: scarrick68/web-template

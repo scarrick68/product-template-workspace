@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Verify local toolchain, auth, Docker daemon, and expected ports.
+
+require_relative "lib/commands/doctor_command"
+
+exit Workspace::Commands::DoctorCommand.new.call

@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Fast-forward pull all configured git repositories in the workspace.
+
+require_relative "lib/commands/pull_command"
+
+exit Workspace::Commands::PullCommand.new.call

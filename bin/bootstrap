@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Bootstrap workspace repositories, dependencies, and database setup.
+
+require_relative "lib/commands/bootstrap_command"
+
+exit Workspace::Commands::BootstrapCommand.new.call
