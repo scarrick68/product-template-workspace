@@ -1,0 +1,4 @@
+api: 5000
+web: 3000
+postgres: 5432
+elasticsearch: 9200
