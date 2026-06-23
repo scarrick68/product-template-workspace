@@ -4,7 +4,7 @@
 
 require "fileutils"
 require "json"
-require_relative "../workspace"
+require_relative "../../workspace"
 
 module Workspace
   module Commands

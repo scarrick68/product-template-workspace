@@ -3,7 +3,7 @@
 # Command object for workspace repository bootstrap and dependency setup.
 
 require "fileutils"
-require_relative "../workspace"
+require_relative "../../workspace"
 
 module Workspace
   module Commands

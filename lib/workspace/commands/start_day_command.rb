@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 # Command object for running the daily workflow orchestration.
 
-require_relative "../workspace"
+require_relative "../../workspace"
 
 module Workspace
   module Commands

@@ -8,7 +8,7 @@ require "fileutils"
 require "rubygems"
 
 module Workspace
-  ROOT = File.expand_path("../..", __dir__)
+  ROOT = File.expand_path("..", __dir__)
 
   module_function
 
