@@ -6,11 +6,22 @@ require "open3"
 require "yaml"
 require "fileutils"
 require "rubygems"
+require "pastel"
 
 module Workspace
   ROOT = File.expand_path("..", __dir__)
 
   module_function
+
+  def pastel
+    @pastel ||= Pastel.new(enabled: $stdout.tty?)
+  end
+
+  def styled_label(label, color: :white, bold: true)
+    text = "[#{label}]"
+    text = pastel.decorate(text, color) if color
+    bold ? pastel.bold(text) : text
+  end
 
   def load_yaml(path, fallback)
     full_path = File.join(ROOT, path)
@@ -65,7 +76,7 @@ module Workspace
   end
 
   def run(command, chdir: ROOT, allow_failure: false, summary: nil, details: nil, assumptions: [], fixes: [])
-    puts "$ #{command}"
+    puts pastel.cyan("$ #{command}")
     success = system(command, chdir: chdir)
     return true if success
 
@@ -88,31 +99,31 @@ module Workspace
   end
 
   def ok(message)
-    puts "[OK] #{message}"
+    puts "#{styled_label('OK', color: :green)} #{message}"
   end
 
   def warn(message)
-    puts "[WARN] #{message}"
+    puts "#{styled_label('WARN', color: :yellow)} #{message}"
   end
 
   def fail(message)
-    puts "[FAIL] #{message}"
+    puts "#{styled_label('FAIL', color: :red)} #{message}"
   end
 
   def fail_with_help(summary, details: nil, assumptions: [], fixes: [])
-    puts "[FAIL] #{summary}"
-    puts "       #{details}" if details
+    puts "#{styled_label('FAIL', color: :red)} #{pastel.red(summary)}"
+    puts "       #{pastel.dim(details)}" if details
     unless assumptions.empty?
-      puts "       Assumptions:"
+      puts "       #{pastel.yellow('Assumptions:')}"
       assumptions.each_with_index do |assumption, index|
-        puts format("       %d. %s", index + 1, assumption)
+        puts format("       %s %s", pastel.yellow("#{index + 1}."), assumption)
       end
     end
     return if fixes.empty?
 
-    puts "       How to fix:"
+    puts "       #{pastel.green('How to fix:')}"
     fixes.each_with_index do |fix, index|
-      puts format("       %d. %s", index + 1, fix)
+      puts format("       %s %s", pastel.green("#{index + 1}."), fix)
     end
   end
 
