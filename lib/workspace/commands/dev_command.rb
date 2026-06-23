@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 # Command object for launching and supervising local development services.
 
-require_relative "../workspace"
+require_relative "../../workspace"
 
 module Workspace
   module Commands

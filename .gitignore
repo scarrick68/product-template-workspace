@@ -1,3 +1,5 @@
 .env
 /repos/*
 !/repos/.keep
+contracts/openapi/*
+!/contracts/openapi/.keep

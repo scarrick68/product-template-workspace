@@ -8,7 +8,7 @@ require "fileutils"
 require "rubygems"
 
 module Workspace
-  ROOT = File.expand_path("../..", __dir__)
+  ROOT = File.expand_path("..", __dir__)
 
   module_function
 
@@ -147,11 +147,16 @@ module Workspace
       File.join(ROOT, "repos", "api-template", ".ruby-version")
     ]
 
-    version_str = candidates.find_map do |path|
+    version_str = nil
+    candidates.each do |path|
       next unless File.exist?(path)
 
       value = File.read(path).strip
-      value unless value.empty?
+      value = value.sub(/\Aruby[-\s]*/i, "").sub(/\Av/i, "")
+      next if value.empty?
+
+      version_str = value
+      break
     end
 
     Gem::Version.new(version_str || "3.4.0")

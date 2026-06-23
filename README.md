@@ -37,7 +37,11 @@ The workspace exists to solve concerns that cross repository boundaries:
 
 ```text
 product-template-workspace/
+├── Gemfile            # Workspace Ruby tooling dependencies
 ├── bin/                # Shared scripts and workspace utilities
+├── lib/                # Internal Ruby code for workspace tooling
+├── tools/              # Supporting tool scripts and utilities
+├── test/               # Workspace tooling tests
 ├── config/             # Shared workspace configuration
 ├── contracts/          # Shared contracts and OpenAPI artifacts
 ├── docs/               # Workspace-level architecture and workflow docs
@@ -79,8 +83,19 @@ Start here:
 Workspace automation is Ruby-first by design.
 
 - Prefer Ruby scripts in `bin/` for cross-repository workflows.
+- Keep reusable Ruby implementation code in `lib/`.
+- Keep script entrypoints in `bin/` thin and command-oriented.
 - Use shell snippets only for small command invocation inside Ruby scripts.
 - Optimize for readability and maintainability over clever shell composition.
+
+## Workspace Tooling Gems
+
+The workspace now includes a root `Gemfile` for shared tooling dependencies:
+
+- `pastel`
+- `tty-spinner`
+- `tty-table`
+- `awesome_print`
 
 ## Essential Commands
 

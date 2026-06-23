@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Run all workspace tests or selected test targets.
+
+require_relative "../lib/workspace/commands/test_command"
+
+exit Workspace::Commands::TestCommand.new(ARGV).call

@@ -2,6 +2,6 @@
 # frozen_string_literal: true
 # Run the standard morning workflow and optionally start development services.
 
-require_relative "lib/commands/start_day_command"
+require_relative "../lib/workspace/commands/start_day_command"
 
 exit Workspace::Commands::StartDayCommand.new(ARGV).call

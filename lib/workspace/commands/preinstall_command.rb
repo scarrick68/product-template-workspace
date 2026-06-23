@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 # Command object for validating workstation prerequisites before install workflows.
 
-require_relative "../workspace"
+require_relative "../../workspace"
 
 module Workspace
   module Commands

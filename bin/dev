@@ -2,6 +2,6 @@
 # frozen_string_literal: true
 # Launch primary local development services across workspace repositories.
 
-require_relative "lib/commands/dev_command"
+require_relative "../lib/workspace/commands/dev_command"
 
 exit Workspace::Commands::DevCommand.new.call
