@@ -1,4 +1,4 @@
-api: 5000
+api: 5001
 web: 3000
 postgres: 5432
 elasticsearch: 9200
