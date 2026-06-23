@@ -21,6 +21,7 @@ module Workspace
       end
 
       def call
+        print_command_header
         return 1 unless run_workflow_steps
 
         maybe_start_dev_services
@@ -31,14 +32,18 @@ module Workspace
       attr_reader :argv
 
       def run_workflow_steps
-        WORKFLOW_STEPS.each do |step|
-          return false unless run_step(step)
+        total = WORKFLOW_STEPS.length
+
+        WORKFLOW_STEPS.each_with_index do |step, index|
+          return false unless run_step(step, index + 1, total)
         end
 
         true
       end
 
-      def run_step(step)
+      def run_step(step, position, total)
+        print_step_header(step, position, total)
+
         script = Workspace.script_path(step)
         Workspace.ok("running #{step}")
         return true if system(script)
@@ -59,9 +64,30 @@ module Workspace
         false
       end
 
+      def print_command_header
+        title = "Start Day Workflow"
+        divider = "=" * 64
+
+        puts
+        puts Workspace.pastel.bold(Workspace.pastel.cyan(divider))
+        puts Workspace.pastel.bold(Workspace.pastel.cyan(title))
+        puts Workspace.pastel.bold(Workspace.pastel.cyan(divider))
+        puts
+      end
+
+      def print_step_header(step, position, total)
+        label = "Step #{position}/#{total}: #{step}"
+        divider = "-" * 64
+
+        puts
+        puts Workspace.pastel.bold(Workspace.pastel.magenta(label))
+        puts Workspace.pastel.dim(divider)
+      end
+
       def maybe_start_dev_services
         return complete_without_dev unless with_dev?
 
+        print_step_header("dev services", WORKFLOW_STEPS.length + 1, WORKFLOW_STEPS.length + 1)
         Workspace.ok("starting development services")
         exec(Workspace.script_path("dev"))
       end
