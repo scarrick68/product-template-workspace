@@ -29,6 +29,6 @@ Trade-offs:
 
 ## Implementation Notes
 
-- Shared helpers live in `bin/lib/workspace.rb`.
+- Shared helpers live in `lib/workspace.rb`.
 - Script behavior is configured through `config/repos.yml` and `config/ports.yml`.
 - Shell commands remain acceptable only as subprocesses for tooling integration.

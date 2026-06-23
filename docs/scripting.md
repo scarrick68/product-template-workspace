@@ -14,11 +14,21 @@ Use Ruby as the default language for workspace scripts.
 ## Rules
 
 - Implement workspace commands as Ruby executables in `bin/`.
+- Keep command implementation classes under `lib/workspace/`.
+- Keep non-entrypoint tooling helpers under `tools/`.
+- Add tooling dependencies to the root `Gemfile`.
 - Keep scripts small and composable.
-- Use shared helpers from `bin/lib/workspace.rb`.
+- Use shared helpers from `lib/workspace.rb`.
 - Use shell commands only where they are the natural integration point.
 - Keep script output concise and action-oriented.
 - For failures, always include assumptions and concrete remediation steps.
+
+## Current Tooling Gems
+
+- `pastel`
+- `tty-spinner`
+- `tty-table`
+- `awesome_print`
 
 ## Config-Driven Behavior
 
