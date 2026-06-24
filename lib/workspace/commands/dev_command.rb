@@ -7,10 +7,10 @@ require_relative "../../workspace"
 module Workspace
   module Commands
     class DevCommand
-      STOP_WAIT_ATTEMPTS = 30
-      STOP_WAIT_INTERVAL = 0.2
-      START_WAIT_ATTEMPTS = 40
-      START_WAIT_INTERVAL = 0.2
+      STOP_WAIT_ATTEMPTS = 20
+      STOP_WAIT_INTERVAL = 0.3
+      START_WAIT_ATTEMPTS = 25
+      START_WAIT_INTERVAL = 0.35
 
       def initialize
         @ports = Workspace.ports
@@ -30,6 +30,8 @@ module Workspace
           Workspace.warn("No new services were started. Existing services may still be running.")
           return 0
         end
+
+        print_runtime_stop_hint
 
         monitor_services
       end
@@ -376,6 +378,20 @@ module Workspace
           else
             Workspace.warn(label)
           end
+        end
+      end
+
+      def print_runtime_stop_hint
+        return if running_services.empty?
+
+        puts
+        Workspace.ok("Development services are running.")
+        Workspace.info("Press Ctrl-C in this terminal to stop all services started by this command.")
+
+        running_services.each_value do |service|
+          next unless service[:port]
+
+          Workspace.ok("#{service[:name]} URL: http://localhost:#{service[:port]}")
         end
       end
 

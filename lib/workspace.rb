@@ -102,6 +102,10 @@ module Workspace
     puts "#{styled_label('OK', color: :green)} #{message}"
   end
 
+  def info(message)
+    puts "#{styled_label('INFO', color: :cyan)} #{message}"
+  end
+
   def warn(message)
     puts "#{styled_label('WARN', color: :yellow)} #{message}"
   end
