@@ -6,6 +6,7 @@ Use these docs when working on interactions between templates, contracts, and sh
 
 ## Documents
 
+- `getting-started.md`: Concise first-run workflow for project bootstrap, rename, validation, and remote setup.
 - `architecture.md`: High-level architecture and repository boundaries.
 - `repository-conventions.md`: Rules for ownership, versioning, and coordination.
 - `local-development.md`: Local setup and orchestration guidance.

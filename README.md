@@ -71,6 +71,7 @@ Repository docs explain how repositories work.
 Start here:
 
 - `docs/README.md`
+- `docs/getting-started.md`
 - `docs/architecture.md`
 - `docs/repository-conventions.md`
 - `docs/local-development.md`
@@ -109,6 +110,9 @@ The first priority scripts for developer ergonomics:
 - `bin/sync-openapi`: copy OpenAPI from API template into shared targets.
 - `bin/dev`: start core local services.
 - `bin/start-day`: run daily coordination workflow.
+- `bin/init_new_project <product-slug>`: guided first-time setup flow (environment checks, bootstrap, rename, validation, optional dev launch).
+- `bin/new_product <product-slug>`: orchestrate template-to-product rename across repos.
+- `bin/validate_product <product-slug>`: run post-rename validation checks and checklist.
 
 ## Guiding Principle
 
