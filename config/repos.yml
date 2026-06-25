@@ -1,8 +1,10 @@
 repositories:
-  - name: api-template
+  - purpose: backend-api
+    name: api-template
     path: repos/api-template
     github: scarrick68/api-template
 
-  - name: web-template
+  - purpose: frontend-web-client
+    name: web-template
     path: repos/web-template
     github: scarrick68/web-template

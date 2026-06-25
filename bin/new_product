@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/workspace/commands/new_product_command"
+
+exit Workspace::Commands::NewProductCommand.new(ARGV).call

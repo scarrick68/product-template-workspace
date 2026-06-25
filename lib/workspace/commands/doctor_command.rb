@@ -11,14 +11,18 @@ module Workspace
         "Ruby" => ["ruby", "ruby --version"],
         "Node" => ["node", "node --version"],
         "npm" => ["npm", "npm --version"],
-        "mise" => ["mise", "mise --version"],
         "Docker" => ["docker", "docker --version"],
-        "Postgres client" => ["psql", "psql --version"],
         "GitHub CLI" => ["gh", "gh --version"]
+      }.freeze
+
+      OPTIONAL_COMMANDS = {
+        "mise" => ["mise", "mise --version"],
+        "Postgres client" => ["psql", "psql --version"]
       }.freeze
 
       def call
         check_required_tools
+        check_optional_tools
         check_docker_daemon
         check_github_auth
         check_expected_ports
@@ -64,6 +68,25 @@ module Workspace
             ]
           )
           mark_failed
+        end
+      end
+
+      def check_optional_tools
+        OPTIONAL_COMMANDS.each do |label, (command, version_command)|
+          if Workspace.command_exists?(command)
+            output, _ok = Workspace.capture(version_command)
+            Workspace.ok("#{label}: #{output.lines.first&.strip || 'installed'}")
+            next
+          end
+
+          case command
+          when "mise"
+            Workspace.warn("mise is not installed. Any Ruby 4+ installation is acceptable for workspace scripts.")
+          when "psql"
+            Workspace.warn("Postgres client (psql) is not installed or not running. This is optional because the API project may use a Docker-managed Postgres container internally. But you must do one of the following: install psql, run Postgres in Docker, or configure your API project to use a different database.")
+          else
+            Workspace.warn("Optional tool missing: #{label} (#{command})")
+          end
         end
       end
 

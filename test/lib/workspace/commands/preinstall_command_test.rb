@@ -15,4 +15,5 @@ class PreinstallCommandSmokeTest < Minitest::Test
     result = Workspace::Commands::PreinstallCommand.new.call
     assert_equal 0, result
   end
+
 end

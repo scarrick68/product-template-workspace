@@ -1,7 +1,18 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
+#!/usr/bin/env bash
 # Validate workstation prerequisites before running dependency installation workflows.
 
-require_relative "../lib/workspace/commands/preinstall_command"
+set -euo pipefail
 
+if ! command -v ruby >/dev/null 2>&1; then
+	echo "[FAIL] Ruby is required but was not found in PATH."
+	echo "       Install Ruby (mise/rbenv/asdf/Homebrew), then verify with: ruby --version. We recommend Mise but any Ruby version manager should work."
+	exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+exec ruby - "$SCRIPT_DIR" <<'RUBY'
+script_dir = ARGV.shift
+require File.expand_path("../lib/workspace/commands/preinstall_command", script_dir)
 exit Workspace::Commands::PreinstallCommand.new.call
+RUBY
