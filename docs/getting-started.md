@@ -43,9 +43,10 @@ Messages to watch for:
 
 Validation after command:
 
-1. Run `bin/ci` in the API repo and `npm run lint && npm run test && npm run build` in the web repo.
-2. Run `bin/start-day` to launch local dev services and verify the app is running. Works best when respository workspaces are clean and up to date. If you have uncommitted changes, stash or commit them first.
-3. If that all works, you are ready to start development.
+1. Before first production deploy (not required for local dev), set API CORS origins (`CORS_ALLOWED_ORIGINS`) in your platform env config (PaaS) or in the app `.env` used by your deploy/runtime, and follow `repos/api-template/docs/deploy/production-cors-setup.md`.
+2. Run `bin/ci` in the API repo and `npm run lint && npm run test && npm run build` in the web repo.
+3. Run `bin/start-day` to launch local dev services and verify the app is running. Works best when respository workspaces are clean and up to date. If you have uncommitted changes, stash or commit them first.
+4. If that all works, you are ready to start development.
 
 ## Alternative: Manual Rename + Validate Steps
 
