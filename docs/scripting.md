@@ -37,6 +37,13 @@ Scripts should use shared configuration where possible:
 - `config/repos.yml`: known repositories and optional status.
 - `config/ports.yml`: expected service port map.
 
+Default local port map:
+
+- API template: `5001`
+- Web template: `3000`
+
+`bin/dev` and `bin/start-day --with-dev` should honor these values so API-only and API+Web launches stay consistent.
+
 ## Essential Commands
 
 - `bin/preinstall`: verify Ruby compatibility, GitHub CLI installation, and GitHub CLI auth state.

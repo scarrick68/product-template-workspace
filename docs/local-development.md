@@ -27,6 +27,15 @@ Template-specific setup details stay in each template repository.
 - Avoid embedding template-specific logic in workspace scripts.
 - Use this workspace to orchestrate interactions, not replace template setup.
 
+## Default Local Ports
+
+Workspace orchestration expects stable local ports:
+
+- API template: `5001`
+- Web template: `3000`
+
+These values are configured in `config/ports.yml` and used by `bin/dev` and `bin/start-day --with-dev`.
+
 ## Documentation Responsibility
 
 - Workspace docs: orchestration and integration expectations.

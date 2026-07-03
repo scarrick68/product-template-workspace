@@ -47,7 +47,7 @@ module Workspace
 
       def add_api_service
         api_repo = File.join(Workspace::ROOT, "repos", "api-template")
-        api_port = ports.fetch("api", 5000)
+        api_port = ports.fetch("api", 5001)
 
         if File.executable?(File.join(api_repo, "bin", "dev"))
           services << {
@@ -77,7 +77,7 @@ module Workspace
         return unless File.exist?(File.join(web_repo, "package.json"))
 
         web_port = ports.fetch("web", 3000)
-        api_port = ports.fetch("api", 5000)
+        api_port = ports.fetch("api", 5001)
         rails_proxy_target = ENV.fetch("VITE_RAILS_PROXY_TARGET", "http://localhost:#{api_port}")
 
         services << {

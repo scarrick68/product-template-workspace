@@ -114,6 +114,15 @@ The first priority scripts for developer ergonomics:
 - `bin/new_product <product-slug>`: orchestrate template-to-product rename across repos.
 - `bin/validate_product <product-slug>`: run post-rename validation checks and checklist.
 
+## Local Port Conventions
+
+Workspace development tooling uses fixed local ports for consistency:
+
+- API template: `5001`
+- Web template: `3000`
+
+The source of truth for orchestration defaults is `config/ports.yml`.
+
 ## Guiding Principle
 
 Coordinate repositories, do not tightly couple them.
