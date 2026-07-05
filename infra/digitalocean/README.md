@@ -81,6 +81,30 @@ flowchart TD
 - `bin/infra plan production` and `bin/infra apply production`
 	- Run terraform init then selected action using generated tfvars.
 
+## Launch Guide
+
+Recommended production flow:
+
+1. `bin/infra doctor` (checks required CLIs, auth state, token presence, expected repos, and blob-store readiness prerequisites)
+2. `bin/infra configure production` (guides config prompts and writes `config/infra.yml` plus `terraform.tfvars.json`)
+3. `bin/infra plan production` (runs terraform init and previews infrastructure changes before apply)
+4. `bin/infra apply production` (runs terraform init/apply to provision and wire configured infrastructure resources)
+
+Example command sequence:
+
+```bash
+bin/infra doctor
+bin/infra configure production
+bin/infra plan production
+bin/infra apply production
+```
+
+Deploy note:
+
+- The current `bin/infra` command set supports `doctor`, `configure`, `plan`, and `apply`.
+- A dedicated `bin/infra deploy production` command is not implemented yet.
+- For now, treat `apply` as the launch/provision step, then use your App Platform deploy flow (auto-deploy from configured repo branch or `doctl apps update --update-sources`) as needed.
+
 ## Security guidance
 
 - Terraform state may contain secrets. Use remote encrypted state before production rollout.

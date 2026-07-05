@@ -56,6 +56,7 @@ Default local port map:
 - `bin/dev`: run primary local services for active development.
 - `bin/start-day`: execute daily coordination workflow.
 - `bin/init_new_project`: run guided first-time setup (environment prechecks, bootstrap, rename, validation, optional dev launch).
+- `bin/infra`: run guided infrastructure workflows (`doctor`, `configure`, `plan`, `apply`) for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
 
 ## Notes
 

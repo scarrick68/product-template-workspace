@@ -4,6 +4,27 @@ This directory contains workspace-level documentation for cross-repository archi
 
 Use these docs when working on interactions between templates, contracts, and shared tooling.
 
+## Key Workflow Entry Points
+
+Use this section as the primary index when you are trying to get work done quickly.
+
+- First-time product bootstrap and remote setup:
+	- Start at `getting-started.md`
+- Infrastructure provisioning and production launch prep:
+	- Start at `../infra/digitalocean/README.md`
+- Day-to-day local development loop:
+	- Start at `local-development.md`
+- Script inventory and command responsibilities:
+	- Start at `scripting.md`
+- OpenAPI contract synchronization across repos:
+	- Start at `openapi-workflow.md`
+- Cross-repository testing expectations:
+	- Start at `testing-strategy.md`
+- Architecture boundaries and ownership model:
+	- Start at `architecture.md`
+- Cross-repo conventions and change-management rules:
+	- Start at `repository-conventions.md`
+
 ## Documents
 
 - `getting-started.md`: Concise first-run workflow for project bootstrap, rename, validation, and remote setup.
