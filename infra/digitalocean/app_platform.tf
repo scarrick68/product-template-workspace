@@ -26,7 +26,7 @@ module "app_platform" {
 	cors_allowed_origins  = var.cors_allowed_origins
 	vite_api_base_url     = var.vite_api_base_url
 	database_url          = local.effective_database_url
-	opensearch_url        = var.opensearch_url
+	opensearch_url        = local.effective_opensearch_url
 	active_storage_service = var.active_storage_service
 	data_artifact_bucket  = var.data_artifact_bucket
 	s3_endpoint           = var.s3_endpoint
