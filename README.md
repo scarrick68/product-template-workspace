@@ -79,6 +79,11 @@ Start here:
 - `docs/testing-strategy.md`
 - `docs/scripting.md`
 
+## Template Feature Lists
+
+- API template feature list: `repos/api-template/docs/template-features.md`
+- API template data import pipeline feature details: `repos/api-template/docs/data-import-pipeline.md`
+
 ## Scripting Approach
 
 Workspace automation is Ruby-first by design.

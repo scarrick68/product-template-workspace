@@ -3,3 +3,14 @@
 !/repos/.keep
 contracts/openapi/*
 !/contracts/openapi/.keep
+
+# Infra local config and Terraform/OpenTofu artifacts
+config/infra.yml
+infra/digitalocean/.terraform/
+infra/digitalocean/.terraform.lock.hcl
+infra/digitalocean/terraform.tfstate
+infra/digitalocean/terraform.tfstate.*
+infra/digitalocean/crash.log
+infra/digitalocean/crash.*.log
+infra/digitalocean/terraform.tfvars
+infra/digitalocean/terraform.tfvars.json

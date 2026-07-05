@@ -14,6 +14,8 @@ Use these docs when working on interactions between templates, contracts, and sh
 - `testing-strategy.md`: Cross-repository test strategy and scope.
 - `scripting.md`: Ruby-first scripting design and command catalog.
 - `adr/0001-ruby-first-workspace-scripting.md`: Decision record for scripting language choice.
+- `../repos/api-template/docs/template-features.md`: API template feature list.
+- `../repos/api-template/docs/data-import-pipeline.md`: API template data import pipeline feature details.
 
 ## Rule of Thumb
 
