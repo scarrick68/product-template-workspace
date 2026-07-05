@@ -14,6 +14,23 @@
 - App Platform gets `OPENSEARCH_URL` from managed OpenSearch automatically when enabled.
 - When disabled, the stack falls back to `opensearch_url` if one is provided explicitly.
 
+## Spaces and S3 behavior
+
+- Blob storage support is enabled by default (`enable_spaces = true`).
+- `spaces_provider = "digitalocean_spaces"` provisions a Spaces bucket and Spaces access key by default.
+- For managed Spaces provisioning, provide Spaces API creds via either Terraform vars (`spaces_access_key_id`, `spaces_secret_access_key`) or env vars (`SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`).
+- `spaces_provider = "aws_s3"` skips provisioning and uses provided values:
+	- `data_artifact_bucket`
+	- `aws_access_key_id`
+	- `aws_secret_access_key`
+	- optional `s3_endpoint` (typically not needed for AWS S3)
+- App Platform receives these env vars when present:
+	- `ACTIVE_STORAGE_SERVICE` (defaults to `amazon` when spaces are enabled)
+	- `DATA_ARTIFACT_BUCKET`
+	- `S3_ENDPOINT`
+	- `AWS_ACCESS_KEY_ID`
+	- `AWS_SECRET_ACCESS_KEY`
+
 ## Security guidance
 
 - Terraform state may contain secrets. Use remote encrypted state before production rollout.

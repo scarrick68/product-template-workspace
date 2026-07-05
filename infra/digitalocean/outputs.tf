@@ -21,6 +21,6 @@ output "opensearch_url" {
 }
 
 output "spaces_bucket" {
-  description = "Spaces bucket name (populated in PR5)."
-  value       = null
+  description = "Bucket name used for ActiveStorage/artifacts."
+  value       = local.effective_data_artifact_bucket
 }
