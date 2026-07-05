@@ -16,6 +16,11 @@ variable "region" {
   type = string
 }
 
+variable "do_region" {
+  type    = string
+  default = "nyc3"
+}
+
 variable "github_owner" {
   type = string
 }
@@ -137,6 +142,31 @@ variable "aws_secret_access_key" {
 variable "enable_postgres" {
   type    = bool
   default = true
+}
+
+variable "postgres_version" {
+  type    = string
+  default = "18"
+}
+
+variable "postgres_size_slug" {
+  type    = string
+  default = "db-s-1vcpu-1gb"
+}
+
+variable "postgres_node_count" {
+  type    = number
+  default = 1
+}
+
+variable "postgres_db_name" {
+  type    = string
+  default = "app"
+}
+
+variable "postgres_user_name" {
+  type    = string
+  default = "app"
 }
 
 variable "enable_opensearch" {

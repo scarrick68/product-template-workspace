@@ -9,8 +9,8 @@ output "app_live_url" {
 }
 
 output "database_url" {
-  description = "Managed Postgres connection URL (populated in PR3)."
-  value       = null
+  description = "Database connection URL used by the app."
+  value       = local.effective_database_url
   sensitive   = true
 }
 

@@ -25,7 +25,7 @@ module "app_platform" {
 	rails_master_key      = var.rails_master_key
 	cors_allowed_origins  = var.cors_allowed_origins
 	vite_api_base_url     = var.vite_api_base_url
-	database_url          = var.database_url
+	database_url          = local.effective_database_url
 	opensearch_url        = var.opensearch_url
 	active_storage_service = var.active_storage_service
 	data_artifact_bucket  = var.data_artifact_bucket
