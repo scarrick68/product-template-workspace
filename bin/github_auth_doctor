@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Run GitHub authentication and permission diagnostics for repo provisioning workflows.
+
+require_relative "../lib/workspace/commands/auth/github_auth_command"
+
+exit Workspace::Commands::Auth::GithubAuthCommand.new.call

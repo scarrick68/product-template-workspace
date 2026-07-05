@@ -17,6 +17,60 @@ Repeatability:
 
 ## Recommended Path: One-Command Bootstrap
 
+## New App Setup Flow
+
+Legend:
+
+- `[USER]` means a manual decision or action by the operator.
+- `[SCRIPT: <name>]` means the step is handled by automation in that utility script.
+
+```mermaid
+flowchart TD
+	A[[USER: Start new product setup]] --> B[[USER: Run bin/init_new_project my-super-app]]
+	B --> C[[SCRIPT: init_new_project runs preinstall and doctor]]
+	C --> D{Checks pass?}
+	D -- No --> E[[USER: Read FAIL output and fix environment issues]]
+	E --> C
+	D -- Yes --> F[[SCRIPT: init_new_project runs bootstrap and pull]]
+	F --> G{Use --create-remotes?}
+	G -- No --> H[[USER: Confirm backend and frontend remotes exist]]
+	H --> I{Repos ready?}
+	I -- No --> J[[USER: Create repos manually and rerun]]
+	J --> H
+	I -- Yes --> K[[SCRIPT: init_new_project runs new_product]]
+	G -- Yes --> L[[SCRIPT: init_new_project with github_auth_doctor]]
+	L --> M{Auth checks pass?}
+	M -- No --> N[[USER: Fix gh auth and owner permissions]]
+	N --> L
+	M -- Yes --> K
+	K --> O[[SCRIPT: init_new_project runs validate_product]]
+	O --> P{Validation passes?}
+	P -- No --> Q[[USER: Fix reported issues and rerun validation]]
+	Q --> O
+	P -- Yes --> R{Create remotes mode?}
+	R -- No --> S[[SCRIPT: init_new_project runs unset_origin_remotes]]
+	R -- Yes --> T[[SCRIPT: init_new_project runs gh repo create]]
+	T --> U[[SCRIPT: init_new_project runs git remote add origin]]
+	U --> V{Push enabled?}
+	V -- Yes --> W[[SCRIPT: init_new_project runs git push]]
+	V -- No --> X[[USER: Skip push for manual follow-up]]
+	W --> Y[[SCRIPT: init_new_project runs optional dev step]]
+	X --> Y
+	S --> Y
+	Y --> Z[[USER: Ready for feature development]]
+```
+
+```mermaid
+flowchart TD
+	A[[USER: Need manual path?]] --> B{Use one-command init?}
+	B -- Yes --> C[[USER: Use bin/init_new_project]]
+	B -- No --> D[[USER: Run manual rename and validation steps]]
+	D --> E[[USER: Follow template-specific rename docs]]
+	E --> F[[USER + SCRIPT: run workspace/template checks]]
+	C --> F
+	F --> G[[USER: Continue with local development workflow]]
+```
+
 Command:
 
 ```bash
@@ -27,11 +81,15 @@ What this does:
 
 1. Runs prechecks (`preinstall`, `doctor`).
 2. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
-3. Prompts you to confirm backend/frontend remote repositories exist. Create them if needed.
+3. Uses one of two remote workflows:
+	- manual mode (default): prompts to confirm backend/frontend remotes already exist.
+	- automated mode (`--create-remotes`): verifies GitHub permissions, creates remotes with selected visibility, sets local origins, and optionally pushes.
 4. Runs template rename orchestration (`new_product`).
 5. Runs post-rename validation (`validate_product`).
-6. Unsets `origin` remotes for the template workspace and managed repos.
-7. Prints next steps such as adding your own remotes.
+6. Configures git remotes:
+	- manual mode: unsets template `origin` remotes and prints add-remote hints.
+	- automated mode: points local repos to newly created product remotes.
+7. Pushes to remotes when automated mode is enabled (unless `--no-push` is used).
 8. Optionally launches local dev services.
 
 Messages to watch for:

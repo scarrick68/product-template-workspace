@@ -1,5 +1,45 @@
 # DigitalOcean Terraform Notes
 
+## Infra Setup and Deploy Flow
+
+Legend:
+
+- `[USER]` means a manual action or decision.
+- `[SCRIPT: <name>]` means the step is automated by a workspace utility script.
+
+```mermaid
+flowchart TD
+	A[USER: Start infra workflow] --> B[SCRIPT: Run bin/infra doctor]
+	B --> C{Doctor checks pass?}
+	C -- No --> D[USER: Fix missing CLI, auth, token, or repo issues]
+	D --> B
+	C -- Yes --> E[SCRIPT: Run bin/infra configure production]
+	E --> F[USER: Review generated config/infra.yml]
+	F --> G[USER: Review generated terraform.tfvars.json]
+	G --> H[SCRIPT: Run bin/infra plan production]
+	H --> I{Plan looks correct?}
+	I -- No --> J[USER: Adjust config or environment variables]
+	J --> E
+	I -- Yes --> K[SCRIPT: Run bin/infra apply production]
+	K --> L[USER: Collect outputs and verify app and dependencies]
+```
+
+## Blob Store Decision Tree
+
+```mermaid
+flowchart TD
+	A[USER: Enable blob storage?] --> B{enable_spaces}
+	B -- No --> C[SCRIPT: Skip Spaces and S3 env wiring]
+	B -- Yes --> D{spaces_provider}
+	D -- digitalocean_spaces --> E[SCRIPT: Provision managed Spaces bucket]
+	E --> F[SCRIPT: Optionally create Spaces access key]
+	F --> G[SCRIPT: Inject bucket, endpoint, and credentials into app env]
+	D -- aws_s3 --> H[USER: Provide external AWS S3 bucket and creds]
+	H --> I[SCRIPT: Check AWS CLI and auth in bin/infra doctor]
+	I --> G
+	G --> J[SCRIPT: App uses ActiveStorage amazon service]
+```
+
 ## Postgres behavior
 
 - When `enable_postgres = true`, Terraform creates a managed PostgreSQL cluster, app database, and app user.
@@ -30,6 +70,16 @@
 	- `S3_ENDPOINT`
 	- `AWS_ACCESS_KEY_ID`
 	- `AWS_SECRET_ACCESS_KEY`
+
+## Infra CLI
+
+- `bin/infra doctor`
+	- Checks terraform/tofu, doctl, gh, git, DO token, doctl auth, gh auth, and expected repos.
+- `bin/infra configure production`
+	- Prompts for core app/infra values.
+	- Writes `config/infra.yml` and `infra/digitalocean/terraform.tfvars.json`.
+- `bin/infra plan production` and `bin/infra apply production`
+	- Run terraform init then selected action using generated tfvars.
 
 ## Security guidance
 

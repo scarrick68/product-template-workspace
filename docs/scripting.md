@@ -47,6 +47,7 @@ Default local port map:
 ## Essential Commands
 
 - `bin/preinstall`: verify Ruby compatibility, GitHub CLI installation, and GitHub CLI auth state.
+- `bin/github_auth_doctor`: verify credentials and permissions for GitHub repo creation/push workflows.
 - `bin/bootstrap`: validate repo presence, install dependencies, and prepare DB where applicable.
 - `bin/doctor`: verify local toolchain, auth, Docker daemon status, and configured ports.
 - `bin/status`: summarize branch and dirty state for each repository.

@@ -3,6 +3,7 @@
 # Command object for workspace environment diagnostics.
 
 require_relative "../../workspace"
+require_relative "auth/github_auth_command"
 
 module Workspace
   module Commands
@@ -116,28 +117,8 @@ module Workspace
       end
 
       def check_github_auth
-        return unless Workspace.command_exists?("gh")
-
-        _gh_out, gh_ok = Workspace.capture("gh auth status")
-        if gh_ok
-          Workspace.ok("GitHub auth: valid")
-          return
-        end
-
-        Workspace.fail_with_help(
-          "GitHub CLI authentication is missing or invalid.",
-          details: "The command 'gh auth status' returned a failure.",
-          assumptions: [
-            "Repository synchronization and clone workflows assume GitHub CLI authentication is valid.",
-            "Unauthenticated gh sessions can fail on private repository operations."
-          ],
-          fixes: [
-            "Run: gh auth login",
-            "Complete authentication for the correct GitHub account/org.",
-            "Verify with: gh auth status"
-          ]
-        )
-        mark_failed
+        result = Workspace::Commands::Auth::GithubAuthCommand.new.call
+        mark_failed unless result.zero?
       end
 
       def check_expected_ports

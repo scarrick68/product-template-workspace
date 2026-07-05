@@ -4,6 +4,7 @@ require_relative "../../../test_helper"
 
 class DoctorCommandSmokeTest < Minitest::Test
   def test_happy_path_returns_zero
+    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:command_exists?).returns(true)
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:capture).returns(["ok\n", true])
@@ -16,6 +17,7 @@ class DoctorCommandSmokeTest < Minitest::Test
   end
 
   def test_missing_optional_tools_warns_but_returns_zero
+    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:ok)
     Workspace.stubs(:fail_with_help)
@@ -38,6 +40,7 @@ class DoctorCommandSmokeTest < Minitest::Test
   end
 
   def test_missing_required_tool_returns_one
+    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:ok)
     Workspace.stubs(:warn)

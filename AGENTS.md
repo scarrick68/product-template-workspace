@@ -1,0 +1,1 @@
+- For utility scripts, prefer well namespaced classes with matching directory tree structure, like in a Rails app
