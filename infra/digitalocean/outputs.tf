@@ -15,8 +15,8 @@ output "database_url" {
 }
 
 output "opensearch_url" {
-  description = "Managed OpenSearch URL (populated in PR4)."
-  value       = null
+  description = "OpenSearch connection URL used by the app."
+  value       = local.effective_opensearch_url
   sensitive   = true
 }
 

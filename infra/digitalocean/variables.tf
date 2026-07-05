@@ -171,7 +171,22 @@ variable "postgres_user_name" {
 
 variable "enable_opensearch" {
   type    = bool
-  default = false
+  default = true
+}
+
+variable "opensearch_version" {
+  type    = string
+  default = "3"
+}
+
+variable "opensearch_size_slug" {
+  type    = string
+  default = "db-s-1vcpu-1gb"
+}
+
+variable "opensearch_node_count" {
+  type    = number
+  default = 1
 }
 
 variable "enable_spaces" {

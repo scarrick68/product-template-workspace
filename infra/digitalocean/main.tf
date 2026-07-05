@@ -11,6 +11,13 @@ locals {
     ? local.managed_database_url
     : var.database_url
   )
+
+  managed_opensearch_url = try(module.opensearch[0].opensearch_url, null)
+  effective_opensearch_url = (
+    local.component_flags.opensearch
+    ? local.managed_opensearch_url
+    : var.opensearch_url
+  )
 }
 
 # Component resources are intentionally added in later PRs.
