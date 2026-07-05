@@ -10,5 +10,7 @@ terraform {
 }
 
 provider "digitalocean" {
-  token = var.digitalocean_access_token
+  token             = var.digitalocean_access_token
+  spaces_access_id  = var.spaces_access_key_id
+  spaces_secret_key = var.spaces_secret_access_key
 }

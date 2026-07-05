@@ -4,6 +4,20 @@ variable "digitalocean_access_token" {
   sensitive   = true
 }
 
+variable "spaces_access_key_id" {
+  description = "Optional DO Spaces access key for bucket/key operations (or use SPACES_ACCESS_KEY_ID env var)."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "spaces_secret_access_key" {
+  description = "Optional DO Spaces secret key for bucket/key operations (or use SPACES_SECRET_ACCESS_KEY env var)."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
 variable "app_name" {
   type = string
 }
@@ -192,6 +206,35 @@ variable "opensearch_node_count" {
 variable "enable_spaces" {
   type    = bool
   default = true
+}
+
+variable "spaces_provider" {
+  description = "Blob storage backend mode: digitalocean_spaces (managed) or aws_s3 (external)."
+  type        = string
+  default     = "digitalocean_spaces"
+
+  validation {
+    condition     = contains(["digitalocean_spaces", "aws_s3"], var.spaces_provider)
+    error_message = "spaces_provider must be one of: digitalocean_spaces, aws_s3."
+  }
+}
+
+variable "spaces_create_bucket" {
+  description = "Create a DigitalOcean Spaces bucket when spaces_provider is digitalocean_spaces."
+  type        = bool
+  default     = true
+}
+
+variable "spaces_create_key" {
+  description = "Create a DigitalOcean Spaces access key when spaces_provider is digitalocean_spaces."
+  type        = bool
+  default     = true
+}
+
+variable "spaces_force_destroy" {
+  description = "Allow destroying a non-empty managed Spaces bucket."
+  type        = bool
+  default     = false
 }
 
 variable "rails_master_key" {

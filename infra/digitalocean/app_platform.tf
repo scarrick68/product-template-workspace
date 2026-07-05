@@ -27,9 +27,9 @@ module "app_platform" {
 	vite_api_base_url     = var.vite_api_base_url
 	database_url          = local.effective_database_url
 	opensearch_url        = local.effective_opensearch_url
-	active_storage_service = var.active_storage_service
-	data_artifact_bucket  = var.data_artifact_bucket
-	s3_endpoint           = var.s3_endpoint
-	aws_access_key_id     = var.aws_access_key_id
-	aws_secret_access_key = var.aws_secret_access_key
+	active_storage_service = local.effective_active_storage_service
+	data_artifact_bucket  = local.effective_data_artifact_bucket
+	s3_endpoint           = local.effective_s3_endpoint
+	aws_access_key_id     = local.effective_aws_access_key_id
+	aws_secret_access_key = local.effective_aws_secret_access_key
 }
