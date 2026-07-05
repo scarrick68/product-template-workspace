@@ -1,11 +1,11 @@
 output "app_id" {
-  description = "App Platform app id (populated in PR2)."
-  value       = null
+  description = "App Platform app id."
+  value       = module.app_platform.app_id
 }
 
 output "app_live_url" {
-  description = "App Platform live URL (populated in PR2)."
-  value       = null
+  description = "App Platform live URL."
+  value       = module.app_platform.app_live_url
 }
 
 output "database_url" {

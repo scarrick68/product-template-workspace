@@ -32,6 +32,108 @@ variable "branch" {
   type = string
 }
 
+variable "enable_api" {
+  type    = bool
+  default = true
+}
+
+variable "enable_worker" {
+  type    = bool
+  default = true
+}
+
+variable "enable_web" {
+  type    = bool
+  default = true
+}
+
+variable "api_instance_size_slug" {
+  type    = string
+  default = "basic-xxs"
+}
+
+variable "worker_instance_size_slug" {
+  type    = string
+  default = "basic-xxs"
+}
+
+variable "web_instance_size_slug" {
+  type    = string
+  default = "basic-xxs"
+}
+
+variable "api_run_command" {
+  type    = string
+  default = "bundle exec puma -C config/puma.rb"
+}
+
+variable "worker_run_command" {
+  type    = string
+  default = "bundle exec good_job start"
+}
+
+variable "migrate_run_command" {
+  type    = string
+  default = "bundle exec rails db:migrate"
+}
+
+variable "web_build_command" {
+  type    = string
+  default = "npm ci && npm run build"
+}
+
+variable "web_output_dir" {
+  type    = string
+  default = "dist"
+}
+
+variable "cors_allowed_origins" {
+  type    = string
+  default = null
+}
+
+variable "vite_api_base_url" {
+  type    = string
+  default = null
+}
+
+variable "database_url" {
+  type    = string
+  default = null
+}
+
+variable "opensearch_url" {
+  type    = string
+  default = null
+}
+
+variable "active_storage_service" {
+  type    = string
+  default = null
+}
+
+variable "data_artifact_bucket" {
+  type    = string
+  default = null
+}
+
+variable "s3_endpoint" {
+  type    = string
+  default = null
+}
+
+variable "aws_access_key_id" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "aws_secret_access_key" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
 variable "enable_postgres" {
   type    = bool
   default = true
