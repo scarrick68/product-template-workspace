@@ -19,7 +19,7 @@ module Workspace
       private
 
       def source_openapi_path
-        File.join(Workspace::ROOT, "repos", "api-template", "docs", "openapi.yml")
+        File.join(api_repo_root, "docs", "openapi.yml")
       end
 
       def source_openapi_exists?
@@ -29,12 +29,12 @@ module Workspace
           "OpenAPI source file is missing.",
           details: "Expected source file at #{source_openapi_path}, but it does not exist.",
           assumptions: [
-            "api-template owns the source OpenAPI document at docs/openapi.yml.",
+            "The backend API repo owns the source OpenAPI document at docs/openapi.yml.",
             "Contract sync assumes that file is generated and committed before synchronization."
           ],
           fixes: [
-            "Ensure repos/api-template is cloned and up to date.",
-            "Generate or export the API spec in api-template so docs/openapi.yml exists.",
+            "Ensure the backend-api repository path in config/repos.yml is correct and available.",
+            "Generate or export the API spec in your backend repo so docs/openapi.yml exists.",
             "Retry bin/sync-openapi after the source file is present."
           ]
         )
@@ -52,7 +52,7 @@ module Workspace
       def openapi_targets
         [
           File.join(Workspace::ROOT, "contracts", "openapi", "openapi.yml"),
-          File.join(Workspace::ROOT, "repos", "web-template", "openapi", "openapi.yml")
+          File.join(web_repo, "openapi", "openapi.yml")
         ]
       end
 
@@ -69,13 +69,13 @@ module Workspace
 
         Workspace.fail_with_help(
           "Web type generation failed after OpenAPI sync.",
-          details: "The script npm run generate:types failed in repos/web-template.",
+          details: "The script npm run generate:types failed in #{relative_path(web_repo)}.",
           assumptions: [
-            "web-template has a valid generate:types script and required tooling dependencies.",
+            "The frontend web repo has a valid generate:types script and required tooling dependencies.",
             "The synced OpenAPI document is compatible with the configured type generator."
           ],
           fixes: [
-            "Run npm run generate:types manually in repos/web-template for full error details.",
+            "Run npm run generate:types manually in #{relative_path(web_repo)} for full error details.",
             "Install missing web dependencies with npm install if needed.",
             "Fix generator or schema issues, then rerun bin/sync-openapi."
           ]
@@ -84,12 +84,23 @@ module Workspace
       end
 
       def skip_web_type_generation
-        Workspace.warn("web-template has no generate:types script; skipping type generation")
+        Workspace.warn("#{relative_path(web_repo)} has no generate:types script; skipping type generation")
         0
       end
 
       def web_repo
-        File.join(Workspace::ROOT, "repos", "web-template")
+        @web_repo ||= repository_root_by_purpose("frontend-web-client", "repos/web-template")
+      end
+
+      def api_repo_root
+        @api_repo_root ||= repository_root_by_purpose("backend-api", "repos/api-template")
+      end
+
+      def repository_root_by_purpose(purpose, fallback_relative_path)
+        repo = Workspace.repositories.find { |entry| entry["purpose"].to_s == purpose }
+        relative_path = repo && repo["path"].to_s
+        relative_path = fallback_relative_path if relative_path.nil? || relative_path.empty?
+        File.join(Workspace::ROOT, relative_path)
       end
 
       def web_package_json
