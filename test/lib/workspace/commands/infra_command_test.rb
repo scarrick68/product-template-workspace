@@ -98,7 +98,7 @@ class InfraCommandTest < Minitest::Test
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
-    result = Workspace::Commands::Infra::ProvisionInfraCommand.new(["plan"]).call
+    result = Workspace::Commands::Infra::ProvisionInfraCommand.new(["plan"], stdin: StringIO.new, stdout: StringIO.new).call
 
     assert_equal 0, result
   end
