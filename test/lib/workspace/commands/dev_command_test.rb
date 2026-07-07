@@ -66,4 +66,29 @@ class DevCommandTest < Minitest::Test
 
     assert_equal true, result
   end
+
+  def test_reuses_expected_opensearch_container_when_port_is_already_occupied
+    command = Workspace::Commands::DevCommand.new
+    api_repo = File.join(Workspace::ROOT, "repos", "my-super-app-api")
+
+    Workspace.stubs(:command_exists?).with("docker").returns(true)
+    Workspace.stubs(:warn)
+    Workspace.stubs(:fail_with_help)
+    Workspace.expects(:ok).with("OpenSearch port 9200 is already held by this project's container (my-super-app-api-opensearch); reusing it.")
+
+    sequence = sequence("reuse-existing-opensearch")
+    Workspace.expects(:capture)
+             .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
+             .in_sequence(sequence)
+             .returns(["abc123|my-super-app-api-opensearch\n", true])
+
+    Workspace.expects(:capture)
+             .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
+             .in_sequence(sequence)
+             .returns(["abc123|my-super-app-api-opensearch\n", true])
+
+    result = command.send(:ensure_opensearch_port_available, api_repo)
+
+    assert_equal true, result
+  end
 end

@@ -265,7 +265,14 @@ module Workspace
           end
         end
 
-        return true if docker_containers_publishing_port(port).empty?
+        remaining = docker_containers_publishing_port(port)
+        return true if remaining.empty?
+
+        remaining_conflicts = remaining.reject { |container| container[:name] == expected_container }
+        if remaining_conflicts.empty?
+          Workspace.ok("OpenSearch port #{port} is already held by this project's container (#{expected_container}); reusing it.")
+          return true
+        end
 
         Workspace.fail_with_help(
           "OpenSearch port #{port} is still unavailable for API startup.",
