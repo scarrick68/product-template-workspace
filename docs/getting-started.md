@@ -26,38 +26,39 @@ Legend:
 
 ```mermaid
 flowchart TD
-	A[[USER: Start new product setup]] --> B[[USER: Run bin/init_new_project my-super-app]]
-	B --> C[[SCRIPT: init_new_project runs setup_tools, preinstall, and doctor]]
-	C --> D{Checks pass?}
-	D -- No --> E[[USER: Read FAIL output and fix environment issues]]
-	E --> C
-	D -- Yes --> F[[SCRIPT: init_new_project runs bootstrap and pull]]
-	F --> G{Use --create-remotes?}
-	G -- No --> H[[USER: Confirm backend and frontend remotes exist]]
-	H --> I{Repos ready?}
-	I -- No --> J[[USER: Create repos manually and rerun]]
-	J --> H
-	I -- Yes --> K[[SCRIPT: init_new_project runs new_product]]
-	G -- Yes --> L[[SCRIPT: init_new_project with github_auth_doctor]]
-	L --> M{Auth checks pass?}
-	M -- No --> N[[USER: Fix gh auth and owner permissions]]
-	N --> L
-	M -- Yes --> K
-	K --> O[[SCRIPT: init_new_project runs validate_product]]
-	O --> P{Validation passes?}
-	P -- No --> Q[[USER: Fix reported issues and rerun validation]]
-	Q --> O
-	P -- Yes --> R{Create remotes mode?}
-	R -- No --> S[[SCRIPT: init_new_project runs unset_origin_remotes]]
-	R -- Yes --> T[[SCRIPT: init_new_project runs gh repo create]]
-	T --> U[[SCRIPT: init_new_project runs git remote add origin]]
-	U --> V{Push enabled?}
-	V -- Yes --> W[[SCRIPT: init_new_project runs git push]]
-	V -- No --> X[[USER: Skip push for manual follow-up]]
-	W --> Y[[SCRIPT: init_new_project runs optional dev step]]
-	X --> Y
-	S --> Y
-	Y --> Z[[USER: Ready for feature development]]
+	A[[USER: Start new product setup]] --> B[[USER: Run bin/init_project --destination ~/Code/my-super-app my-super-app -- --no-dev]]
+	B --> C[[SCRIPT: init_project copies workspace to destination and delegates to init_new_project in copied workspace]]
+	C --> D[[SCRIPT: init_new_project runs setup_tools, preinstall, and doctor]]
+	D --> E{Checks pass?}
+	E -- No --> F[[USER: Read FAIL output and fix environment issues]]
+	F --> D
+	E -- Yes --> G[[SCRIPT: init_new_project runs bootstrap and pull]]
+	G --> H{Use --create-remotes?}
+	H -- No --> I[[USER: Confirm backend and frontend remotes exist]]
+	I --> J{Repos ready?}
+	J -- No --> K[[USER: Create repos manually and rerun]]
+	K --> I
+	J -- Yes --> L[[SCRIPT: init_new_project runs new_product]]
+	H -- Yes --> M[[SCRIPT: init_new_project with github_auth_doctor]]
+	M --> N{Auth checks pass?}
+	N -- No --> O[[USER: Fix gh auth and owner permissions]]
+	O --> M
+	N -- Yes --> L
+	L --> P[[SCRIPT: init_new_project runs validate_product]]
+	P --> Q{Validation passes?}
+	Q -- No --> R[[USER: Fix reported issues and rerun validation]]
+	R --> P
+	Q -- Yes --> S{Create remotes mode?}
+	S -- No --> T[[SCRIPT: init_new_project runs unset_origin_remotes]]
+	S -- Yes --> U[[SCRIPT: init_new_project runs gh repo create]]
+	U --> V[[SCRIPT: init_new_project runs git remote add origin]]
+	V --> W{Push enabled?}
+	W -- Yes --> X[[SCRIPT: init_new_project runs git push]]
+	W -- No --> Y[[USER: Skip push for manual follow-up]]
+	X --> Z[[SCRIPT: init_new_project runs optional dev step]]
+	Y --> Z
+	T --> Z
+	Z --> AA[[USER: Ready for feature development]]
 ```
 
 ```mermaid
@@ -74,24 +75,27 @@ flowchart TD
 Command:
 
 ```bash
-bin/init_new_project my-super-app
+bin/init_project --destination ~/Code/my-super-app my-super-app -- --no-dev
 ```
 
 What this does:
 
-1. Runs guided machine setup (`setup_tools`) for missing tool install/auth prompts.
-2. Runs prechecks (`preinstall`, `doctor`).
-3. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
-4. Uses one of two remote workflows:
+1. Copies template workspace into a new destination workspace (sibling by default when `--destination` is omitted).
+2. Preserves copied git histories for the workspace and template repos; nothing is removed automatically.
+3. Delegates to `init_new_project` inside the copied workspace.
+4. Runs guided machine setup (`setup_tools`) for missing tool install/auth prompts.
+5. Runs prechecks (`preinstall`, `doctor`).
+6. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
+7. Uses one of two remote workflows:
 	- manual mode (default): prompts to confirm backend/frontend remotes already exist.
 	- automated mode (`--create-remotes`): verifies GitHub permissions, creates remotes with selected visibility, sets local origins, and optionally pushes.
-5. Runs template rename orchestration (`new_product`).
-6. Runs post-rename validation (`validate_product`).
-7. Configures git remotes:
+8. Runs template rename orchestration (`new_product`).
+9. Runs post-rename validation (`validate_product`).
+10. Configures git remotes:
 	- manual mode: unsets template `origin` remotes and prints add-remote hints.
 	- automated mode: points local repos to newly created product remotes.
-8. Pushes to remotes when automated mode is enabled (unless `--no-push` is used).
-9. Optionally launches local dev services.
+11. Pushes to remotes when automated mode is enabled (unless `--no-push` is used).
+12. Optionally launches local dev services.
 
 Messages to watch for:
 
