@@ -1,3 +1,12 @@
+terraform {
+	required_providers {
+		digitalocean = {
+			source  = "digitalocean/digitalocean"
+			version = "~> 2.0"
+		}
+	}
+}
+
 variable "app_name" {
 	type = string
 }
