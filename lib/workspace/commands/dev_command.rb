@@ -220,8 +220,81 @@ module Workspace
       def prepare_service_for_start(service)
         return :skip unless ensure_service_port_available(service)
         return :ready unless service[:name] == "API"
+        return :skip unless ensure_api_dependencies_available(service[:chdir])
 
         ensure_api_pid_file_is_safe(service[:chdir]) ? :ready : :skip
+      end
+
+      def ensure_api_dependencies_available(api_repo)
+        ensure_opensearch_port_available(api_repo)
+      end
+
+      def ensure_opensearch_port_available(api_repo)
+        port = 9200
+        expected_container = "#{File.basename(api_repo)}-opensearch"
+        containers = docker_containers_publishing_port(port)
+        conflicts = containers.reject { |container| container[:name] == expected_container }
+
+        if conflicts.any?
+          conflict_names = conflicts.map { |container| container[:name] }.join(", ")
+          Workspace.warn(
+            "OpenSearch port #{port} is currently used by Docker container(s): #{conflict_names}. " \
+            "Stopping conflicts so API can start."
+          )
+
+          conflicts.each do |container|
+            ok = Workspace.run(
+              "docker stop #{container[:id]}",
+              allow_failure: true,
+              summary: "Could not stop conflicting Docker container #{container[:name]}.",
+              details: "Container #{container[:name]} (#{container[:id]}) is holding host port #{port}.",
+              assumptions: [
+                "API startup requires host port #{port} for OpenSearch when running this template.",
+                "Only one container can bind host port #{port} at a time."
+              ],
+              fixes: [
+                "Stop conflicting containers manually with: docker ps --filter publish=#{port} and docker stop <id>",
+                "Retry bin/dev after port #{port} is free.",
+                "If conflicts are expected, change port mapping in repos/api-template/compose.yml."
+              ]
+            )
+
+            next if ok
+
+            return false
+          end
+        end
+
+        return true if docker_containers_publishing_port(port).empty?
+
+        Workspace.fail_with_help(
+          "OpenSearch port #{port} is still unavailable for API startup.",
+          details: "A Docker container is still publishing host port #{port}, so API OpenSearch cannot bind.",
+          assumptions: [
+            "API bin/dev starts OpenSearch via docker compose with host port #{port}.",
+            "Port conflicts prevent the API process from starting successfully."
+          ],
+          fixes: [
+            "Run: docker ps --filter publish=#{port}",
+            "Stop conflicting container(s): docker stop <container-id>",
+            "Re-run bin/dev or bin/init_new_project after the port is free."
+          ]
+        )
+        false
+      end
+
+      def docker_containers_publishing_port(port)
+        return [] unless Workspace.command_exists?("docker")
+
+        output, ok = Workspace.capture("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=#{port}")
+        return [] unless ok
+
+        output.lines.filter_map do |line|
+          id, name = line.strip.split("|", 2)
+          next if id.to_s.empty? || name.to_s.empty?
+
+          { id: id, name: name }
+        end
       end
 
       def ensure_api_pid_file_is_safe(api_repo)

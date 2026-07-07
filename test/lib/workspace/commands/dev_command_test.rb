@@ -35,4 +35,35 @@ class DevCommandTest < Minitest::Test
     assert_equal File.join(Workspace::ROOT, "repos", "my-super-app-web"), services[1][:chdir]
     assert_equal "npm run dev -- --port 3000", services[1][:command]
   end
+
+  def test_stops_conflicting_docker_container_on_opensearch_port
+    command = Workspace::Commands::DevCommand.new
+
+    Workspace.stubs(:command_exists?).with("docker").returns(true)
+    Workspace.stubs(:warn)
+    Workspace.stubs(:fail_with_help)
+
+    sequence = sequence("docker-port-conflict")
+    Workspace.expects(:capture)
+             .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
+             .in_sequence(sequence)
+             .returns(["abc123|api-template-opensearch\n", true])
+
+    Workspace.expects(:run)
+             .with(
+               "docker stop abc123",
+               has_entry(allow_failure: true)
+             )
+             .in_sequence(sequence)
+             .returns(true)
+
+    Workspace.expects(:capture)
+             .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
+             .in_sequence(sequence)
+             .returns(["", true])
+
+    result = command.send(:ensure_opensearch_port_available, File.join(Workspace::ROOT, "repos", "my-super-app-api"))
+
+    assert_equal true, result
+  end
 end
