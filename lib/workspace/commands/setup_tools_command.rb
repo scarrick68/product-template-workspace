@@ -38,7 +38,7 @@ module Workspace
         if missing.empty?
           Workspace.ok("All required tools are installed.")
         else
-          install_missing_tools(missing)
+          return 1 unless install_missing_tools(missing)
         end
 
         run_optional_configuration
@@ -112,16 +112,35 @@ module Workspace
         Workspace.section("Install Missing Tools", color: :magenta, divider_char: "-")
 
         missing_tools.each do |tool|
-          install_default = preferences.dig("install_missing", tool[:id])
           should_install = prompt_yes_no(
             "Install #{tool[:label]} now?",
-            default: install_default.nil? ? false : install_default
+            default: false,
+            require_input: true
           )
+          if should_install == :no_input
+            Workspace.fail_with_help(
+              "Interactive confirmation is required to install missing tools.",
+              details: "No input was available to answer install prompt for #{tool[:label]}.",
+              assumptions: [
+                "The current execution context does not provide stdin input for prompts.",
+                "Required tool installs should not be silently skipped when confirmations cannot be answered."
+              ],
+              fixes: [
+                "Run bin/setup_tools directly in an interactive terminal session.",
+                "When prompted, answer yes to install missing required tools such as Terraform.",
+                "Re-run bin/setup_tools until final status shows all required tools installed."
+              ]
+            )
+            return false
+          end
+
           preferences["install_missing"][tool[:id]] = should_install
           next unless should_install
 
           install_tool(tool)
         end
+
+        true
       end
 
       def install_tool(tool)
@@ -407,10 +426,13 @@ module Workspace
         1
       end
 
-      def prompt_yes_no(question, default: true)
+      def prompt_yes_no(question, default: true, require_input: false)
         indicator = default ? "Y/n" : "y/N"
         stdout.print("#{question} [#{indicator}]: ")
-        answer = stdin.gets&.strip.to_s.downcase
+        raw_answer = prompt_input_stream.gets
+        return :no_input if raw_answer.nil? && require_input
+
+        answer = raw_answer&.strip.to_s.downcase
 
         return default if answer.empty?
         return true if %w[y yes].include?(answer)
@@ -435,6 +457,15 @@ module Workspace
 
       def preferences_path
         PREFERENCES_PATH
+      end
+
+      def prompt_input_stream
+        return stdin unless stdin.equal?($stdin)
+        return stdin if stdin.tty?
+
+        @prompt_input_stream ||= File.open("/dev/tty", "r")
+      rescue StandardError
+        stdin
       end
     end
   end
