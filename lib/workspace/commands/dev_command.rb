@@ -7,6 +7,9 @@ require_relative "../../workspace"
 module Workspace
   module Commands
     class DevCommand
+      BACKEND_PURPOSE = "backend-api"
+      FRONTEND_PURPOSE = "frontend-web-client"
+
       STOP_WAIT_ATTEMPTS = 20
       STOP_WAIT_INTERVAL = 0.3
       START_WAIT_ATTEMPTS = 25
@@ -46,7 +49,7 @@ module Workspace
       end
 
       def add_api_service
-        api_repo = File.join(Workspace::ROOT, "repos", "api-template")
+        api_repo = repository_path_for_purpose(BACKEND_PURPOSE, "repos/api-template")
         api_port = ports.fetch("api", 5001)
 
         if File.executable?(File.join(api_repo, "bin", "dev"))
@@ -73,7 +76,7 @@ module Workspace
       end
 
       def add_web_service
-        web_repo = File.join(Workspace::ROOT, "repos", "web-template")
+        web_repo = repository_path_for_purpose(FRONTEND_PURPOSE, "repos/web-template")
         return unless File.exist?(File.join(web_repo, "package.json"))
 
         web_port = ports.fetch("web", 3000)
@@ -108,6 +111,14 @@ module Workspace
           ]
         )
         false
+      end
+
+      def repository_path_for_purpose(purpose, fallback_relative_path)
+        repo = Workspace.repositories.find { |entry| entry["purpose"].to_s == purpose }
+        relative_path = repo && repo["path"].to_s
+        relative_path = fallback_relative_path if relative_path.nil? || relative_path.empty?
+
+        File.join(Workspace::ROOT, relative_path)
       end
 
       def install_interrupt_handler
