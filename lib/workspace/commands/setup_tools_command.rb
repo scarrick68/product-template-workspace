@@ -380,7 +380,24 @@ module Workspace
 
       def print_final_status
         Workspace.section("Final Tool Status", color: :cyan, divider_char: "-")
-        print_tool_status
+        missing = print_tool_status
+
+        unless missing.empty?
+          Workspace.fail_with_help(
+            "Required tools are still missing after setup.",
+            details: "Missing: #{missing.map { |tool| tool[:label] }.join(', ')}",
+            assumptions: [
+              "Workspace setup and infrastructure workflows require all tools listed above.",
+              "Continuing without required tools will cause follow-on failures in later commands."
+            ],
+            fixes: [
+              "Re-run: bin/setup_tools and choose yes for each missing required tool you want installed automatically.",
+              "Or install missing tools manually, then re-run bin/setup_tools to verify.",
+              "After setup_tools passes, continue with bin/preinstall and bin/doctor."
+            ]
+          )
+          return 1
+        end
 
         Workspace.info("Running environment diagnostics (bin/doctor equivalent)")
         doctor_result = Workspace::Commands::DoctorCommand.new.call

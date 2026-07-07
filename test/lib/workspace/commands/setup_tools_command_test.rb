@@ -28,7 +28,7 @@ class SetupToolsCommandTest < Minitest::Test
 
   def test_installs_missing_gh_when_user_confirms
     stub_tool_presence(all_installed: true)
-    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
 
@@ -54,7 +54,7 @@ class SetupToolsCommandTest < Minitest::Test
 
     command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
 
-    assert_equal 0, command.call
+    assert_equal 1, command.call
   end
 
   def test_does_not_start_docker_desktop_without_explicit_confirmation
@@ -85,12 +85,12 @@ class SetupToolsCommandTest < Minitest::Test
 
     command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
 
-    assert_equal 0, command.call
+    assert_equal 1, command.call
   end
 
   def test_installs_homebrew_then_requested_tool_when_confirmed
     stub_tool_presence(all_installed: true)
-    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:command_exists?).with("brew").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
