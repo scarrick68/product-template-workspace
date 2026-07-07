@@ -79,8 +79,8 @@ module ProductTemplates
 
       Workspace.ok("running #{repo[:label]} rename tool")
       Workspace.run(
-        "#{Shellwords.escape(repo[:rename_script_relative])} #{Shellwords.escape(repo[:target_name])}",
-        chdir: workspace_root
+        "bin/template_rename #{Shellwords.escape(repo[:template_name])} #{Shellwords.escape(repo[:target_name])}",
+        chdir: repo[:current_path]
       )
     end
 
