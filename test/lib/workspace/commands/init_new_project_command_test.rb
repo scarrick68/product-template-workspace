@@ -43,7 +43,11 @@ class InitNewProjectCommandTest < Minitest::Test
 
     Workspace.stubs(:run).returns(true)
 
-    command = Workspace::Commands::InitNewProjectCommand.new(["my-super-app", "--no-dev", "--assume-repos-ready"])
+    command = Workspace::Commands::InitNewProjectCommand.new(
+      ["my-super-app", "--no-dev", "--assume-repos-ready"],
+      stdin: StringIO.new("n\n"),
+      stdout: StringIO.new
+    )
 
     assert_equal 0, command.call
   end
@@ -116,7 +120,101 @@ class InitNewProjectCommandTest < Minitest::Test
       allow_failure: true
     ).returns(true)
 
-    command = Workspace::Commands::InitNewProjectCommand.new(["my-super-app", "--no-dev", "--assume-repos-ready"])
+    command = Workspace::Commands::InitNewProjectCommand.new(
+      ["my-super-app", "--no-dev", "--assume-repos-ready"],
+      stdin: StringIO.new("n\n"),
+      stdout: StringIO.new
+    )
+
+    assert_equal 0, command.call
+  end
+
+  def test_explicit_remote_args_do_not_prompt_and_use_automation
+    stdin = mock("stdin")
+    stdin.expects(:gets).never
+
+    Workspace.stubs(:ok)
+    Workspace.stubs(:info)
+    Workspace.stubs(:warn)
+
+    Workspace.stubs(:repositories).returns([
+      {
+        "purpose" => "backend-api",
+        "name" => "my-super-app-api",
+        "path" => "repos/my-super-app-api",
+        "github" => "example-org/my-super-app-api"
+      },
+      {
+        "purpose" => "frontend-web-client",
+        "name" => "my-super-app-web",
+        "path" => "repos/my-super-app-web",
+        "github" => "example-org/my-super-app-web"
+      }
+    ])
+
+    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
+
+    Workspace.stubs(:script_path).with("setup_tools").returns("bin/setup_tools")
+    Workspace.stubs(:script_path).with("preinstall").returns("bin/preinstall")
+    Workspace.stubs(:script_path).with("doctor").returns("bin/doctor")
+    Workspace.stubs(:script_path).with("bootstrap").returns("bin/bootstrap")
+    Workspace.stubs(:script_path).with("pull").returns("bin/pull")
+    Workspace.stubs(:script_path).with("new_product").returns("bin/new_product")
+    Workspace.stubs(:script_path).with("validate_product").returns("bin/validate_product")
+
+    Dir.stubs(:exist?).returns(true)
+    Workspace.stubs(:capture).returns(["", false])
+    Workspace.stubs(:run).returns(true)
+
+    command = Workspace::Commands::InitNewProjectCommand.new(
+      ["my-super-app", "--no-dev", "--assume-repos-ready", "--create-remotes", "--private", "--no-push"],
+      stdin: stdin,
+      stdout: StringIO.new
+    )
+
+    assert_equal 0, command.call
+  end
+
+  def test_prompted_auto_remote_falls_back_to_manual_when_auth_check_fails
+    Workspace.stubs(:ok)
+    Workspace.stubs(:info)
+    Workspace.stubs(:warn)
+    Workspace.stubs(:capture).returns(["", false])
+    Dir.stubs(:exist?).returns(true)
+
+    Workspace.stubs(:repositories).returns([
+      {
+        "purpose" => "backend-api",
+        "name" => "my-super-app-api",
+        "path" => "repos/my-super-app-api",
+        "github" => "example-org/my-super-app-api"
+      },
+      {
+        "purpose" => "frontend-web-client",
+        "name" => "my-super-app-web",
+        "path" => "repos/my-super-app-web",
+        "github" => "example-org/my-super-app-web"
+      }
+    ])
+
+    Workspace.stubs(:script_path).with("setup_tools").returns("bin/setup_tools")
+    Workspace.stubs(:script_path).with("preinstall").returns("bin/preinstall")
+    Workspace.stubs(:script_path).with("doctor").returns("bin/doctor")
+    Workspace.stubs(:script_path).with("bootstrap").returns("bin/bootstrap")
+    Workspace.stubs(:script_path).with("pull").returns("bin/pull")
+    Workspace.stubs(:script_path).with("new_product").returns("bin/new_product")
+    Workspace.stubs(:script_path).with("validate_product").returns("bin/validate_product")
+
+    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(1)
+    Workspace.stubs(:run).returns(true)
+
+    # Prompts: auto-create=yes, public=no(private), push=yes(default/explicit yes)
+    stdin = StringIO.new("y\nn\ny\n")
+    command = Workspace::Commands::InitNewProjectCommand.new(
+      ["my-super-app", "--no-dev", "--assume-repos-ready"],
+      stdin: stdin,
+      stdout: StringIO.new
+    )
 
     assert_equal 0, command.call
   end

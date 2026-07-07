@@ -42,8 +42,7 @@ module Workspace
         return 1 unless run_step("Environment diagnostics", "doctor")
         return 1 unless run_step("Repository bootstrap and dependency install", "bootstrap")
         return 1 unless run_step("Sync latest template changes", "pull")
-        return 1 unless resolve_gh_remote_options!(options)
-        return 1 unless verify_github_permissions(options)
+        return 1 unless configure_remote_automation!(options)
         return 1 unless confirm_remote_repositories_ready(product_slug, options)
         return 1 unless run_step("Rename templates for new project", "new_product", [product_slug])
         return 1 unless run_step("Post-rename validation (tests/build checks)", "validate_product", [product_slug])
@@ -67,8 +66,10 @@ module Workspace
           skip_setup_tools: false,
           assume_repos_ready: false,
           create_remotes: false,
+          create_remotes_explicit: false,
           visibility: nil,
-          push_after_setup: true
+          push_after_setup: true,
+          push_explicit: false
         }
 
         argv.each do |arg|
@@ -81,16 +82,21 @@ module Workspace
             options[:assume_repos_ready] = true
           when "--create-remotes"
             options[:create_remotes] = true
+            options[:create_remotes_explicit] = true
           when "--public"
             options[:create_remotes] = true
+            options[:create_remotes_explicit] = true
             options[:visibility] = "public"
           when "--private"
             options[:create_remotes] = true
+            options[:create_remotes_explicit] = true
             options[:visibility] = "private"
           when "--no-push"
             options[:push_after_setup] = false
+            options[:push_explicit] = true
           when "--push"
             options[:push_after_setup] = true
+            options[:push_explicit] = true
           when "-h", "--help"
             return nil
           else
@@ -121,15 +127,28 @@ module Workspace
         1
       end
 
-      def resolve_gh_remote_options!(options)
-        return true unless options[:create_remotes]
+      def configure_remote_automation!(options)
+        if options[:create_remotes_explicit]
+          if options[:create_remotes]
+            options[:visibility] ||= "private"
+            return verify_github_permissions(options)
+          end
 
-        return true if %w[public private].include?(options[:visibility])
+          return true
+        end
 
-        stdout.print("Create remotes as public repositories? [y/N]: ")
-        answer = stdin.gets&.strip.to_s
-        options[:visibility] = answer.match?(/\A(y|yes)\z/i) ? "public" : "private"
-        Workspace.info("Selected remote visibility: #{options[:visibility]}")
+        return true unless prompt_yes_no("Would you like this script to create backend/frontend remotes automatically?", default: false)
+
+        options[:create_remotes] = true
+        options[:visibility] = prompt_yes_no("Create remotes as public repositories?", default: false) ? "public" : "private"
+        options[:push_after_setup] = prompt_yes_no("Push repositories after remote setup?", default: true)
+
+        return true if verify_github_permissions(options)
+
+        Workspace.warn("Automatic remote creation is unavailable with current GitHub auth/permissions.")
+        Workspace.warn("You must create remotes and make your initial commit / push yourself")
+        options[:create_remotes] = false
+        options[:visibility] = nil
         true
       end
 
@@ -153,6 +172,18 @@ module Workspace
           ]
         )
         false
+      end
+
+      def prompt_yes_no(question, default: false)
+        indicator = default ? "Y/n" : "y/N"
+        stdout.print("#{question} [#{indicator}]: ")
+        answer = stdin.gets&.strip.to_s
+
+        return default if answer.empty?
+        return true if answer.match?(/\A(y|yes)\z/i)
+        return false if answer.match?(/\A(n|no)\z/i)
+
+        default
       end
 
       def confirm_remote_repositories_ready(product_slug, options)
