@@ -1,1 +1,2 @@
 - For utility scripts, prefer well namespaced classes with matching directory tree structure, like in a Rails app
+- Use Ruby standard optparse for command line argument parsing in ruby scripts. Avoid custom argument parsing logic.
