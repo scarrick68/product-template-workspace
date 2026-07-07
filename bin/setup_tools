@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Guided installer for missing local development tools and auth configuration.
+
+require_relative "../lib/workspace/commands/setup_tools_command"
+
+exit Workspace::Commands::SetupToolsCommand.new.call
