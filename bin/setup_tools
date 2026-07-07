@@ -1,7 +1,112 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
+#!/usr/bin/env bash
 # Guided installer for missing local development tools and auth configuration.
 
-require_relative "../lib/workspace/commands/setup_tools_command"
+set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Run the Ruby command object once a working Ruby is available.
+run_setup_tools_with_ruby() {
+	ruby - "$SCRIPT_DIR" <<'RUBY'
+script_dir = ARGV.shift
+require File.expand_path("../lib/workspace/commands/setup_tools_command", script_dir)
 exit Workspace::Commands::SetupToolsCommand.new.call
+RUBY
+}
+
+# Read required Ruby from workspace version files, with fallback default.
+read_required_ruby_version() {
+	local version_file
+	for version_file in "${WORKSPACE_ROOT}/.ruby-version" "${WORKSPACE_ROOT}/repos/api-template/.ruby-version"; do
+		if [[ -f "$version_file" ]]; then
+			local value
+			value="$(tr -d '\r\n' < "$version_file")"
+			value="${value#ruby }"
+			value="${value#ruby-}"
+			value="${value#v}"
+			if [[ -n "$value" ]]; then
+				echo "$value"
+				return
+			fi
+		fi
+	done
+
+	echo "3.4.0"
+}
+
+# Prompt helper used for guarded install actions.
+prompt_yes_no() {
+	local prompt="$1"
+	read -r -p "$prompt [y/N]: " answer
+	case "${answer,,}" in
+		y|yes) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+# Ensure brew is available in PATH, including common macOS/Linux install locations.
+ensure_brew_in_path() {
+	if command -v brew >/dev/null 2>&1; then
+		eval "$(brew shellenv)"
+		return 0
+	fi
+
+	if [[ -x /opt/homebrew/bin/brew ]]; then
+		eval "$(/opt/homebrew/bin/brew shellenv)"
+	elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+		eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+	elif [[ -x /usr/local/bin/brew ]]; then
+		eval "$(/usr/local/bin/brew shellenv)"
+	fi
+
+	command -v brew >/dev/null 2>&1
+}
+
+# Fast path: if Ruby is already present, hand off immediately.
+if command -v ruby >/dev/null 2>&1; then
+	run_setup_tools_with_ruby
+	exit $?
+fi
+
+echo "[WARN] Ruby was not found in PATH. Bootstrapping Homebrew + mise + Ruby so setup_tools can continue."
+
+# Bootstrap Homebrew only after explicit user confirmation.
+if ! ensure_brew_in_path; then
+	if ! prompt_yes_no "Homebrew is required to bootstrap Ruby and is missing. Install Homebrew now?"; then
+		echo "[FAIL] Cannot continue without Ruby. Re-run and allow Homebrew installation, or install Ruby manually first."
+		exit 1
+	fi
+
+	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+	ensure_brew_in_path
+fi
+
+# Install mise if missing, then use it to install the required Ruby.
+if ! command -v mise >/dev/null 2>&1; then
+	if ! prompt_yes_no "mise is required to install Ruby. Install mise now?"; then
+		echo "[FAIL] Cannot continue without mise. Re-run and allow mise installation, or install Ruby manually first."
+		exit 1
+	fi
+
+	echo "[INFO] Installing mise via Homebrew"
+	brew install mise
+fi
+
+REQUIRED_RUBY="$(read_required_ruby_version)"
+
+if ! prompt_yes_no "Install Ruby ${REQUIRED_RUBY} with mise now?"; then
+	echo "[FAIL] Cannot continue without Ruby ${REQUIRED_RUBY}. Re-run and allow Ruby installation, or install Ruby manually first."
+	exit 1
+fi
+
+echo "[INFO] Installing Ruby ${REQUIRED_RUBY} via mise"
+mise install "ruby@${REQUIRED_RUBY}"
+mise use --global "ruby@${REQUIRED_RUBY}"
+
+# Run setup tools via the freshly provisioned Ruby runtime.
+exec mise exec "ruby@${REQUIRED_RUBY}" -- ruby - "$SCRIPT_DIR" <<'RUBY'
+script_dir = ARGV.shift
+require File.expand_path("../lib/workspace/commands/setup_tools_command", script_dir)
+exit Workspace::Commands::SetupToolsCommand.new.call
+RUBY

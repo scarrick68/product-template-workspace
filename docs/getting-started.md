@@ -6,7 +6,7 @@ This guide covers the fastest path to bootstrap a new product from templates and
 
 Validation:
 
-1. Run `bin/preinstall` and `bin/doctor`.
+1. Run `bin/setup_tools`, then `bin/preinstall` and `bin/doctor`.
 2. If it reports failures, fix the provided errors and run it again.
 3. Continue only after `bin/doctor` succeeds.
 
@@ -27,7 +27,7 @@ Legend:
 ```mermaid
 flowchart TD
 	A[[USER: Start new product setup]] --> B[[USER: Run bin/init_new_project my-super-app]]
-	B --> C[[SCRIPT: init_new_project runs preinstall and doctor]]
+	B --> C[[SCRIPT: init_new_project runs setup_tools, preinstall, and doctor]]
 	C --> D{Checks pass?}
 	D -- No --> E[[USER: Read FAIL output and fix environment issues]]
 	E --> C
@@ -79,18 +79,19 @@ bin/init_new_project my-super-app
 
 What this does:
 
-1. Runs prechecks (`preinstall`, `doctor`).
-2. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
-3. Uses one of two remote workflows:
+1. Runs guided machine setup (`setup_tools`) for missing tool install/auth prompts.
+2. Runs prechecks (`preinstall`, `doctor`).
+3. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
+4. Uses one of two remote workflows:
 	- manual mode (default): prompts to confirm backend/frontend remotes already exist.
 	- automated mode (`--create-remotes`): verifies GitHub permissions, creates remotes with selected visibility, sets local origins, and optionally pushes.
-4. Runs template rename orchestration (`new_product`).
-5. Runs post-rename validation (`validate_product`).
-6. Configures git remotes:
+5. Runs template rename orchestration (`new_product`).
+6. Runs post-rename validation (`validate_product`).
+7. Configures git remotes:
 	- manual mode: unsets template `origin` remotes and prints add-remote hints.
 	- automated mode: points local repos to newly created product remotes.
-7. Pushes to remotes when automated mode is enabled (unless `--no-push` is used).
-8. Optionally launches local dev services.
+8. Pushes to remotes when automated mode is enabled (unless `--no-push` is used).
+9. Optionally launches local dev services.
 
 Messages to watch for:
 

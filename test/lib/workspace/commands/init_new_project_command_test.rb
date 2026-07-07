@@ -33,6 +33,7 @@ class InitNewProjectCommandTest < Minitest::Test
       }
     ])
 
+    Workspace.stubs(:script_path).with("setup_tools").returns("bin/setup_tools")
     Workspace.stubs(:script_path).with("preinstall").returns("bin/preinstall")
     Workspace.stubs(:script_path).with("doctor").returns("bin/doctor")
     Workspace.stubs(:script_path).with("bootstrap").returns("bin/bootstrap")
@@ -67,6 +68,7 @@ class InitNewProjectCommandTest < Minitest::Test
       }
     ])
 
+    Workspace.stubs(:script_path).with("setup_tools").returns("bin/setup_tools")
     Workspace.stubs(:script_path).with("preinstall").returns("bin/preinstall")
     Workspace.stubs(:script_path).with("doctor").returns("bin/doctor")
     Workspace.stubs(:script_path).with("bootstrap").returns("bin/bootstrap")
@@ -80,6 +82,9 @@ class InitNewProjectCommandTest < Minitest::Test
     Workspace.expects(:capture).with("git remote get-url origin", chdir: File.join(Workspace::ROOT, "repos/my-super-app-api")).returns(["", true])
     Workspace.expects(:capture).with("git remote get-url origin", chdir: File.join(Workspace::ROOT, "repos/my-super-app-web")).returns(["", true])
 
+    Workspace.expects(:run).with { |command, kwargs|
+      command.include?("bin/setup_tools") && kwargs[:allow_failure] == true
+    }.returns(true)
     Workspace.expects(:run).with { |command, kwargs|
       command.include?("bin/preinstall") && kwargs[:allow_failure] == true
     }.returns(true)

@@ -37,10 +37,8 @@ class SetupToolsCommandTest < Minitest::Test
       has_entry(allow_failure: true)
     ).returns(true)
 
-    # Prompts in order for this scenario:
-    # 1) Install GitHub CLI now? -> yes
-    # 2) doctl auth init now? -> no (default path does not matter; this avoids triggering extra run calls)
-    stdin = StringIO.new("y\nn\n")
+    # Prompt: Install GitHub CLI now? -> yes
+    stdin = StringIO.new("y\n")
     command = Workspace::Commands::SetupToolsCommand.new(stdin: stdin, stdout: StringIO.new)
 
     assert_equal 0, command.call
@@ -75,21 +73,42 @@ class SetupToolsCommandTest < Minitest::Test
     assert_equal 0, command.call
   end
 
-  def test_skips_brew_install_on_non_macos_when_missing
+  def test_skips_homebrew_install_when_user_declines
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false)
     Workspace.stubs(:command_exists?).with("brew").returns(false)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
-    Workspace::Commands::SetupToolsCommand.any_instance.stubs(:macos?).returns(false)
 
-    Workspace.expects(:fail_with_help).with(
-      "Homebrew is missing and auto-install is only configured for macOS.",
-      has_entry(details: includes("Detected OS:"))
-    )
     Workspace.expects(:run).with("/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"", has_entry(allow_failure: true)).never
+    Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
 
     command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
+
+    assert_equal 0, command.call
+  end
+
+  def test_installs_homebrew_then_requested_tool_when_confirmed
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:command_exists?).with("brew").returns(false, true)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+
+    sequence = sequence("brew-install-flow")
+    Workspace.expects(:run)
+             .with("/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"", has_entry(allow_failure: true))
+             .in_sequence(sequence)
+             .returns(true)
+    Workspace.expects(:run)
+             .with("brew install gh", has_entry(allow_failure: true))
+             .in_sequence(sequence)
+             .returns(true)
+
+    # Prompts:
+    # 1) Install GitHub CLI now? -> yes
+    # 2) Homebrew is missing. Install Homebrew now? -> yes
+    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\ny\n"), stdout: StringIO.new)
 
     assert_equal 0, command.call
   end

@@ -144,24 +144,24 @@ module Workspace
       def ensure_homebrew
         return true if command_available?("brew")
 
-        unless macos?
-          Workspace.fail_with_help(
-            "Homebrew is missing and auto-install is only configured for macOS.",
-            details: "Detected OS: #{host_os}",
-            fixes: [
-              "Install Homebrew manually for your OS if supported, then rerun bin/setup_tools.",
-              "Or install required tools with your system package manager and rerun this script."
-            ]
-          )
+        install_default = preferences.dig("install_missing", "homebrew")
+        should_install = prompt_yes_no(
+          "Homebrew is missing. Install Homebrew now?",
+          default: install_default.nil? ? false : install_default
+        )
+        preferences["install_missing"]["homebrew"] = should_install
+
+        unless should_install
+          Workspace.warn("Skipping Homebrew installation. Homebrew-based tool installs will be skipped.")
           return false
         end
 
-        Workspace.info("Installing Homebrew (required for guided installs on macOS)")
+        Workspace.info("Installing Homebrew")
         ok = Workspace.run(
           "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"",
           allow_failure: true,
           summary: "Homebrew installation failed.",
-          details: "Could not install Homebrew via official installer script.",
+          details: "Could not install Homebrew via official installer script on #{host_os}.",
           fixes: [
             "Retry bin/setup_tools and approve installer prompts when requested.",
             "Check network access to raw.githubusercontent.com.",

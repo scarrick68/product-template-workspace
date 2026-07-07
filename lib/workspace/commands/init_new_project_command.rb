@@ -35,6 +35,9 @@ module Workspace
         Workspace.ok("Initializing new project: #{product_slug}")
         Workspace.info("This workflow will check environment, clone/bootstrap repos, rename templates, validate, and optionally launch dev services.")
 
+        unless options[:skip_setup_tools]
+          return 1 unless run_step("Guided tool installation and auth setup", "setup_tools")
+        end
         return 1 unless run_step("Environment prechecks", "preinstall")
         return 1 unless run_step("Environment diagnostics", "doctor")
         return 1 unless run_step("Repository bootstrap and dependency install", "bootstrap")
@@ -61,6 +64,7 @@ module Workspace
       def parse_options
         options = {
           no_dev: false,
+          skip_setup_tools: false,
           assume_repos_ready: false,
           create_remotes: false,
           visibility: nil,
@@ -71,6 +75,8 @@ module Workspace
           case arg
           when "--no-dev"
             options[:no_dev] = true
+          when "--skip-setup-tools"
+            options[:skip_setup_tools] = true
           when "--assume-repos-ready"
             options[:assume_repos_ready] = true
           when "--create-remotes"
@@ -102,11 +108,12 @@ module Workspace
       def usage
         Workspace.fail_with_help(
           "Missing or invalid product slug.",
-          details: "Usage: bin/init_new_project <product-slug> [--no-dev] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push]",
+          details: "Usage: bin/init_new_project <product-slug> [--no-dev] [--skip-setup-tools] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push]",
           fixes: [
             "Use kebab-case product slug (example: my-super-app).",
             "Run: bin/init_new_project my-super-app",
             "Use --no-dev if you want setup without launching long-running services.",
+            "Use --skip-setup-tools if your machine is already configured and you want to skip guided installs/auth prompts.",
             "Use --assume-repos-ready if remote backend/frontend repos are already created.",
             "Use --create-remotes to create backend/frontend GitHub repositories automatically."
           ]
