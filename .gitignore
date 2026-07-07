@@ -4,6 +4,10 @@
 contracts/openapi/*
 !/contracts/openapi/.keep
 
+# template workspace local config and state
+.workspace/*
+!.workspace/.keep
+
 # Infra local config and Terraform/OpenTofu artifacts
 config/infra.yml
 infra/digitalocean/.terraform/
