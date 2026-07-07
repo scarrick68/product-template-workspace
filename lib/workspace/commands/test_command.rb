@@ -2,6 +2,8 @@
 # frozen_string_literal: true
 # Command object for running workspace tests with a single entrypoint.
 
+require "fileutils"
+require "open3"
 require_relative "../../workspace"
 
 module Workspace
@@ -16,8 +18,7 @@ module Workspace
         return 1 if test_files.empty?
 
         Workspace.ok("running #{test_files.length} test file(s)")
-        success = system(*ruby_test_command(test_files), chdir: Workspace::ROOT)
-        success ? 0 : 1
+        run_with_log(test_files)
       end
 
       private
@@ -69,6 +70,56 @@ module Workspace
           "ARGV.each { |file| require File.expand_path(file) }",
           *relative_paths(test_files)
         ]
+      end
+
+      def run_with_log(test_files)
+        FileUtils.mkdir_p(File.join(Workspace::ROOT, "tmp"))
+        output, status = Open3.capture2e(*ruby_test_command(test_files), chdir: Workspace::ROOT)
+
+        File.write(log_path, output)
+
+        summary = extract_summary(output)
+        if status.success?
+          Workspace.ok(summary || "tests passed")
+          return 0
+        end
+
+        Workspace.fail("tests failed")
+        Workspace.info(summary) if summary
+        Workspace.info("full log: #{relative_log_path}")
+        excerpt = failure_excerpt(output)
+        puts excerpt unless excerpt.empty?
+        1
+      end
+
+      def extract_summary(output)
+        output.lines.reverse_each do |line|
+          clean = line.strip
+          next unless clean.match?(/\A\d+ runs, \d+ assertions, \d+ failures, \d+ errors, \d+ skips\z/)
+
+          return clean
+        end
+
+        nil
+      end
+
+      def failure_excerpt(output)
+        lines = output.lines
+        summary_index = lines.rindex { |line| line.include?("runs,") && line.include?("assertions,") }
+        start_index = lines.rindex { |line| line.match?(/^\s*\d+\)\s+(Failure|Error):/) }
+
+        return lines.last(40).join if start_index.nil?
+
+        end_index = summary_index ? [summary_index + 1, lines.length].min : lines.length
+        lines[start_index...end_index].join
+      end
+
+      def log_path
+        File.join(Workspace::ROOT, relative_log_path)
+      end
+
+      def relative_log_path
+        File.join("tmp", "test.log")
       end
 
       def relative_paths(paths)

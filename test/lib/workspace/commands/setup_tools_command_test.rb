@@ -28,7 +28,7 @@ class SetupToolsCommandTest < Minitest::Test
 
   def test_installs_missing_gh_when_user_confirms
     stub_tool_presence(all_installed: true)
-    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
 
@@ -52,7 +52,36 @@ class SetupToolsCommandTest < Minitest::Test
 
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
 
+    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("n\n"), stdout: StringIO.new)
+
+    assert_equal 1, command.call
+  end
+
+  def test_missing_tool_prompt_defaults_to_no_on_enter
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+
+    Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
+
     command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
+
+    assert_equal 1, command.call
+  end
+
+  def test_missing_tool_prompt_reads_stdin_before_install_decision
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:command_exists?).with("gh").returns(false, true)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+
+    stdin = mock("stdin")
+    stdin.expects(:gets).once.returns("y\n")
+
+    Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).returns(true)
+
+    command = Workspace::Commands::SetupToolsCommand.new(stdin: stdin, stdout: StringIO.new)
 
     assert_equal 0, command.call
   end
@@ -83,14 +112,31 @@ class SetupToolsCommandTest < Minitest::Test
     Workspace.expects(:run).with("/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"", has_entry(allow_failure: true)).never
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
+    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\nn\n"), stdout: StringIO.new)
 
-    assert_equal 0, command.call
+    assert_equal 1, command.call
+  end
+
+  def test_fails_when_missing_tool_prompt_cannot_read_input
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+
+    Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
+    Workspace.expects(:fail_with_help).with(
+      "Interactive confirmation is required to install missing tools.",
+      has_entry(details: "No input was available to answer install prompt for GitHub CLI.")
+    ).once
+
+    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new(""), stdout: StringIO.new)
+
+    assert_equal 1, command.call
   end
 
   def test_installs_homebrew_then_requested_tool_when_confirmed
     stub_tool_presence(all_installed: true)
-    Workspace.stubs(:command_exists?).with("gh").returns(false)
+    Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:command_exists?).with("brew").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)

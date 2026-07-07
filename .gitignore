@@ -4,6 +4,10 @@
 contracts/openapi/*
 !/contracts/openapi/.keep
 
+# template workspace local config and state
+.workspace/*
+!.workspace/.keep
+
 # Infra local config and Terraform/OpenTofu artifacts
 config/infra.yml
 infra/digitalocean/.terraform/
@@ -14,3 +18,6 @@ infra/digitalocean/crash.log
 infra/digitalocean/crash.*.log
 infra/digitalocean/terraform.tfvars
 infra/digitalocean/terraform.tfvars.json
+
+# Local test runner output
+tmp/test.log

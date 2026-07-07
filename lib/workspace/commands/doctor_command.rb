@@ -13,7 +13,9 @@ module Workspace
         "Node" => ["node", "node --version"],
         "npm" => ["npm", "npm --version"],
         "Docker" => ["docker", "docker --version"],
-        "GitHub CLI" => ["gh", "gh --version"]
+        "GitHub CLI" => ["gh", "gh --version"],
+        "doctl" => ["doctl", "doctl version"],
+        "Terraform" => ["terraform", "terraform version"]
       }.freeze
 
       OPTIONAL_COMMANDS = {

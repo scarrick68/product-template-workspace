@@ -27,6 +27,8 @@ class DoctorCommandSmokeTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("npm").returns(true)
     Workspace.stubs(:command_exists?).with("docker").returns(true)
     Workspace.stubs(:command_exists?).with("gh").returns(true)
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
     Workspace.stubs(:command_exists?).with("mise").returns(false)
     Workspace.stubs(:command_exists?).with("psql").returns(false)
 
@@ -51,6 +53,8 @@ class DoctorCommandSmokeTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("npm").returns(true)
     Workspace.stubs(:command_exists?).with("docker").returns(true)
     Workspace.stubs(:command_exists?).with("gh").returns(true)
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
     Workspace.stubs(:command_exists?).with("mise").returns(true)
     Workspace.stubs(:command_exists?).with("psql").returns(true)
 
