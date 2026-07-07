@@ -14,3 +14,6 @@ infra/digitalocean/crash.log
 infra/digitalocean/crash.*.log
 infra/digitalocean/terraform.tfvars
 infra/digitalocean/terraform.tfvars.json
+
+# Local test runner output
+tmp/test.log
