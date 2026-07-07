@@ -80,19 +80,25 @@ module Workspace
       end
 
       def run_doctor
-        failed = false
+        checks = [
+          ["Terraform/OpenTofu CLI", -> { check_cli_available(["terraform", "tofu"], "Terraform/OpenTofu") }],
+          ["doctl CLI", -> { check_cli_available(["doctl"], "doctl") }],
+          ["GitHub CLI", -> { check_cli_available(["gh"], "GitHub CLI") }],
+          ["git CLI", -> { check_cli_available(["git"], "git") }],
+          [DIGITALOCEAN_TOKEN_KEY, -> { check_digitalocean_access_token }],
+          ["doctl auth", -> { check_doctl_auth }],
+          ["gh auth", -> { check_gh_auth }],
+          ["expected repositories", -> { check_expected_repositories }],
+          ["blob store readiness", -> { check_blob_store_readiness }]
+        ]
 
-        failed ||= !check_cli_available(["terraform", "tofu"], "Terraform/OpenTofu")
-        failed ||= !check_cli_available(["doctl"], "doctl")
-        failed ||= !check_cli_available(["gh"], "GitHub CLI")
-        failed ||= !check_cli_available(["git"], "git")
-        failed ||= !check_digitalocean_access_token
-        failed ||= !check_doctl_auth
-        failed ||= !check_gh_auth
-        failed ||= !check_expected_repositories
-        failed ||= !check_blob_store_readiness
+        failed_checks = []
+        checks.each do |label, check|
+          failed_checks << label unless check.call
+        end
 
-        if failed
+        unless failed_checks.empty?
+          Workspace.info("infra doctor failed checks: #{failed_checks.join(', ')}")
           Workspace.fail("infra doctor detected one or more issues")
           return 1
         end
@@ -395,7 +401,10 @@ module Workspace
         return true unless Workspace.command_exists?("doctl")
 
         _out, success = Workspace.capture("doctl account get")
-        return Workspace.ok("doctl auth: valid") && true if success
+        if success
+          Workspace.ok("doctl auth: valid")
+          return true
+        end
 
         Workspace.fail("doctl auth: invalid (run: doctl auth init)")
         false
@@ -405,7 +414,10 @@ module Workspace
         return true unless Workspace.command_exists?("gh")
 
         _out, success = Workspace.capture("gh auth status")
-        return Workspace.ok("gh auth: valid") && true if success
+        if success
+          Workspace.ok("gh auth: valid")
+          return true
+        end
 
         Workspace.fail("gh auth: invalid (run: gh auth login)")
         false

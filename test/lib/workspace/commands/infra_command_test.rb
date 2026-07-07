@@ -102,4 +102,37 @@ class InfraCommandTest < Minitest::Test
 
     assert_equal 0, result
   end
+
+  def test_doctor_returns_zero_when_all_checks_pass
+    Workspace.stubs(:ok)
+    Workspace.stubs(:info)
+    Workspace.stubs(:warn)
+    Workspace.stubs(:fail)
+
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("tofu").returns(false)
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:command_exists?).with("gh").returns(true)
+    Workspace.stubs(:command_exists?).with("git").returns(true)
+
+    Workspace.stubs(:repositories).returns([
+      { "purpose" => "backend-api", "name" => "api-template", "path" => "repos/api-template" },
+      { "purpose" => "frontend-web-client", "name" => "web-template", "path" => "repos/web-template" }
+    ])
+
+    command = Workspace::Commands::Infra::ProvisionInfraCommand.new(["doctor"], stdin: StringIO.new, stdout: StringIO.new)
+    resolver = mock("secrets_resolver")
+    resolver.expects(:digitalocean_token).with(interactive: false).returns("token")
+    command.instance_variable_set(:@secrets_resolver, resolver)
+
+    Workspace.stubs(:capture).with("doctl account get").returns(["", true])
+    Workspace.stubs(:capture).with("gh auth status").returns(["", true])
+
+    Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/api-template")).returns(true)
+    Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/web-template")).returns(true)
+
+    File.stubs(:exist?).with(Workspace::Commands::Infra::ProvisionInfraCommand::CONFIG_FILE).returns(false)
+
+    assert_equal 0, command.call
+  end
 end
