@@ -140,7 +140,7 @@ module Workspace
         return true unless prompt_yes_no("Would you like this script to create backend/frontend remotes automatically?", default: false)
 
         options[:create_remotes] = true
-        options[:visibility] = prompt_yes_no("Create remotes as public repositories?", default: false) ? "public" : "private"
+        options[:visibility] = prompt_yes_no("Create remotes as private repositories?", default: true) ? "private" : "public"
         options[:push_after_setup] = prompt_yes_no("Push repositories after remote setup?", default: true)
 
         return true if verify_github_permissions(options)
