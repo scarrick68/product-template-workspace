@@ -106,6 +106,18 @@ module Workspace
     puts "#{styled_label('INFO', color: :cyan)} #{message}"
   end
 
+  def section(title, color: :cyan, width: 64, divider_char: "=")
+    divider = divider_char * width
+    decorated_divider = pastel.bold(pastel.decorate(divider, color))
+    decorated_title = pastel.bold(pastel.decorate(title, color))
+
+    puts
+    puts decorated_divider
+    puts decorated_title
+    puts decorated_divider
+    puts
+  end
+
   def warn(message)
     puts "#{styled_label('WARN', color: :yellow)} #{message}"
   end

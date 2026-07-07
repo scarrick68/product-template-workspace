@@ -22,6 +22,7 @@ module Workspace
       }.freeze
 
       def call
+        Workspace.section("Doctor: Environment Diagnostics")
         check_required_tools
         check_optional_tools
         check_docker_daemon

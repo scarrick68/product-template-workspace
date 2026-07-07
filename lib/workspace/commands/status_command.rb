@@ -8,6 +8,7 @@ module Workspace
   module Commands
     class StatusCommand
       def call
+        Workspace.section("Status: Repository Overview")
         Workspace.existing_repositories.each do |repo|
           report_repository_status(repo)
         end

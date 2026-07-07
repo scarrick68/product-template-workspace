@@ -23,6 +23,7 @@ module Workspace
       end
 
       def call
+        Workspace.section("Dev: Launch Local Services")
         build_services
         return 1 unless services_available?
 

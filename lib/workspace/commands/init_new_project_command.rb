@@ -31,6 +31,7 @@ module Workspace
         product_slug = options[:product_slug]
         return usage unless valid_slug?(product_slug)
 
+        Workspace.section("Init: New Project Setup")
         Workspace.ok("Initializing new project: #{product_slug}")
         Workspace.info("This workflow will check environment, clone/bootstrap repos, rename templates, validate, and optionally launch dev services.")
 
@@ -194,7 +195,7 @@ module Workspace
       end
 
       def run_step(label, script_name, args = [])
-        Workspace.info(label)
+        Workspace.section("Init Step: #{label}", color: :magenta, divider_char: "-")
 
         command_parts = [Workspace.script_path(script_name)] + args
         command = command_parts.map { |part| Shellwords.escape(part) }.join(" ")

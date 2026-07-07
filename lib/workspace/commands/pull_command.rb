@@ -13,6 +13,7 @@ module Workspace
       end
 
       def call
+        Workspace.section("Pull: Sync Repositories")
         Workspace.existing_repositories.each do |repo|
           pull_repository(repo)
         end

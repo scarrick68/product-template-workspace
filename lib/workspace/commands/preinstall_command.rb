@@ -12,6 +12,7 @@ module Workspace
       end
 
       def call
+        Workspace.section("Preinstall: Environment Checks")
         check_ruby_compatibility
         check_github_cli_installation
         check_github_cli_authentication

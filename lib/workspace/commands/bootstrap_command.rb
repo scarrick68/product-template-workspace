@@ -13,8 +13,13 @@ module Workspace
       end
 
       def call
+        Workspace.section("Bootstrap: Repository Setup")
         run_preinstall_or_abort
+
+        Workspace.section("Bootstrap: Ensure Repositories", color: :magenta, divider_char: "-")
         ensure_repositories_present
+
+        Workspace.section("Bootstrap: Install Dependencies", color: :magenta, divider_char: "-")
         install_repository_dependencies
         finalize
       end
