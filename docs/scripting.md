@@ -44,20 +44,33 @@ Default local port map:
 
 `bin/dev` and `bin/start-day --with-dev` should honor these values so API-only and API+Web launches stay consistent.
 
-## Essential Commands
+## Script Responsibility Model
 
-- `bin/preinstall`: verify Ruby compatibility, GitHub CLI installation, and GitHub CLI auth state.
-- `bin/setup_tools`: interactive guided installer for missing required tools (Ruby via mise, Docker, doctl, GitHub CLI, Terraform) with optional auth/daemon configuration.
-- `bin/github_auth_doctor`: verify credentials and permissions for GitHub repo creation/push workflows.
-- `bin/bootstrap`: validate repo presence, install dependencies, and prepare DB where applicable.
-- `bin/doctor`: verify local toolchain, auth, Docker daemon status, and configured ports.
+Use scripts in three categories to avoid overlap and confusion. These are only high level overviews of script responsibilities. See the files themselves for the details of each script.
+
+### Aggregate Getting-Started Scripts
+
+- `bin/init_project`: copy-first project generation entrypoint. Creates destination workspace copy, then delegates app / project installation to `init_new_project` in the copied workspace.
+- `bin/init_new_project`: guided onboarding workflow run inside a project workspace; orchestrates setup checks, bootstrap, rename, validation, and optional dev launch.
+- `bin/start-day`: daily orchestration workflow for already-initialized workspaces. Pull updates, check status, launch dev services, and run any other daily coordination tasks needed to start dev work.
+
+### Development Scripts
+
+- `bin/dev`: run primary local development services.
 - `bin/status`: summarize branch and dirty state for each repository.
 - `bin/pull`: run fast-forward pulls across all repositories.
 - `bin/sync-openapi`: sync API OpenAPI contract to shared destinations.
-- `bin/dev`: run primary local services for active development.
-- `bin/start-day`: execute daily coordination workflow.
-- `bin/init_new_project`: run guided first-time setup (setup_tools, environment prechecks, bootstrap, rename, validation, optional dev launch).
-- `bin/infra`: run guided infrastructure workflows (`doctor`, `configure`, `plan`, `apply`) for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
+
+### Single-Responsibility Utility Scripts
+
+- `bin/setup_tools`: install/configure required local tools and software such as Homebrew, Ruby, GitHub CLI as well as others.
+- `bin/preinstall`: verify Ruby compatibility and GitHub CLI readiness.
+- `bin/doctor`: verify local toolchain, auth, Docker daemon status, and configured ports.
+- `bin/bootstrap`: validate repo presence and install dependencies.
+- `bin/github_auth_doctor`: verify credentials and permissions for GitHub repo workflows.
+- `bin/new_product`: perform template rename orchestration only.
+- `bin/validate_product`: run post-rename validation checks and checklist.
+- `bin/infra`: run infrastructure workflows (`doctor`, `configure`, `plan`, `apply`) for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
 
 ## Notes
 
