@@ -14,6 +14,7 @@ require "shellwords"
 require "json"
 require "yaml"
 require_relative "../../../workspace"
+require_relative "../../../workspace/secrets/resolver"
 
 module Workspace
   module Commands
@@ -26,11 +27,13 @@ module Workspace
       DEFAULT_VAR_FILE = "terraform.tfvars.json"
       DEFAULT_ENVIRONMENT = "production"
       TRUE_VALUES = %w[y yes true 1].freeze
+      DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
       def initialize(argv, stdin: $stdin, stdout: $stdout)
         @argv = argv.dup
         @stdin = stdin
         @stdout = stdout
+        @secrets_resolver = Workspace::Secrets::Resolver.new(io: @stdout, input: @stdin)
       end
 
       def call
@@ -83,7 +86,7 @@ module Workspace
         failed ||= !check_cli_available(["doctl"], "doctl")
         failed ||= !check_cli_available(["gh"], "GitHub CLI")
         failed ||= !check_cli_available(["git"], "git")
-        failed ||= !check_env_present("DIGITALOCEAN_ACCESS_TOKEN")
+        failed ||= !check_digitalocean_access_token
         failed ||= !check_doctl_auth
         failed ||= !check_gh_auth
         failed ||= !check_expected_repositories
@@ -101,6 +104,7 @@ module Workspace
       def run_configure
         environment = requested_environment
         base_config = existing_infra_config
+        ensure_digitalocean_access_token(interactive: true)
         Workspace.info("Starting guided infra configure flow for #{environment}.")
         Workspace.info("Press Enter to accept defaults shown in [brackets].")
         config = collect_configuration(environment, base_config)
@@ -116,6 +120,7 @@ module Workspace
 
       def run_terraform_action(action)
         prepare_working_directory!
+        ensure_digitalocean_access_token(interactive: true)
         run_init
         run_action(action)
         Workspace.ok("infra #{action} completed")
@@ -301,7 +306,7 @@ module Workspace
         github = config.fetch("github", {})
 
         {
-          "digitalocean_access_token" => env_or_placeholder("DIGITALOCEAN_ACCESS_TOKEN"),
+          "digitalocean_access_token" => digitalocean_token_or_placeholder,
           "spaces_access_key_id" => ENV["SPACES_ACCESS_KEY_ID"],
           "spaces_secret_access_key" => ENV["SPACES_SECRET_ACCESS_KEY"],
           "app_name" => config["app_name"],
@@ -373,6 +378,17 @@ module Workspace
 
         Workspace.ok("#{name}: present")
         true
+      end
+
+      def check_digitalocean_access_token
+        token = ensure_digitalocean_access_token(interactive: false)
+        if token
+          Workspace.ok("#{DIGITALOCEAN_TOKEN_KEY}: available")
+          return true
+        end
+
+        Workspace.fail("#{DIGITALOCEAN_TOKEN_KEY}: missing")
+        false
       end
 
       def check_doctl_auth
@@ -481,6 +497,21 @@ module Workspace
         return value unless value.empty?
 
         "<set-#{name.downcase}>"
+      end
+
+      def digitalocean_token_or_placeholder
+        token = ensure_digitalocean_access_token(interactive: false)
+        return token if token
+
+        env_or_placeholder(DIGITALOCEAN_TOKEN_KEY)
+      end
+
+      def ensure_digitalocean_access_token(interactive:)
+        token = @secrets_resolver.digitalocean_token(interactive: interactive)
+        return nil if token.nil? || token.empty?
+
+        ENV[DIGITALOCEAN_TOKEN_KEY] = token
+        token
       end
 
       def terraform_command(subcommand, *extra_flags)
