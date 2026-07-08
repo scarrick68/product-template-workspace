@@ -7,8 +7,8 @@ require_relative "../../../../lib/workspace/commands/infra/provision_infra_comma
 
 class InfraCommandTest < Minitest::Test
   def test_returns_usage_when_action_missing
-    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply] [environment]")
-    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production")
+    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply|bootstrap-spaces] [environment]")
+    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra bootstrap-spaces production | bin/infra plan production")
 
     result = Workspace::Commands::Infra::ProvisionInfraCommand.new([]).call
 
@@ -18,7 +18,7 @@ class InfraCommandTest < Minitest::Test
   def test_returns_one_when_action_is_unsupported
     Workspace.expects(:fail_with_help).with(
       "Unsupported infra action 'destroy'.",
-      has_entry(details: "Supported actions: doctor, configure, plan, apply")
+      has_entry(details: "Supported actions: doctor, configure, plan, apply, bootstrap-spaces")
     )
 
     result = Workspace::Commands::Infra::ProvisionInfraCommand.new(["destroy"]).call
@@ -131,7 +131,54 @@ class InfraCommandTest < Minitest::Test
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/api-template")).returns(true)
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/web-template")).returns(true)
 
-    File.stubs(:exist?).with(Workspace::Commands::Infra::ProvisionInfraCommand::CONFIG_FILE).returns(false)
+    config_file = Workspace::Commands::Infra::ProvisionInfraCommand::CONFIG_FILE
+    tfvars_file = File.join(Workspace::Commands::Infra::ProvisionInfraCommand::TERRAFORM_DIR, "terraform.tfvars.json")
+
+    File.stubs(:exist?).with(config_file).returns(true)
+    File.stubs(:exist?).with(tfvars_file).returns(true)
+    File.stubs(:read).with(config_file).returns({
+      "app_name" => "app",
+      "environment" => "production",
+      "region" => "nyc",
+      "do_region" => "nyc3",
+      "project" => {
+        "name" => "app-production",
+        "environment" => "production",
+        "purpose" => "Web Application"
+      },
+      "spaces_provider" => "digitalocean_spaces",
+      "components" => {
+        "api" => true,
+        "worker" => true,
+        "web" => true,
+        "postgres" => true,
+        "opensearch" => true,
+        "spaces" => false
+      },
+      "github" => {
+        "owner" => "org",
+        "api_repo" => "api",
+        "web_repo" => "web",
+        "branch" => "main"
+      }
+    }.to_yaml)
+    File.stubs(:read).with(tfvars_file).returns({
+      "app_name" => "app",
+      "environment" => "production",
+      "region" => "nyc",
+      "do_region" => "nyc3",
+      "project_name" => "app-production",
+      "project_environment" => "production",
+      "project_purpose" => "Web Application",
+      "digitalocean_access_token" => "token",
+      "rails_master_key" => "master-key",
+      "enable_spaces" => false,
+      "spaces_provider" => "digitalocean_spaces",
+      "github_owner" => "org",
+      "api_repo" => "api",
+      "web_repo" => "web",
+      "branch" => "main"
+    }.to_json)
 
     assert_equal 0, command.call
   end
