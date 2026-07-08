@@ -26,6 +26,7 @@ module Workspace
       EXAMPLE_CONFIG_FILE = File.join(Workspace::ROOT, "config", "infra.example.yml")
       DEFAULT_VAR_FILE = "terraform.tfvars.json"
       DEFAULT_ENVIRONMENT = "production"
+      DEFAULT_OPENSEARCH_SIZE = "db-s-1vcpu-2gb"
       TRUE_VALUES = %w[y yes true 1].freeze
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
@@ -290,7 +291,7 @@ module Workspace
             "worker" => dig_value(existing, "sizes", "worker") || "basic-xxs",
             "web" => dig_value(existing, "sizes", "web") || "basic-xxs",
             "postgres" => dig_value(existing, "sizes", "postgres") || "db-s-1vcpu-1gb",
-            "opensearch" => dig_value(existing, "sizes", "opensearch") || "db-s-1vcpu-1gb"
+            "opensearch" => dig_value(existing, "sizes", "opensearch") || DEFAULT_OPENSEARCH_SIZE
           },
           "spaces_provider" => spaces_provider
         }
@@ -332,7 +333,7 @@ module Workspace
           "enable_postgres" => components.fetch("postgres", true),
           "postgres_size_slug" => sizes.fetch("postgres", "db-s-1vcpu-1gb"),
           "enable_opensearch" => components.fetch("opensearch", true),
-          "opensearch_size_slug" => sizes.fetch("opensearch", "db-s-1vcpu-1gb"),
+          "opensearch_size_slug" => sizes.fetch("opensearch", DEFAULT_OPENSEARCH_SIZE),
           "enable_spaces" => components.fetch("spaces", true),
           "spaces_provider" => spaces_provider,
           "rails_master_key" => env_or_placeholder("RAILS_MASTER_KEY"),
@@ -454,9 +455,37 @@ module Workspace
         provider = config["spaces_provider"].to_s.strip
         return true if provider.empty?
 
-        return check_aws_s3_readiness if provider == "aws_s3"
+        if provider == "aws_s3"
+          return check_aws_s3_readiness
+        end
 
-        Workspace.ok("blob storage provider '#{provider}': selected")
+        if provider == "digitalocean_spaces"
+          return check_digitalocean_spaces_readiness
+        end
+
+        Workspace.fail("blob storage provider '#{provider}': unsupported (expected digitalocean_spaces or aws_s3)")
+        false
+      end
+
+      def check_digitalocean_spaces_readiness
+        tfvars = terraform_var_file_values
+        should_create_bucket = tfvars.fetch("spaces_create_bucket", true)
+        should_create_key = tfvars.fetch("spaces_create_key", true)
+
+        unless should_create_bucket || should_create_key
+          Workspace.ok("DigitalOcean Spaces provisioning: disabled")
+          return true
+        end
+
+        access_key = tfvars["spaces_access_key_id"].to_s.strip
+        secret_key = tfvars["spaces_secret_access_key"].to_s.strip
+
+        if access_key.empty? || secret_key.empty?
+          Workspace.fail("DigitalOcean Spaces credentials: missing in #{terraform_var_file_name} (spaces_access_key_id/spaces_secret_access_key)")
+          return false
+        end
+
+        Workspace.ok("DigitalOcean Spaces credentials: present")
         true
       end
 
@@ -560,6 +589,14 @@ module Workspace
 
       def terraform_var_file_path
         File.join(TERRAFORM_DIR, terraform_var_file_name)
+      end
+
+      def terraform_var_file_values
+        return {} unless File.exist?(terraform_var_file_path)
+
+        JSON.parse(File.read(terraform_var_file_path))
+      rescue JSON::ParserError
+        {}
       end
       end
     end
