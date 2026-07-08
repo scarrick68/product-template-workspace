@@ -195,7 +195,7 @@ variable "opensearch_version" {
 
 variable "opensearch_size_slug" {
   type    = string
-  default = "db-s-1vcpu-1gb"
+  default = "db-s-1vcpu-2gb"
 }
 
 variable "opensearch_node_count" {

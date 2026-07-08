@@ -79,6 +79,7 @@ resource "digitalocean_spaces_bucket" "this" {
 
 resource "digitalocean_spaces_key" "app" {
 	count = local.create_key ? 1 : 0
+	depends_on = [digitalocean_spaces_bucket.this]
 
 	name = "${local.bucket_name}-${var.environment}-app"
 
