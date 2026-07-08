@@ -71,6 +71,20 @@ flowchart TD
 	- `AWS_ACCESS_KEY_ID`
 	- `AWS_SECRET_ACCESS_KEY`
 
+## DigitalOcean Project grouping
+
+- Terraform provisions a `digitalocean_project` for each configured app/environment.
+- Terraform assigns managed resource URNs to that project via `digitalocean_project_resources`.
+- Project configuration is sourced from `config/infra.yml` and written to tfvars keys:
+	- `project_name`
+	- `project_environment`
+	- `project_purpose`
+- Assigned URNs include:
+	- App Platform app URN
+	- Managed Postgres cluster URN (when enabled)
+	- Managed OpenSearch cluster URN (when enabled)
+	- Managed Spaces bucket URN (when enabled and bucket is created)
+
 ## Infra CLI
 
 - `bin/infra doctor`

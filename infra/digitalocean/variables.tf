@@ -35,6 +35,23 @@ variable "do_region" {
   default = "nyc3"
 }
 
+variable "project_name" {
+  description = "DigitalOcean Project name that groups resources for this app/environment."
+  type        = string
+}
+
+variable "project_purpose" {
+  description = "DigitalOcean Project purpose label."
+  type        = string
+  default     = "Web Application"
+}
+
+variable "project_environment" {
+  description = "DigitalOcean Project environment label (development|staging|production)."
+  type        = string
+  default     = "production"
+}
+
 variable "github_owner" {
   type = string
 }

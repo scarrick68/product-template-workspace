@@ -73,6 +73,10 @@ output "cluster_id" {
 	value = digitalocean_database_cluster.this.id
 }
 
+output "cluster_urn" {
+	value = digitalocean_database_cluster.this.urn
+}
+
 output "database_url" {
 	value     = local.database_url
 	sensitive = true

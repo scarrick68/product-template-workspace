@@ -3,6 +3,11 @@ environment: production
 region: nyc
 do_region: nyc3
 
+project:
+  name: my-product-production
+  environment: production
+  purpose: Web Application
+
 github:
   owner: your-github-org
   api_repo: my-product-api

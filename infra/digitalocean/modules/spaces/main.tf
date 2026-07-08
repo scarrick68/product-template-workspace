@@ -93,6 +93,10 @@ output "bucket_name" {
 	value = local.bucket_name
 }
 
+output "bucket_urn" {
+	value = local.create_bucket ? digitalocean_spaces_bucket.this[0].urn : null
+}
+
 output "s3_endpoint" {
 	value = local.managed_spaces ? "https://${var.do_region}.digitaloceanspaces.com" : var.s3_endpoint
 }

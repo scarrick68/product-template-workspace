@@ -125,6 +125,13 @@ variable "aws_secret_access_key" {
 locals {
 	app_spec_name = "${var.app_name}-${var.environment}"
 
+	secret_env_keys = toset([
+		"DATABASE_URL",
+		"OPENSEARCH_URL",
+		"AWS_ACCESS_KEY_ID",
+		"AWS_SECRET_ACCESS_KEY"
+	])
+
 	optional_api_env = {
 		CORS_ALLOWED_ORIGINS   = var.cors_allowed_origins
 		DATABASE_URL           = var.database_url
@@ -190,7 +197,7 @@ resource "digitalocean_app" "this" {
 						key   = env.key
 						value = env.value
 						scope = "RUN_TIME"
-						type  = contains(["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], env.key) ? "SECRET" : "GENERAL"
+								type  = contains(local.secret_env_keys, env.key) ? "SECRET" : "GENERAL"
 					}
 				}
 			}
@@ -238,7 +245,7 @@ resource "digitalocean_app" "this" {
 						key   = env.key
 						value = env.value
 						scope = "RUN_TIME"
-						type  = contains(["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], env.key) ? "SECRET" : "GENERAL"
+							type  = contains(local.secret_env_keys, env.key) ? "SECRET" : "GENERAL"
 					}
 				}
 			}
@@ -281,7 +288,7 @@ resource "digitalocean_app" "this" {
 						key   = env.key
 						value = env.value
 						scope = "RUN_TIME"
-						type  = contains(["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"], env.key) ? "SECRET" : "GENERAL"
+							type  = contains(local.secret_env_keys, env.key) ? "SECRET" : "GENERAL"
 					}
 				}
 			}
@@ -322,4 +329,8 @@ output "app_id" {
 
 output "app_live_url" {
 	value = digitalocean_app.this.live_url
+}
+
+output "app_urn" {
+	value = digitalocean_app.this.urn
 }
