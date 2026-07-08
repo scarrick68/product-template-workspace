@@ -106,6 +106,10 @@ module Workspace
     puts "#{styled_label('INFO', color: :cyan)} #{message}"
   end
 
+  def user_action_required(message = "User action required")
+    puts "#{styled_label('INPUT', color: :magenta)} #{message}"
+  end
+
   def section(title, color: :cyan, width: 64, divider_char: "=")
     divider = divider_char * width
     decorated_divider = pastel.bold(pastel.decorate(divider, color))

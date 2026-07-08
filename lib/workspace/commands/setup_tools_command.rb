@@ -6,6 +6,7 @@ require "fileutils"
 require "yaml"
 require "rbconfig"
 require_relative "../../workspace"
+require_relative "../cli_prompt"
 require_relative "doctor_command"
 
 module Workspace
@@ -427,18 +428,12 @@ module Workspace
       end
 
       def prompt_yes_no(question, default: true, require_input: false)
-        indicator = default ? "Y/n" : "y/N"
-        stdout.print("#{question} [#{indicator}]: ")
-        raw_answer = prompt_input_stream.gets
-        return :no_input if raw_answer.nil? && require_input
-
-        answer = raw_answer&.strip.to_s.downcase
-
-        return default if answer.empty?
-        return true if %w[y yes].include?(answer)
-        return false if %w[n no].include?(answer)
-
-        default
+        prompt.bool(
+          question,
+          default: default,
+          require_input: require_input,
+          no_input_value: :no_input
+        )
       end
 
       def command_available?(command)
@@ -466,6 +461,10 @@ module Workspace
         @prompt_input_stream ||= File.open("/dev/tty", "r")
       rescue StandardError
         stdin
+      end
+
+      def prompt
+        @prompt ||= Workspace::CliPrompt.new(stdin: prompt_input_stream, stdout: stdout)
       end
     end
   end

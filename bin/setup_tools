@@ -38,6 +38,8 @@ read_required_ruby_version() {
 # Prompt helper used for guarded install actions.
 prompt_yes_no() {
 	local prompt="$1"
+	echo
+	printf '\033[1;35m[INPUT]\033[0m User action required\n'
 	read -r -p "$prompt [y/N]: " answer
 	case "${answer,,}" in
 		y|yes) return 0 ;;

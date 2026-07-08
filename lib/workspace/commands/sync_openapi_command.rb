@@ -63,13 +63,18 @@ module Workspace
         scripts = package.fetch("scripts", {})
         return skip_web_type_generation unless scripts.key?("generate:types")
 
-        Workspace.warn("regenerating web types via npm run generate:types")
-        ok = Workspace.run("npm run generate:types", chdir: web_repo, allow_failure: true)
-        return 0 if ok
+        Workspace.info("regenerating web types")
+        output, ok = Workspace.capture("npm run generate:types", chdir: web_repo)
+        if ok
+          Workspace.ok("web type generation succeeded")
+          return 0
+        end
+
+        Workspace.fail("web type generation failed")
 
         Workspace.fail_with_help(
           "Web type generation failed after OpenAPI sync.",
-          details: "The script npm run generate:types failed in #{relative_path(web_repo)}.",
+          details: "The script npm run generate:types failed in #{relative_path(web_repo)}. Last output: #{output.to_s.strip.lines.last(10).join.strip}",
           assumptions: [
             "The frontend web repo has a valid generate:types script and required tooling dependencies.",
             "The synced OpenAPI document is compatible with the configured type generator."

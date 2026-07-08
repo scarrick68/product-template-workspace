@@ -38,6 +38,8 @@ module Workspace
         io.puts("1. Use token for this run only")
         io.puts("2. Print env var instructions")
         io.puts("3. Store token in #{store.keychain_adapter.name}") if store.keychain_adapter.writable?
+        io.puts
+        io.puts("#{Workspace.styled_label('INPUT', color: :magenta)} User action required")
         io.print("Selection [1]: ")
 
         choice = input.gets&.strip.to_s
@@ -68,6 +70,8 @@ module Workspace
       end
 
       def prompt_token
+        io.puts
+        io.puts("#{Workspace.styled_label('INPUT', color: :magenta)} User action required")
         io.print("DigitalOcean access token: ")
         value = if input.respond_to?(:noecho)
                   input.noecho(&:gets)

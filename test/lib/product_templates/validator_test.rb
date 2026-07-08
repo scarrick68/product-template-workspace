@@ -33,7 +33,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
       Workspace.expects(:run).with("bin/ci", chdir: api_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run lint", chdir: web_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run test", chdir: web_dir, allow_failure: true).returns(true)
-      Workspace.expects(:run).with("npm run build", chdir: web_dir, allow_failure: true).returns(true)
+      Workspace.expects(:capture).with("npm run build", chdir: web_dir).returns(["", true])
       Workspace.expects(:run).with(
         "bin/status",
         chdir: tmpdir,

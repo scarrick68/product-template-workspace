@@ -20,7 +20,7 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
 
         Workspace.stubs(:ok)
         Workspace.stubs(:warn)
-        Workspace.stubs(:run).returns(true)
+        Workspace.stubs(:capture).returns(["", true])
         Workspace.stubs(:fail_with_help)
 
         result = Workspace::Commands::SyncOpenapiCommand.new.call
@@ -65,7 +65,7 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
 
         Workspace.stubs(:ok)
         Workspace.stubs(:warn)
-        Workspace.stubs(:run).returns(true)
+        Workspace.stubs(:capture).returns(["", true])
         Workspace.stubs(:fail_with_help)
 
         result = Workspace::Commands::SyncOpenapiCommand.new.call

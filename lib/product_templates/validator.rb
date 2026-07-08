@@ -5,6 +5,7 @@ require_relative "../workspace"
 require_relative "./project_paths"
 
 module ProductTemplates
+  # Runs backend/frontend handoff checks (ci / tests / builds) to validate a renamed product workspace.
   class Validator
     attr_reader :product_slug, :workspace_root
 
@@ -20,7 +21,7 @@ module ProductTemplates
         check("API CI", "bin/ci", chdir: paths.backend_current_path, chdir_label: paths.backend_current_relative_path),
         check("WEB lint", "npm run lint", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
         check("WEB tests", "npm run test", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
-        check("WEB build", "npm run build", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
+        check_frontend_build("WEB build", "npm run build", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
         check("Workspace status", "bin/status", chdir: workspace_root, chdir_label: ".")
       ]
 
@@ -61,6 +62,24 @@ module ProductTemplates
       end
 
       ok = Workspace.run(command, chdir: chdir, allow_failure: true)
+      { name: name, ok: ok, note: ok ? "passed" : "failed" }
+    end
+
+    def check_frontend_build(name, command, chdir:, chdir_label: nil)
+      path_label = chdir_label || chdir
+      if !Dir.exist?(chdir)
+        Workspace.warn("#{name} skipped: missing directory #{path_label}")
+        return { name: name, ok: false, note: "missing #{path_label}" }
+      end
+
+      Workspace.info("running #{name} (summary mode)")
+      _output, ok = Workspace.capture(command, chdir: chdir)
+      if ok
+        Workspace.ok("#{name} passed")
+      else
+        Workspace.fail("#{name} failed")
+      end
+
       { name: name, ok: ok, note: ok ? "passed" : "failed" }
     end
 

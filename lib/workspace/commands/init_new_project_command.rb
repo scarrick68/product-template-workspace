@@ -4,6 +4,7 @@
 
 require "shellwords"
 require_relative "../../workspace"
+require_relative "../cli_prompt"
 require_relative "auth/github_auth_command"
 
 module Workspace
@@ -175,15 +176,7 @@ module Workspace
       end
 
       def prompt_yes_no(question, default: false)
-        indicator = default ? "Y/n" : "y/N"
-        stdout.print("#{question} [#{indicator}]: ")
-        answer = stdin.gets&.strip.to_s
-
-        return default if answer.empty?
-        return true if answer.match?(/\A(y|yes)\z/i)
-        return false if answer.match?(/\A(n|no)\z/i)
-
-        default
+        prompt.bool(question, default: default)
       end
 
       def confirm_remote_repositories_ready(product_slug, options)
@@ -215,10 +208,7 @@ module Workspace
 
       def confirm_repository_readiness(kind, ref)
         Workspace.info("Expected #{kind} repository: #{ref}")
-        stdout.print("Have you created this repo or confirmed it already exists? [y/N]: ")
-        answer = stdin.gets
-
-        return true if answer && answer.strip.match?(/\A(y|yes)\z/i)
+        return true if prompt_yes_no("Have you created this repo or confirmed it already exists?", default: false)
 
         Workspace.fail_with_help(
           "#{kind.capitalize} repository is not confirmed.",
@@ -250,6 +240,10 @@ module Workspace
             "Re-run bin/init_new_project once the step succeeds."
           ]
         )
+      end
+
+      def prompt
+        @prompt ||= Workspace::CliPrompt.new(stdin: stdin, stdout: stdout)
       end
 
       def configure_remotes_and_push(product_slug, options)
