@@ -6,6 +6,7 @@ require_relative "adapters/unsupported_keychain"
 
 module Workspace
   module Secrets
+    # Builds secret storage adapters based on the current runtime platform.
     class Factory
       def self.env_adapter
         Adapters::Env.new

@@ -5,6 +5,7 @@ require_relative "base"
 module Workspace
   module Secrets
     module Adapters
+      # Reads secrets from process environment variables.
       class Env < Base
         def read(key)
           ENV[key]

@@ -6,6 +6,7 @@ require_relative "store"
 
 module Workspace
   module Secrets
+    # Resolves DigitalOcean tokens from configured stores with interactive fallback prompts for first-time setup.
     class Resolver
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 

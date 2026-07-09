@@ -3,6 +3,7 @@
 module Workspace
   module Secrets
     module Adapters
+      # Defines the adapter interface used by secret stores and resolvers.
       class Base
         def available?
           false

@@ -2,6 +2,7 @@
 
 module Workspace
   module Secrets
+    # Value object for secret lookup outcomes and source attribution.
     class Result
       attr_reader :value, :source
 

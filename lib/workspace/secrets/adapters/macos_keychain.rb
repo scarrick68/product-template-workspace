@@ -7,6 +7,7 @@ require_relative "base"
 module Workspace
   module Secrets
     module Adapters
+      # Integrates with the macOS security CLI for keychain-backed secret storage.
       class MacosKeychain < Base
         SERVICE = "product-template-workspace".freeze
 

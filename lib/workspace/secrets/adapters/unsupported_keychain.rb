@@ -5,6 +5,7 @@ require_relative "base"
 module Workspace
   module Secrets
     module Adapters
+      # Stub adapter for platforms without implemented keychain integration.
       class UnsupportedKeychain < Base
         def available?
           true

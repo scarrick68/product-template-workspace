@@ -4,6 +4,7 @@ require_relative "result"
 
 module Workspace
   module Secrets
+    # Resolves secret lookup order and delegates persistence to keychain adapters.
     class Store
       def initialize(env_adapter:, keychain_adapter:)
         @env_adapter = env_adapter
