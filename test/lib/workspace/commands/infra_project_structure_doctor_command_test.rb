@@ -51,7 +51,10 @@ class InfraProjectStructureDoctorCommandTest < Minitest::Test
       "digitalocean_access_token" => "token",
       "rails_master_key" => "master-key",
       "enable_spaces" => true,
+      "spaces_create_key" => true,
       "spaces_provider" => "digitalocean_spaces",
+      "aws_access_key_id" => "<set-aws_access_key_id>",
+      "aws_secret_access_key" => "<set-aws_secret_access_key>",
       "github_owner" => "org",
       "api_repo" => "api",
       "web_repo" => "web",
@@ -257,7 +260,7 @@ class InfraProjectStructureDoctorCommandTest < Minitest::Test
     assert_equal false, command.call
   end
 
-  def test_returns_false_when_required_secret_looks_like_placeholder
+  def test_returns_false_when_runtime_sensitive_secret_looks_like_placeholder
     config_file = File.join(Workspace::ROOT, "config", "infra.yml")
     tfvars_file = File.join(Workspace::ROOT, "infra", "digitalocean", "terraform.tfvars.json")
 
@@ -294,8 +297,7 @@ class InfraProjectStructureDoctorCommandTest < Minitest::Test
       "project_name" => "app-production",
       "project_environment" => "production",
       "project_purpose" => "Web Application",
-      "digitalocean_access_token" => "token",
-      "rails_master_key" => "<set-rails_master_key>",
+      "digitalocean_access_token" => "<set-digitalocean_access_token>",
       "enable_spaces" => true,
       "spaces_provider" => "digitalocean_spaces",
       "github_owner" => "org",
@@ -310,7 +312,8 @@ class InfraProjectStructureDoctorCommandTest < Minitest::Test
     command = Workspace::Commands::Infra::ProjectStructureDoctorCommand.new(
       config_file: config_file,
       terraform_var_file_path: tfvars_file,
-      terraform_var_file_name: "terraform.tfvars.json"
+      terraform_var_file_name: "terraform.tfvars.json",
+      phase: "runtime"
     )
 
     assert_equal false, command.call

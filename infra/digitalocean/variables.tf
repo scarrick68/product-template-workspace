@@ -207,7 +207,7 @@ variable "enable_opensearch" {
 
 variable "opensearch_version" {
   type    = string
-  default = "3"
+  default = "2"
 }
 
 variable "opensearch_size_slug" {

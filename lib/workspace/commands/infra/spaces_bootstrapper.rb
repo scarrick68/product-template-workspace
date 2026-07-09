@@ -21,7 +21,7 @@ module Workspace
           @config_file = config_file
         end
 
-        def bootstrap!(tfvars:, write_tfvars:, reason_action: nil)
+        def bootstrap!(tfvars:, write_tfvars:, doctl_access_token: nil, reason_action: nil)
           availability = ResourceAvailability.from_infra_config(
             existing_infra_config,
             overrides: {
@@ -44,7 +44,11 @@ module Workspace
             Workspace.info("Managed Spaces enabled and credentials are missing; bootstrapping now before infra #{reason_action}")
           end
 
-          create_and_persist_spaces_credentials!(tfvars: tfvars, write_tfvars: write_tfvars)
+          create_and_persist_spaces_credentials!(
+            tfvars: tfvars,
+            write_tfvars: write_tfvars,
+            doctl_access_token: doctl_access_token
+          )
           Workspace.ok("Spaces bootstrap credentials generated and persisted")
           :created
         end
@@ -62,32 +66,25 @@ module Workspace
           {}
         end
 
-        def create_and_persist_spaces_credentials!(tfvars:, write_tfvars:)
+        def create_and_persist_spaces_credentials!(tfvars:, write_tfvars:, doctl_access_token: nil)
           tooling_checks.digital_ocean_cli_available?
-          tooling_checks.digital_ocean_auth_valid?
+          tooling_checks.digital_ocean_auth_valid?(access_token: doctl_access_token)
 
           bucket_name = resolved_bucket_name(tfvars["app_name"], tfvars["environment"], tfvars["data_artifact_bucket"])
           key_name = spaces_bootstrap_key_name(tfvars)
-          command = [
-            "doctl",
-            "spaces",
-            "keys",
-            "create",
-            key_name,
-            "--grants",
-            "bucket=#{bucket_name};permission=fullaccess",
-            "-o",
-            "json"
-          ].map { |item| Shellwords.escape(item) }.join(" ")
-
+          grant = resolved_spaces_key_grant(tfvars: tfvars, bucket_name: bucket_name)
+          command = doctl_create_spaces_key_command(
+            key_name: key_name,
+            grant: grant,
+            access_token: doctl_access_token
+          )
           output, success = Workspace.capture(command)
           unless success
             Workspace.abort_with_help(
               "Unable to create Spaces access key via doctl.",
               details: redacted_output(output),
               fixes: [
-                "Run: doctl spaces keys create #{key_name} --grants 'bucket=;permission=fullaccess' -o json",
-                "(Or scope access to a single bucket) doctl spaces keys create #{key_name} --grants 'bucket=#{bucket_name};permission=fullaccess' -o json",
+                "Run: doctl spaces keys create #{key_name} --grants '#{grant}' -o json",
                 "Ensure your DigitalOcean account has permission to manage Spaces keys.",
                 "Re-run: bin/infra bootstrap-spaces"
               ]
@@ -121,11 +118,39 @@ module Workspace
             "Unable to parse doctl Spaces key output.",
             details: "Expected JSON output from doctl.",
             fixes: [
-              "Run: doctl spaces keys create #{key_name} --grants 'bucket=;permission=fullaccess' -o json",
-              "(Or scope access to a single bucket) doctl spaces keys create #{key_name} --grants 'bucket=#{bucket_name};permission=fullaccess' -o json",
+              "Run: doctl spaces keys create #{key_name} --grants '#{grant}' -o json",
               "Retry: bin/infra bootstrap-spaces"
             ]
           )
+        end
+
+        def resolved_spaces_key_grant(tfvars:, bucket_name:)
+          should_create_bucket = tfvars.fetch("spaces_create_bucket", true)
+          if should_create_bucket
+            Workspace.info("Spaces bucket is managed by Terraform; generating temporary fullaccess bootstrap key")
+            return "permission=fullaccess"
+          end
+
+          "bucket=#{bucket_name};permission=readwrite"
+        end
+
+        def doctl_create_spaces_key_command(key_name:, grant:, access_token: nil)
+          command = [
+            "doctl",
+            "spaces",
+            "keys",
+            "create",
+            key_name,
+            "--grants",
+            grant,
+            "-o",
+            "json"
+          ]
+
+          token = access_token.to_s.strip
+          command += ["--access-token", token] unless token.empty?
+
+          command.map { |item| Shellwords.escape(item) }.join(" ")
         end
 
         def persist_spaces_credentials!(tfvars:, access_key:, secret_key:, write_tfvars:)

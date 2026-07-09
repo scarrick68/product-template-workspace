@@ -9,7 +9,7 @@ Legend:
 
 ```mermaid
 flowchart TD
-	A[USER: Start infra workflow] --> B[SCRIPT: Run bin/infra doctor]
+	A[USER: Start infra workflow] --> B[SCRIPT: Run bin/infra doctor production --phase=config]
 	B --> C{Doctor checks pass?}
 	C -- No --> D[USER: Fix missing CLI, auth, token, or repo issues]
 	D --> B
@@ -21,7 +21,8 @@ flowchart TD
 	I -- No --> J[USER: Adjust config or environment variables]
 	J --> E
 	I -- Yes --> K[SCRIPT: Run bin/infra apply production]
-	K --> L[USER: Collect outputs and verify app and dependencies]
+	K --> L[SCRIPT: Run bin/infra doctor production --phase=runtime]
+	L --> M[USER: Collect outputs and verify app and dependencies]
 ```
 
 ## Blob Store Decision Tree
@@ -35,7 +36,7 @@ flowchart TD
 	E --> F[SCRIPT: Optionally create Spaces access key]
 	F --> G[SCRIPT: Inject bucket, endpoint, and credentials into app env]
 	D -- aws_s3 --> H[USER: Provide external AWS S3 bucket and creds]
-	H --> I[SCRIPT: Check AWS CLI and auth in bin/infra doctor]
+	H --> I[SCRIPT: Check AWS CLI and auth in bin/infra doctor --phase=config]
 	I --> G
 	G --> J[SCRIPT: App uses ActiveStorage amazon service]
 ```
@@ -49,7 +50,7 @@ flowchart TD
 ## OpenSearch behavior
 
 - OpenSearch is optional but enabled by default (`enable_opensearch = true`).
-- Default OpenSearch engine target is version `3`, which is compatible with current Searchkick releases.
+- Default OpenSearch engine target is version `2`, matching current DigitalOcean managed OpenSearch defaults.
 - When enabled, Terraform creates a managed OpenSearch cluster and exposes its URL as a sensitive output.
 - App Platform gets `OPENSEARCH_URL` from managed OpenSearch automatically when enabled.
 - When disabled, the stack falls back to `opensearch_url` if one is provided explicitly.
@@ -87,8 +88,16 @@ flowchart TD
 
 ## Infra CLI
 
-- `bin/infra doctor`
-	- Checks terraform/tofu, doctl, gh, git, DO token, doctl auth, gh auth, and expected repos.
+- `bin/infra doctor [environment] --phase=config`
+	- Default phase for `bin/infra doctor`.
+	- Checks terraform/tofu, doctl, gh, git, DO token, doctl auth, gh auth, expected repos, and pre-apply blob-store config readiness.
+- `bin/infra doctor [environment] --phase=runtime`
+	- Runs post-apply checks against `terraform output -json` for required runtime values.
+	- Validates runtime database/blob-store values when those components are enabled.
+- `bin/infra doctor-config [environment]`
+	- Alias for `bin/infra doctor [environment] --phase=config`.
+- `bin/infra doctor-runtime [environment]`
+	- Alias for `bin/infra doctor [environment] --phase=runtime`.
 - `bin/infra configure production`
 	- Prompts for core app/infra values.
 	- Writes `config/infra.yml` and `infra/digitalocean/terraform.tfvars.json`.
@@ -99,23 +108,25 @@ flowchart TD
 
 Recommended production flow:
 
-1. `bin/infra doctor` (checks required CLIs, auth state, token presence, expected repos, and blob-store readiness prerequisites)
-2. `bin/infra configure production` (guides config prompts and writes `config/infra.yml` plus `terraform.tfvars.json`)
+1. `bin/infra configure production` (guides config prompts and writes `config/infra.yml` plus `terraform.tfvars.json`)
+2. `bin/infra doctor production --phase=config` (checks pre-apply CLIs, auth state, token presence, repo structure, and config readiness)
 3. `bin/infra plan production` (runs terraform init and previews infrastructure changes before apply)
 4. `bin/infra apply production` (runs terraform init/apply to provision and wire configured infrastructure resources)
+5. `bin/infra doctor production --phase=runtime` (checks post-apply outputs and runtime values)
 
 Example command sequence:
 
 ```bash
-bin/infra doctor
 bin/infra configure production
+bin/infra doctor production --phase=config
 bin/infra plan production
 bin/infra apply production
+bin/infra doctor production --phase=runtime
 ```
 
 Deploy note:
 
-- The current `bin/infra` command set supports `doctor`, `configure`, `plan`, and `apply`.
+- The current `bin/infra` command set supports `doctor`, `doctor-config`, `doctor-runtime`, `configure`, `plan`, and `apply`.
 - A dedicated `bin/infra deploy production` command is not implemented yet.
 - For now, treat `apply` as the launch/provision step, then use your App Platform deploy flow (auto-deploy from configured repo branch or `doctl apps update --update-sources`) as needed.
 

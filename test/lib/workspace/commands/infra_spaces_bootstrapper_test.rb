@@ -62,10 +62,11 @@ class InfraSpacesBootstrapperTest < Minitest::Test
 
   def test_bootstrap_creates_and_persists_credentials
     Workspace.stubs(:ok)
+    Workspace.stubs(:info)
     Workspace.stubs(:command_exists?).with("doctl").returns(true)
     Workspace.stubs(:capture).with("doctl account get").returns(["", true])
 
-    expected_command = "doctl spaces keys create app-prod-artifacts-bootstrap-123 --grants bucket\\=app-prod-artifacts\\;permission\\=fullaccess -o json"
+    expected_command = "doctl spaces keys create app-prod-artifacts-bootstrap-123 --grants permission\\=fullaccess -o json"
     json_output = [{ "access_key" => "new-id", "secret_key" => "new-secret" }].to_json
     Workspace.stubs(:capture).with(expected_command).returns([json_output, true])
 
@@ -101,11 +102,12 @@ class InfraSpacesBootstrapperTest < Minitest::Test
   end
 
   def test_bootstrap_redacts_secrets_in_failure_output
+    Workspace.stubs(:info)
     Workspace.stubs(:command_exists?).with("doctl").returns(true)
     Workspace.stubs(:capture).with("doctl account get").returns(["", true])
 
-    expected_command = "doctl spaces keys create app-prod-artifacts-bootstrap-123 --grants bucket\\=app-prod-artifacts\\;permission\\=fullaccess -o json"
-    Workspace.stubs(:capture).with(expected_command).returns([
+    fullaccess_command = "doctl spaces keys create app-prod-artifacts-bootstrap-123 --grants permission\\=fullaccess -o json"
+    Workspace.stubs(:capture).with(fullaccess_command).returns([
       '{"access_key":"raw-id","secret_key":"raw-secret"}',
       false
     ])
@@ -132,5 +134,76 @@ class InfraSpacesBootstrapperTest < Minitest::Test
     assert_raises(SystemExit) do
       bootstrapper.bootstrap!(tfvars: tfvars, write_tfvars: ->(_values) { flunk("should not write") })
     end
+  end
+
+  def test_bootstrap_uses_explicit_doctl_access_token_when_provided
+    Workspace.stubs(:ok)
+    Workspace.stubs(:info)
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:capture).with("doctl account get --access-token token").returns(["", true])
+
+    expected_command = "doctl spaces keys create app-prod-artifacts-bootstrap-123 --grants permission\\=fullaccess -o json --access-token token"
+    json_output = [{ "access_key" => "new-id", "secret_key" => "new-secret" }].to_json
+    Workspace.stubs(:capture).with(expected_command).returns([json_output, true])
+
+    Time.stubs(:now).returns(Time.at(123))
+
+    written = nil
+    bootstrapper = Workspace::Commands::Infra::SpacesBootstrapper.new(
+      terraform_var_file_name: "terraform.tfvars.json"
+    )
+
+    tfvars = {
+      "enable_spaces" => true,
+      "spaces_provider" => "digitalocean_spaces",
+      "app_name" => "app",
+      "environment" => "prod",
+      "do_region" => "nyc3"
+    }
+
+    status = bootstrapper.bootstrap!(
+      tfvars: tfvars,
+      write_tfvars: ->(values) { written = values.dup },
+      doctl_access_token: "token"
+    )
+
+    assert_equal :created, status
+    assert_equal "new-id", written["spaces_access_key_id"]
+    assert_equal "new-secret", written["spaces_secret_access_key"]
+  end
+
+  def test_bootstrap_uses_bucket_scoped_grant_when_bucket_is_not_managed
+    Workspace.stubs(:ok)
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:capture).with("doctl account get").returns(["", true])
+
+    expected_command = "doctl spaces keys create app-prod-artifacts-bootstrap-123 --grants bucket\\=app-prod-artifacts\\;permission\\=readwrite -o json"
+    json_output = [{ "access_key" => "new-id", "secret_key" => "new-secret" }].to_json
+    Workspace.stubs(:capture).with(expected_command).returns([json_output, true])
+
+    Time.stubs(:now).returns(Time.at(123))
+
+    written = nil
+    bootstrapper = Workspace::Commands::Infra::SpacesBootstrapper.new(
+      terraform_var_file_name: "terraform.tfvars.json"
+    )
+
+    tfvars = {
+      "enable_spaces" => true,
+      "spaces_provider" => "digitalocean_spaces",
+      "spaces_create_bucket" => false,
+      "app_name" => "app",
+      "environment" => "prod",
+      "do_region" => "nyc3"
+    }
+
+    status = bootstrapper.bootstrap!(
+      tfvars: tfvars,
+      write_tfvars: ->(values) { written = values.dup }
+    )
+
+    assert_equal :created, status
+    assert_equal "new-id", written["spaces_access_key_id"]
+    assert_equal "new-secret", written["spaces_secret_access_key"]
   end
 end

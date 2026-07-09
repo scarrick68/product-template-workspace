@@ -142,7 +142,7 @@ module Workspace
           )
 
           if spaces_enabled && spaces_provider == "aws_s3"
-            Workspace.info("Hint: run 'bin/infra doctor' after configure to verify AWS CLI and auth readiness.")
+            Workspace.info("Hint: run 'bin/infra doctor production --phase=config' after configure to verify AWS CLI and auth readiness.")
           end
 
           spaces_provider

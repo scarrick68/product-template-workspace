@@ -87,6 +87,14 @@ class InfraToolingChecksTest < Minitest::Test
     assert_equal false, @checks.digital_ocean_auth_valid?
   end
 
+  def test_digital_ocean_auth_valid_uses_explicit_access_token_when_provided
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:capture).with("doctl account get --access-token token").returns(["", true])
+    Workspace.stubs(:ok)
+
+    assert_equal true, @checks.digital_ocean_auth_valid?(access_token: "token")
+  end
+
   def test_github_auth_valid_returns_false_when_gh_missing
     Workspace.stubs(:command_exists?).with("gh").returns(false)
     Workspace.stubs(:fail)

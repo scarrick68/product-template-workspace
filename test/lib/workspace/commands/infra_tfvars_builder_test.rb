@@ -46,6 +46,9 @@ class InfraTfvarsBuilderTest < Minitest::Test
   end
 
   def test_build_uses_placeholders_when_env_and_token_missing
+    Workspace.stubs(:repositories).returns([])
+    File.stubs(:exist?).returns(false)
+
     builder = Workspace::Commands::Infra::TfvarsBuilder.new(
       default_opensearch_size: "db-s-1vcpu-2gb",
       token_fetcher: -> { nil },
@@ -67,5 +70,33 @@ class InfraTfvarsBuilderTest < Minitest::Test
     assert_equal "my-app-production", tfvars["project_name"]
     assert_equal "production", tfvars["project_environment"]
     assert_equal "Web Application", tfvars["project_purpose"]
+  end
+
+  def test_build_reads_rails_master_key_from_backend_repo_when_env_missing
+    Workspace.stubs(:repositories).returns([
+      { "purpose" => "backend-api", "path" => "repos/api-template" }
+    ])
+
+    master_key_path = File.join(Workspace::ROOT, "repos", "api-template", "config", "master.key")
+    File.stubs(:exist?).with(master_key_path).returns(true)
+    File.stubs(:read).with(master_key_path).returns("repo-master-key\n")
+
+    builder = Workspace::Commands::Infra::TfvarsBuilder.new(
+      default_opensearch_size: "db-s-1vcpu-2gb",
+      token_fetcher: -> { "token" },
+      env: {}
+    )
+
+    tfvars = builder.build(
+      "app_name" => "my-app",
+      "environment" => "production",
+      "region" => "nyc",
+      "do_region" => "nyc3",
+      "github" => {},
+      "components" => {},
+      "sizes" => {}
+    )
+
+    assert_equal "repo-master-key", tfvars["rails_master_key"]
   end
 end

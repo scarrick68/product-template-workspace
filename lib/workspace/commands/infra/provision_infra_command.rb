@@ -14,6 +14,7 @@ require "shellwords"
 require "json"
 require "yaml"
 require "tmpdir"
+require "optparse"
 require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
 require_relative "doctor_command"
@@ -27,14 +28,23 @@ module Workspace
   module Commands
     module Infra
       class ProvisionInfraCommand
-      SUPPORTED_COMMANDS = %w[doctor configure plan apply bootstrap-spaces].freeze
+      SUPPORTED_COMMANDS = %w[
+        doctor
+        doctor-config
+        doctor-runtime
+        doctor:config
+        doctor:runtime
+        configure
+        plan
+        apply
+        bootstrap-spaces
+      ].freeze
       TERRAFORM_DIR = File.join(Workspace::ROOT, "infra", "digitalocean")
       CONFIG_FILE = File.join(Workspace::ROOT, "config", "infra.yml")
       EXAMPLE_CONFIG_FILE = File.join(Workspace::ROOT, "config", "infra.example.yml")
       DEFAULT_VAR_FILE = "terraform.tfvars.json"
       DEFAULT_ENVIRONMENT = "production"
       DEFAULT_OPENSEARCH_SIZE = "db-s-1vcpu-2gb"
-      DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
       def initialize(argv, stdin: $stdin, stdout: $stdout)
         @argv = argv.dup
@@ -48,8 +58,8 @@ module Workspace
         return usage unless action
 
         case action
-        when "doctor"
-          run_doctor
+        when "doctor", "doctor-config", "doctor-runtime", "doctor:config", "doctor:runtime"
+          run_doctor(action)
         when "configure"
           run_configure
         when "bootstrap-spaces"
@@ -73,6 +83,8 @@ module Workspace
           details: "Supported actions: #{SUPPORTED_COMMANDS.join(', ')}",
           fixes: [
             "Run: bin/infra doctor",
+            "Run: bin/infra doctor production --phase=config",
+            "Run: bin/infra doctor-runtime production",
             "Run: bin/infra configure production",
             "Run: bin/infra plan production",
             "Run: bin/infra apply production"
@@ -83,20 +95,71 @@ module Workspace
       end
 
       def usage
-        Workspace.info("Usage: bin/infra [doctor|configure|plan|apply|bootstrap-spaces] [environment]")
-        Workspace.info("Examples: bin/infra doctor | bin/infra configure production | bin/infra bootstrap-spaces production | bin/infra plan production")
+        Workspace.info("Usage: bin/infra [doctor|doctor-config|doctor-runtime|configure|plan|apply|bootstrap-spaces] [environment] [--phase=config|runtime]")
+        Workspace.info("Examples: bin/infra doctor production --phase=config | bin/infra doctor-runtime production | bin/infra configure production | bin/infra plan production")
         1
       end
 
-      def run_doctor
+      def run_doctor(action)
+        options = parse_doctor_options(action)
+        return 1 unless options
+
         DoctorCommand.new(
           config_file: CONFIG_FILE,
           terraform_var_file_path: terraform_var_file_path,
           terraform_var_file_name: terraform_var_file_name,
+          phase: options[:phase],
+          environment: options[:environment],
+          terraform_runner: terraform_runner,
           secrets_resolver: @secrets_resolver,
           stdin: stdin,
           stdout: stdout
         ).call
+      end
+
+      def parse_doctor_options(action)
+        phase = default_doctor_phase_for(action)
+        args = argv[1..] || []
+
+        parser = OptionParser.new do |opts|
+          opts.on("--phase PHASE", "Doctor phase: config or runtime") do |value|
+            normalized = value.to_s.strip
+            unless %w[config runtime].include?(normalized)
+              raise OptionParser::InvalidArgument, "phase must be config or runtime"
+            end
+
+            phase = normalized
+          end
+
+          opts.on("-h", "--help", "Show doctor usage") do
+            Workspace.info("Usage: bin/infra doctor [environment] [--phase=config|runtime]")
+            Workspace.info("Aliases: bin/infra doctor-config [environment] | bin/infra doctor-runtime [environment]")
+            return nil
+          end
+        end
+
+        parser.parse!(args)
+
+        {
+          environment: args[0].to_s.strip.empty? ? DEFAULT_ENVIRONMENT : args[0].to_s.strip,
+          phase: phase
+        }
+      rescue OptionParser::ParseError => e
+        Workspace.fail_with_help(
+          "Invalid infra doctor options.",
+          details: e.message,
+          fixes: [
+            "Run: bin/infra doctor production --phase=config",
+            "Run: bin/infra doctor-runtime production"
+          ]
+        )
+        nil
+      end
+
+      def default_doctor_phase_for(action)
+        return "config" if ["doctor", "doctor-config", "doctor:config"].include?(action)
+
+        "runtime"
       end
 
       def run_configure
@@ -123,21 +186,23 @@ module Workspace
 
       def run_bootstrap_spaces
         ensure_var_file_exists!
-        ensure_digitalocean_access_token(interactive: true)
+        token = ensure_digitalocean_access_token(interactive: true)
         spaces_bootstrapper.bootstrap!(
           tfvars: terraform_var_file_values,
-          write_tfvars: method(:write_terraform_var_file!)
+          write_tfvars: method(:write_terraform_var_file!),
+          doctl_access_token: token
         )
         0
       end
 
       def run_terraform_action(action)
         prepare_working_directory!
-        ensure_digitalocean_access_token(interactive: true)
+        token = ensure_digitalocean_access_token(interactive: true)
         if action == "apply"
           spaces_bootstrapper.bootstrap!(
             tfvars: terraform_var_file_values,
             write_tfvars: method(:write_terraform_var_file!),
+            doctl_access_token: token,
             reason_action: action
           )
         end
@@ -219,7 +284,6 @@ module Workspace
         token = @secrets_resolver.digitalocean_token(interactive: interactive)
         return nil if token.nil? || token.empty?
 
-        ENV[DIGITALOCEAN_TOKEN_KEY] = token
         token
       end
 

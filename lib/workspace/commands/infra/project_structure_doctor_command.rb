@@ -9,6 +9,8 @@ module Workspace
   module Commands
     module Infra
       class ProjectStructureDoctorCommand
+        VALID_PHASES = %w[config runtime].freeze
+
         ESSENTIAL_INFRA_CONFIG_KEYS = %w[
           app_name
           environment
@@ -51,7 +53,6 @@ module Workspace
           project_environment
           project_purpose
           digitalocean_access_token
-          rails_master_key
           enable_spaces
           spaces_provider
           github_owner
@@ -72,17 +73,15 @@ module Workspace
 
         SENSITIVE_TFVARS_KEYS = %w[
           digitalocean_access_token
-          rails_master_key
           database_url
           opensearch_url
-          aws_access_key_id
-          aws_secret_access_key
         ].freeze
 
-        def initialize(config_file:, terraform_var_file_path:, terraform_var_file_name:)
+        def initialize(config_file:, terraform_var_file_path:, terraform_var_file_name:, phase: "config")
           @config_file = config_file
           @terraform_var_file_path = terraform_var_file_path
           @terraform_var_file_name = terraform_var_file_name
+          @phase = normalize_phase(phase)
         end
 
         def call
@@ -91,7 +90,7 @@ module Workspace
 
         private
 
-        attr_reader :config_file, :terraform_var_file_path, :terraform_var_file_name
+        attr_reader :config_file, :terraform_var_file_path, :terraform_var_file_name, :phase
 
         def check_infra_config
           config = parse_yaml_hash(config_file, label: "infra config")
@@ -135,6 +134,8 @@ module Workspace
         end
 
         def validate_sensitive_values(tfvars)
+          return true if phase == "config"
+
           invalid = []
 
           SENSITIVE_TFVARS_KEYS.each do |key|
@@ -161,6 +162,21 @@ module Workspace
           return true if tfvars["spaces_provider"].to_s == "aws_s3"
 
           tfvars["spaces_create_key"] == false
+        end
+
+        def normalize_phase(value)
+          normalized = value.to_s.strip
+          normalized = "config" if normalized.empty?
+          return normalized if VALID_PHASES.include?(normalized)
+
+          Workspace.abort_with_help(
+            "Invalid project structure doctor phase '#{value}'.",
+            details: "Supported phases: #{VALID_PHASES.join(', ')}",
+            fixes: [
+              "Use phase=config for pre-apply checks.",
+              "Use phase=runtime for post-apply checks."
+            ]
+          )
         end
 
         def placeholder_like?(value)

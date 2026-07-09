@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "shellwords"
 require_relative "../../../workspace"
 
 module Workspace
@@ -42,13 +43,13 @@ module Workspace
           cli_available?(["aws"], "AWS CLI")
         end
 
-        def digital_ocean_auth_valid?
+        def digital_ocean_auth_valid?(access_token: nil)
           unless Workspace.command_exists?("doctl")
             Workspace.fail("doctl auth: cannot verify (doctl missing)")
             return false
           end
 
-          _out, success = Workspace.capture("doctl account get")
+          _out, success = Workspace.capture(with_doctl_access_token("doctl account get", access_token))
           if success
             Workspace.ok("doctl auth: valid")
             return true
@@ -72,6 +73,13 @@ module Workspace
 
           Workspace.fail("gh auth: invalid (run: gh auth login)")
           false
+        end
+
+        def with_doctl_access_token(command, access_token)
+          token = access_token.to_s.strip
+          return command if token.empty?
+
+          "#{command} --access-token #{Shellwords.escape(token)}"
         end
 
       end
