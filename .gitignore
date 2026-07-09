@@ -21,3 +21,7 @@ infra/digitalocean/terraform.tfvars.json
 
 # Local test runner output
 tmp/test.log
+
+# Terraform plan files, may contain sensitive data, should not be committed
+*.tfplan
+tfplan

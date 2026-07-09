@@ -4,6 +4,7 @@
 
 require "fileutils"
 require_relative "../../workspace"
+require_relative "bootstrap/rails_credentials_helper"
 
 module Workspace
   module Commands
@@ -127,7 +128,24 @@ module Workspace
 
         install_ruby_dependencies(name, path)
         install_node_dependencies(name, path)
+        ensure_rails_credentials(repo, name, path)
         prepare_database(name, path)
+      end
+
+      def ensure_rails_credentials(repo, name, path)
+        return unless should_run_rails_credentials_helper?(repo, path)
+
+        helper = Workspace::Commands::Bootstrap::RailsCredentialsHelper.new(
+          repository_name: name,
+          repository_path: path
+        )
+        failures << "#{name}:credentials" unless helper.call
+      end
+
+      def should_run_rails_credentials_helper?(repo, path)
+        return true if repo["purpose"].to_s == "backend-api"
+
+        File.file?(File.join(path, "config", "application.rb"))
       end
 
       def install_ruby_dependencies(name, path)
