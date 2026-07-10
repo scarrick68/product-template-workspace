@@ -7,6 +7,7 @@ require "yaml"
 require "fileutils"
 require "rubygems"
 require "pastel"
+require_relative "workspace/project_manifest/loader"
 
 module Workspace
   ROOT = File.expand_path("..", __dir__)
@@ -41,10 +42,22 @@ module Workspace
   end
 
   def ports
+    services = project_manifest_services
+    unless services.empty?
+      return services.each_with_object({}) do |(name, config), acc|
+        acc[name] = Integer(config["port"])
+      rescue ArgumentError, TypeError
+        acc[name] = config["port"]
+      end
+    end
+
     load_yaml("config/ports.yml", {})
   end
 
   def repositories
+    manifest_repositories = project_manifest_repositories
+    return manifest_repositories unless manifest_repositories.empty?
+
     config = load_yaml("config/repos.yml", {})
     list = config["repositories"]
     return default_repositories unless list.is_a?(Array) && !list.empty?
@@ -195,5 +208,29 @@ module Workspace
 
   def script_path(name)
     File.join(ROOT, "bin", name)
+  end
+
+  def project_manifest
+    return @project_manifest if defined?(@project_manifest)
+
+    @project_manifest = project_manifest_loader.load
+  end
+
+  def project_manifest_loader
+    @project_manifest_loader ||= Workspace::ProjectManifest::Loader.new(root: ROOT)
+  end
+
+  def project_manifest_repositories
+    return [] unless project_manifest.is_a?(Hash)
+    return [] unless project_manifest["repositories"].is_a?(Array)
+
+    project_manifest["repositories"]
+  end
+
+  def project_manifest_services
+    return {} unless project_manifest.is_a?(Hash)
+
+    services = project_manifest["services"]
+    services.is_a?(Hash) ? services : {}
   end
 end
