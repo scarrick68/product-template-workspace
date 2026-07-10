@@ -292,7 +292,6 @@ resource "digitalocean_app" "this" {
 
 			content {
 				name               = "web"
-				instance_size_slug = var.web_instance_size_slug
 				source_dir         = "/"
 				build_command      = var.web_build_command
 				output_dir         = var.web_output_dir

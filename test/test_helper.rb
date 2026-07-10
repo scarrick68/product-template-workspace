@@ -2,6 +2,7 @@
 
 require "minitest/autorun"
 require "mocha/minitest"
+require "factory_bot"
 require "fileutils"
 require "tmpdir"
 
@@ -19,3 +20,12 @@ require_relative "../lib/workspace/commands/init_project_command"
 require_relative "../lib/workspace/commands/sync_openapi_command"
 require_relative "../lib/product_templates/renamer"
 require_relative "../lib/product_templates/validator"
+
+FactoryBot.definition_file_paths = [
+	File.expand_path("factories", __dir__)
+]
+FactoryBot.find_definitions
+
+class Minitest::Test
+	include FactoryBot::Syntax::Methods
+end
