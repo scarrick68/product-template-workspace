@@ -23,8 +23,12 @@ config/infra.yml
 **/*.auto.tfvars
 **/*.auto.tfvars.json
 
+# Terraform lock files (base template only, should be checked in to live projects)
+**/.terraform.lock.hcl
+
 # Terraform plans
 **/*.tfplan
+**/*tfplan
 
 # Terraform crash logs
 **/crash.log
