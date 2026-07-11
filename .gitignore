@@ -9,6 +9,8 @@ contracts/openapi/*
 !.workspace/.keep
 
 config/infra.yml
+config/workspace.credentials.key
+config/workspace.credentials.yml.enc
 
 # Terraform working directories
 **/.terraform/

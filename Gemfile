@@ -6,6 +6,7 @@ gem "tty-table"
 gem "awesome_print"
 gem "minitest"
 gem "mocha"
+gem "activesupport"
 
 group :test do
 	gem "factory_bot"
