@@ -8,16 +8,28 @@ contracts/openapi/*
 .workspace/*
 !.workspace/.keep
 
-# Infra local config and Terraform/OpenTofu artifacts
 config/infra.yml
-infra/digitalocean/.terraform/
-infra/digitalocean/.terraform.lock.hcl
-infra/digitalocean/terraform.tfstate
-infra/digitalocean/terraform.tfstate.*
-infra/digitalocean/crash.log
-infra/digitalocean/crash.*.log
-infra/digitalocean/terraform.tfvars
-infra/digitalocean/terraform.tfvars.json
+
+# Terraform working directories
+**/.terraform/
+
+# Terraform state
+**/*.tfstate
+**/*.tfstate.*
+
+# Terraform variable files
+**/terraform.tfvars
+**/terraform.tfvars.json
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+
+# Terraform plans
+**/*.tfplan
+
+# Terraform crash logs
+**/crash.log
+**/crash.*.log
+
 
 # Local test runner output
 tmp/test.log
