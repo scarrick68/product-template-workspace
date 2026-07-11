@@ -45,3 +45,11 @@ output "postgres_port" {
 output "postgres_database_name" {
   value = digitalocean_database_db.rails.name
 }
+
+output "opensearch_cluster_id" {
+  value = digitalocean_database_cluster.opensearch.id
+}
+
+output "opensearch_cluster_name" {
+  value = digitalocean_database_cluster.opensearch.name
+}
