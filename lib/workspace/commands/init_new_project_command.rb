@@ -4,9 +4,13 @@
 
 require "shellwords"
 require_relative "../../workspace"
-require_relative "../../workspace/cli/user_prompt"
-require_relative "auth/github_auth_command"
+require_relative "bootstrap_command"
+require_relative "doctor_command"
+require_relative "github_repository_setup"
 require_relative "init_new_project_options"
+require_relative "new_product_command"
+require_relative "pull_command"
+require_relative "validate_product_command"
 
 module Workspace
   module Commands
@@ -24,7 +28,6 @@ module Workspace
         @argv = argv.dup
         @stdin = stdin
         @stdout = stdout
-        @prompt = Workspace::CLI::UserPrompt.new(input: @stdin, output: @stdout)
       end
 
       def call
@@ -41,24 +44,25 @@ module Workspace
         end
 
         product_slug = options.product_slug
-        runtime_options = build_runtime_options(options)
 
         Workspace.section("Init: New Project Setup")
         Workspace.ok("Initializing new project: #{product_slug}")
         Workspace.info("This workflow will check environment, clone/bootstrap repos, rename templates, validate, and optionally launch dev services.")
 
         unless options.skip_setup_tools?
-          return 1 unless run_step("Guided tool installation and auth setup", "setup_tools")
+          return 1 unless run_shell_step("Guided dev env tool installation and auth setup", "install_local_dev_tools")
         end
-        return 1 unless run_step("Environment prechecks", "preinstall")
-        return 1 unless run_step("Environment diagnostics", "doctor")
-        return 1 unless run_step("Repository bootstrap and dependency install", "bootstrap")
-        return 1 unless run_step("Sync latest template changes", "pull")
-        return 1 unless configure_remote_automation!(runtime_options)
-        return 1 unless confirm_remote_repositories_ready(product_slug, runtime_options, assume_repos_ready: options.assume_repos_ready?)
-        return 1 unless run_step("Rename templates for new project", "new_product", [product_slug])
-        return 1 unless run_step("Post-rename validation (tests/build checks)", "validate_product", [product_slug])
-        return 1 unless configure_remotes_and_push(product_slug, runtime_options)
+        return 1 unless run_shell_step("Environment prechecks", "preinstall")
+        return 1 unless run_command_step("Environment diagnostics") { Workspace::Commands::DoctorCommand.new.call }
+        return 1 unless run_command_step("Repository bootstrap and dependency install") { Workspace::Commands::BootstrapCommand.new.call }
+        return 1 unless run_command_step("Sync latest template changes") { Workspace::Commands::PullCommand.new.call }
+
+        remote_setup = github_repository_setup.call(options: options, product_slug: product_slug)
+        return 1 unless remote_setup.success?
+
+        return 1 unless run_command_step("Rename templates for new project") { Workspace::Commands::NewProductCommand.new([product_slug]).call }
+        return 1 unless run_command_step("Post-rename validation (tests/build checks)") { Workspace::Commands::ValidateProductCommand.new([product_slug]).call }
+        return 1 unless configure_remotes_and_push(remote_setup)
 
         print_summary(product_slug)
 
@@ -70,112 +74,9 @@ module Workspace
 
       private
 
-      attr_reader :argv, :stdin, :stdout, :prompt
+      attr_reader :argv, :stdin, :stdout
 
-      def build_runtime_options(options)
-        {
-          create_remotes: options.create_remotes?,
-          create_remotes_explicit: options.create_remotes_explicit?,
-          visibility: options.visibility,
-          push_after_setup: options.push_after_setup?
-        }
-      end
-
-      def configure_remote_automation!(options)
-        if options[:create_remotes_explicit]
-          if options[:create_remotes]
-            options[:visibility] ||= "private"
-            return verify_github_permissions(options)
-          end
-
-          return true
-        end
-
-        return true unless prompt_yes_no("Would you like this script to create backend/frontend remotes automatically?", default: false)
-
-        options[:create_remotes] = true
-        options[:visibility] = prompt_yes_no("Create remotes as private repositories?", default: true) ? "private" : "public"
-        options[:push_after_setup] = prompt_yes_no("Push repositories after remote setup?", default: true)
-
-        return true if verify_github_permissions(options)
-
-        Workspace.warn("Automatic remote creation is unavailable with current GitHub auth/permissions.")
-        Workspace.warn("You must create remotes and make your initial commit / push yourself")
-        options[:create_remotes] = false
-        options[:visibility] = nil
-        true
-      end
-
-      def verify_github_permissions(options)
-        return true unless options[:create_remotes]
-
-        Workspace.info("Validating GitHub permissions for automated repository creation")
-        Workspace.info("Required permissions: create repository, push code, and (for org owners) org repo creation rights.")
-        Workspace.info("If using classic tokens, ensure repo scope is granted.")
-
-        result = Workspace::Commands::Auth::GithubAuthCommand.new.call
-        return true if result.zero?
-
-        Workspace.fail_with_help(
-          "GitHub auth checks failed for --create-remotes workflow.",
-          details: "Run bin/github_auth_doctor and resolve reported issues before retrying init.",
-          fixes: [
-            "Run: bin/github_auth_doctor",
-            "Refresh gh auth: gh auth refresh -s repo",
-            "Confirm org-level repo creation permissions if using an organization owner"
-          ]
-        )
-        false
-      end
-
-      def prompt_yes_no(question, default: false)
-        prompt.yes_no(question, default: default)
-      end
-
-      def confirm_remote_repositories_ready(product_slug, options, assume_repos_ready: false)
-        return true if options[:create_remotes]
-        return true if assume_repos_ready
-
-        backend_ref = expected_remote_ref(BACKEND_PURPOSE, "#{product_slug}-api")
-        frontend_ref = expected_remote_ref(FRONTEND_PURPOSE, "#{product_slug}-web")
-
-        Workspace.warn("Before rename, confirm remote repositories exist (or are already prepared) on your git provider.")
-        return false unless confirm_repository_readiness("backend", backend_ref)
-        return false unless confirm_repository_readiness("frontend", frontend_ref)
-
-        true
-      end
-
-      def expected_remote_ref(purpose, default_name)
-        repo = repository_by_purpose(purpose)
-        github = repo && repo["github"].to_s
-        owner = github.split("/", 2).first
-        return default_name if owner.nil? || owner.empty?
-
-        "#{owner}/#{default_name}"
-      end
-
-      def repository_by_purpose(purpose)
-        Workspace.repositories.find { |repo| repo["purpose"].to_s == purpose }
-      end
-
-      def confirm_repository_readiness(kind, ref)
-        Workspace.info("Expected #{kind} repository: #{ref}")
-        return true if prompt_yes_no("Have you created this repo or confirmed it already exists?", default: false)
-
-        Workspace.fail_with_help(
-          "#{kind.capitalize} repository is not confirmed.",
-          details: "Create or confirm remote repository '#{ref}', then rerun init.",
-          fixes: [
-            "Create '#{ref}' on your git provider, or confirm existing access.",
-            "Re-run: bin/init_new_project <product-slug>",
-            "Or run with --assume-repos-ready when this step is already handled."
-          ]
-        )
-        false
-      end
-
-      def run_step(label, script_name, args = [])
+      def run_shell_step(label, script_name, args = [])
         Workspace.section("Init Step: #{label}", color: :magenta, divider_char: "-")
 
         command_parts = [Workspace.script_path(script_name)] + args
@@ -195,206 +96,47 @@ module Workspace
         )
       end
 
-      def configure_remotes_and_push(product_slug, options)
-        targets = remote_repo_targets(product_slug)
+      def run_command_step(label)
+        Workspace.section("Init Step: #{label}", color: :magenta, divider_char: "-")
 
-        if options[:create_remotes]
-          Workspace.info("Creating remote repositories on GitHub")
-          return false unless create_remote_repositories(targets, options)
+        exit_code = begin
+          yield
+        rescue SystemExit => e
+          e.status
+        end
+
+        return true if exit_code.to_i.zero?
+
+        Workspace.fail_with_help(
+          "Init workflow failed at step: #{label}.",
+          details: "Command object returned exit code #{exit_code}.",
+          fixes: [
+            "Fix the reported issue above.",
+            "Run the corresponding command directly to validate the fix.",
+            "Re-run bin/init_new_project once the step succeeds."
+          ]
+        )
+        false
+      end
+
+      def configure_remotes_and_push(remote_setup)
+        if remote_setup.create_remotes?
+          targets = remote_setup.targets
         else
           unset_origin_remotes
+          return true
         end
 
-        return true unless options[:create_remotes]
+        #!/usr/bin/env ruby
+        # frozen_string_literal: true
 
-        Workspace.info("Configuring local git origins for product repositories")
-        connect_local_repositories(targets)
+        require_relative "../services/init_new_project"
 
-        if options[:push_after_setup]
-          Workspace.info("Pushing initialized repositories to new remotes")
-          return false unless push_repositories(targets)
-        else
-          Workspace.warn("Push step skipped (--no-push). Repositories are ready for manual push.")
-        end
-
-        true
-      end
-
-      def remote_repo_targets(product_slug)
-        [
-          {
-            label: "backend",
-            local_path: repository_path_for(BACKEND_PURPOSE),
-            github_ref: expected_remote_ref(BACKEND_PURPOSE, "#{product_slug}-api")
-          },
-          {
-            label: "frontend",
-            local_path: repository_path_for(FRONTEND_PURPOSE),
-            github_ref: expected_remote_ref(FRONTEND_PURPOSE, "#{product_slug}-web")
-          }
-        ]
-      end
-
-      def create_remote_repositories(targets, options)
-        targets.each do |target|
-          next if repository_exists?(target[:github_ref])
-
-          success = Workspace.run(
-            "gh repo create #{Shellwords.escape(target[:github_ref])} --#{options[:visibility]} --confirm",
-            chdir: Workspace::ROOT,
-            allow_failure: true,
-            summary: "Failed to create #{target[:label]} repository #{target[:github_ref]}.",
-            details: "Your account may not have permission to create repositories for this owner.",
-            fixes: [
-              "Verify owner access in GitHub for #{target[:github_ref].split('/', 2).first}.",
-              "Run: gh auth status -t and confirm repo creation permissions.",
-              "Create repository manually, then re-run with --assume-repos-ready."
-            ]
-          )
-          return false unless success
-
-          Workspace.ok("Created remote repository #{target[:github_ref]}")
-        end
-
-        true
-      end
-
-      def repository_exists?(github_ref)
-        _out, ok = Workspace.capture("gh repo view #{Shellwords.escape(github_ref)}")
-        Workspace.info("Remote repository exists: #{github_ref}") if ok
-        ok
-      end
-
-      def connect_local_repositories(targets)
-        targets.each do |target|
-          local_path = target[:local_path]
-          absolute_path = File.join(Workspace::ROOT, local_path)
-          next unless Dir.exist?(absolute_path)
-          next unless Dir.exist?(File.join(absolute_path, ".git"))
-
-          _origin_out, has_origin = Workspace.capture("git remote get-url origin", chdir: absolute_path)
-          Workspace.run("git remote remove origin", chdir: absolute_path, allow_failure: true) if has_origin
-
-          repo_url = "git@github.com:#{target[:github_ref]}.git"
-          Workspace.run("git remote add origin #{Shellwords.escape(repo_url)}", chdir: absolute_path)
-          Workspace.ok("Configured origin for #{target[:label]}: #{repo_url}")
-        end
-      end
-
-      def push_repositories(targets)
-        targets.each do |target|
-          local_path = target[:local_path]
-          absolute_path = File.join(Workspace::ROOT, local_path)
-          next unless Dir.exist?(absolute_path)
-          next unless Dir.exist?(File.join(absolute_path, ".git"))
-
-          _, branch_ok = Workspace.capture("git symbolic-ref --quiet --short HEAD", chdir: absolute_path)
-          unless branch_ok
-            Workspace.warn("Skipping push for #{target[:label]}: repository has no active branch yet.")
-            next
-          end
-
-          success = Workspace.run(
-            "git push -u origin HEAD",
-            chdir: absolute_path,
-            allow_failure: true,
-            summary: "Failed to push #{target[:label]} repository to remote.",
-            details: "Remote may reject push due to permissions or branch protections.",
-            fixes: [
-              "Verify repository write access on #{target[:github_ref]}.",
-              "Retry manually: git -C #{local_path} push -u origin HEAD",
-              "If required, create default branch and re-run push."
-            ]
-          )
-          return false unless success
-
-          Workspace.ok("Pushed #{target[:label]} repository to #{target[:github_ref]}")
-        end
-
-        true
-      end
-
-      def print_summary(product_slug)
-        api_repo = repository_path_for(BACKEND_PURPOSE) || "repos/#{product_slug}-api"
-        web_repo = repository_path_for(FRONTEND_PURPOSE) || "repos/#{product_slug}-web"
-
-        puts
-        Workspace.ok("Project initialization completed successfully.")
-        Workspace.info("Renamed repositories:")
-        Workspace.info("- #{api_repo}")
-        Workspace.info("- #{web_repo}")
-
-        puts
-        Workspace.info("Helpful references:")
-        REFERENCE_DOCS.each { |path| Workspace.info("- #{path}") }
-        Workspace.info("- #{api_repo}/docs/template-rename.md")
-        Workspace.info("- #{web_repo}/docs/template-rename.md")
-      end
-
-      def unset_origin_remotes
-        targets = remote_targets
-        removed = []
-
-        targets.each do |target|
-          next unless Dir.exist?(target[:absolute_path])
-          next unless Dir.exist?(File.join(target[:absolute_path], ".git"))
-
-          _, has_origin = Workspace.capture("git remote get-url origin", chdir: target[:absolute_path])
-          next unless has_origin
-
-          success = Workspace.run("git remote remove origin", chdir: target[:absolute_path], allow_failure: true)
-          removed << target if success
-        end
-
-        print_remote_reset_warning(removed, targets)
-      end
-
-      def remote_targets
-        workspace_target = {
-          label: "template workspace",
-          relative_path: ".",
-          absolute_path: Workspace::ROOT,
-          suggested_github: "<your-org>/#{File.basename(Workspace::ROOT)}"
-        }
-
-        repo_targets = Workspace.repositories.map do |repo|
-          relative_path = repo["path"].to_s
-          {
-            label: repo["name"].to_s,
-            relative_path: relative_path,
-            absolute_path: File.join(Workspace::ROOT, relative_path),
-            suggested_github: repo["github"].to_s.empty? ? "<your-org>/<repo-name>" : repo["github"].to_s
-          }
-        end
-
-        [workspace_target] + repo_targets
-      end
-
-      def print_remote_reset_warning(removed, targets)
-        Workspace.warn("Git origin remotes for the template workspace and repos/ projects have been unset where present.")
-        Workspace.warn("Set each remote to your own project location before pushing.")
-
-        if removed.empty?
-          Workspace.info("No existing origin remotes were found to remove.")
-        else
-          Workspace.info("Unset origin for:")
-          removed.each do |target|
-            Workspace.info("- #{target[:relative_path]} (#{target[:label]})")
+        module Workspace
+          module Commands
+            # Compatibility shim: prefer Workspace::Services::InitNewProject.
+            class InitNewProjectCommand < Workspace::Services::InitNewProject
+            end
           end
         end
 
-        puts
-        Workspace.info("Set your new origins with commands like:")
-        targets.each do |target|
-          escaped_path = Shellwords.escape(target[:relative_path])
-          Workspace.info("git -C #{escaped_path} remote add origin git@github.com:#{target[:suggested_github]}.git")
-        end
-      end
-
-      def repository_path_for(purpose)
-        repo = repository_by_purpose(purpose)
-        repo && repo["path"].to_s
-      end
-    end
-  end
-end
