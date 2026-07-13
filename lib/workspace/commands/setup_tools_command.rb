@@ -5,6 +5,7 @@
 require "fileutils"
 require "yaml"
 require "rbconfig"
+require "tty-prompt"
 require_relative "../../workspace"
 require_relative "doctor_command"
 
@@ -23,6 +24,7 @@ module Workspace
       def initialize(stdin: $stdin, stdout: $stdout)
         @stdin = stdin
         @stdout = stdout
+        @prompt = nil
         @command_exists_cache = {}
         @preferences = {
           "install_missing" => {},
@@ -427,16 +429,12 @@ module Workspace
       end
 
       def prompt_yes_no(question, default: true, require_input: false)
-        indicator = default ? "Y/n" : "y/N"
-        stdout.print("#{question} [#{indicator}]: ")
-        raw_answer = prompt_input_stream.gets
-        return :no_input if raw_answer.nil? && require_input
+        stream = prompt_input_stream
+        return :no_input if require_input && stream.respond_to?(:eof?) && stream.eof?
 
-        answer = raw_answer&.strip.to_s.downcase
-
-        return default if answer.empty?
-        return true if %w[y yes].include?(answer)
-        return false if %w[n no].include?(answer)
+        tty_prompt.yes?(question, default: default)
+      rescue TTY::Reader::InputInterrupt, TTY::Reader::EOFError
+        return :no_input if require_input
 
         default
       end
@@ -466,6 +464,12 @@ module Workspace
         @prompt_input_stream ||= File.open("/dev/tty", "r")
       rescue StandardError
         stdin
+      end
+
+      def tty_prompt
+        return @prompt if @prompt
+
+        @prompt = TTY::Prompt.new(input: prompt_input_stream, output: stdout)
       end
     end
   end
