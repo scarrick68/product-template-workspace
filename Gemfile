@@ -11,3 +11,5 @@ gem "activesupport"
 group :test do
 	gem "factory_bot"
 end
+
+gem "tty-prompt", "~> 0.23.1"
