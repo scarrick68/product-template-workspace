@@ -8,7 +8,7 @@ class StartDayCommandSmokeTest < Minitest::Test
     Workspace.stubs(:ok)
     Workspace.stubs(:fail_with_help)
 
-    command = Workspace::Commands::StartDayCommand.new([])
+    command = Workspace::Services::StartDay.new([])
     command.stubs(:system).returns(true)
 
     result = command.call

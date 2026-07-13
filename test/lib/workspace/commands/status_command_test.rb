@@ -15,7 +15,7 @@ class StatusCommandSmokeTest < Minitest::Test
       Workspace.stubs(:capture).returns(["## main\n", true])
       Workspace.stubs(:fail_with_help)
 
-      result = Workspace::Commands::StatusCommand.new.call
+      result = Workspace::Services::Status.new.call
       assert_equal 0, result
     end
   end

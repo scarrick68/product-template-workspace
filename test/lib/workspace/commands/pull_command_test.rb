@@ -20,7 +20,7 @@ class PullCommandSmokeTest < Minitest::Test
       Workspace.stubs(:ok)
       Workspace.stubs(:fail_with_help)
 
-      result = Workspace::Commands::PullCommand.new.call
+      result = Workspace::Services::Pull.new.call
       assert_equal 0, result
     end
   end

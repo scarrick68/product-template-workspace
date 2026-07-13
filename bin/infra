@@ -3,6 +3,6 @@
 
 # Run Terraform/OpenTofu infra utility commands for DigitalOcean deployment.
 
-require_relative "../lib/workspace/commands/infra/provision_infra_command"
+require_relative "../lib/workspace/services/infra/provision_infra"
 
-exit Workspace::Commands::Infra::ProvisionInfraCommand.new(ARGV).call
+exit Workspace::Services::Infra::ProvisionInfra.new(ARGV).call

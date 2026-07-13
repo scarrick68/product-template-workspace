@@ -6,10 +6,10 @@ require "tmpdir"
 require "yaml"
 
 require_relative "../../../test_helper"
-require_relative "../../../../lib/workspace/commands/init_workspace_credentials_files_command"
+require_relative "../../../../lib/workspace/services/init_workspace_credentials_files"
 
 class InitWorkspaceCredentialsFilesCommandTest < Minitest::Test
-  Command = Workspace::Commands::InitWorkspaceCredentialsFilesCommand
+  Command = Workspace::Services::InitWorkspaceCredentialsFiles
 
   def setup
     @root = Dir.mktmpdir("workspace-credentials-command")

@@ -2,6 +2,6 @@
 # frozen_string_literal: true
 # Bootstrap workspace repositories, dependencies, and database setup.
 
-require_relative "../lib/workspace/commands/bootstrap_command"
+require_relative "../lib/workspace/services/bootstrap"
 
-exit Workspace::Commands::BootstrapCommand.new.call
+exit Workspace::Services::Bootstrap.new.call

@@ -12,7 +12,7 @@ class PreinstallCommandSmokeTest < Minitest::Test
     Workspace.stubs(:ok)
     Workspace.stubs(:fail_with_help)
 
-    result = Workspace::Commands::PreinstallCommand.new.call
+    result = Workspace::Services::Preinstall.new.call
     assert_equal 0, result
   end
 
