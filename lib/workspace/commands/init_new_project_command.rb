@@ -4,6 +4,7 @@
 
 require "shellwords"
 require_relative "../../workspace"
+require_relative "../../workspace/cli/user_prompt"
 require_relative "auth/github_auth_command"
 
 module Workspace
@@ -22,6 +23,7 @@ module Workspace
         @argv = argv.dup
         @stdin = stdin
         @stdout = stdout
+        @prompt = Workspace::CLI::UserPrompt.new(input: @stdin, output: @stdout)
       end
 
       def call
@@ -58,7 +60,7 @@ module Workspace
 
       private
 
-      attr_reader :argv, :stdin, :stdout
+      attr_reader :argv, :stdin, :stdout, :prompt
 
       def parse_options
         options = {
@@ -175,15 +177,7 @@ module Workspace
       end
 
       def prompt_yes_no(question, default: false)
-        indicator = default ? "Y/n" : "y/N"
-        stdout.print("#{question} [#{indicator}]: ")
-        answer = stdin.gets&.strip.to_s
-
-        return default if answer.empty?
-        return true if answer.match?(/\A(y|yes)\z/i)
-        return false if answer.match?(/\A(n|no)\z/i)
-
-        default
+        prompt.yes_no(question, default: default)
       end
 
       def confirm_remote_repositories_ready(product_slug, options)

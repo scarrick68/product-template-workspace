@@ -120,3 +120,27 @@ variable "postgres_node_count" {
   type    = number
   default = 1
 }
+
+variable "opensearch_name" {
+  type = string
+}
+
+variable "opensearch_region" {
+  type    = string
+  default = "nyc3"
+}
+
+variable "opensearch_version" {
+  type    = string
+  default = "2.19"
+}
+
+variable "opensearch_size" {
+  type    = string
+  default = "db-s-1vcpu-2gb"
+}
+
+variable "opensearch_node_count" {
+  type    = number
+  default = 1
+}
