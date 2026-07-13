@@ -13,6 +13,7 @@
 require "shellwords"
 require "json"
 require "yaml"
+require "tty-prompt"
 require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
 
@@ -26,13 +27,13 @@ module Workspace
       EXAMPLE_CONFIG_FILE = File.join(Workspace::ROOT, "config", "infra.example.yml")
       DEFAULT_VAR_FILE = "terraform.tfvars.json"
       DEFAULT_ENVIRONMENT = "production"
-      TRUE_VALUES = %w[y yes true 1].freeze
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
       def initialize(argv, stdin: $stdin, stdout: $stdout)
         @argv = argv.dup
         @stdin = stdin
         @stdout = stdout
+        @prompt = TTY::Prompt.new(input: @stdin, output: @stdout)
         @secrets_resolver = Workspace::Secrets::Resolver.new(io: @stdout, input: @stdin)
       end
 
@@ -52,7 +53,7 @@ module Workspace
 
       private
 
-      attr_reader :argv, :stdin, :stdout
+      attr_reader :argv, :stdin, :stdout, :prompt
 
       def requested_action
         first_arg = argv.first
@@ -345,23 +346,13 @@ module Workspace
       end
 
       def prompt_value(label, default: nil, hint: nil)
-        stdout.puts("  Hint: #{hint}") unless hint.nil? || hint.empty?
-        default_text = default.nil? || default.to_s.empty? ? "" : " [#{default}]"
-        stdout.print("#{label}#{default_text}: ")
-        input = stdin.gets&.strip
-        return default if input.nil? || input.empty?
-
-        input
+        stdout.puts("  Hint: #{hint}") unless hint.to_s.empty?
+        prompt.ask(label, default: default)
       end
 
       def prompt_bool(label, default:, hint: nil)
-        stdout.puts("  Hint: #{hint}") unless hint.nil? || hint.empty?
-        default_hint = default ? "Y/n" : "y/N"
-        stdout.print("#{label} (#{default_hint}): ")
-        input = stdin.gets&.strip.to_s.downcase
-        return default if input.empty?
-
-        TRUE_VALUES.include?(input)
+        stdout.puts("  Hint: #{hint}") unless hint.to_s.empty?
+        prompt.yes?(label, default: default)
       end
 
       def check_cli_available(commands, label)
