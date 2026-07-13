@@ -6,7 +6,7 @@ This guide covers the fastest path to bootstrap a new product from templates and
 
 Validation:
 
-1. Run `bin/setup_tools`, then `bin/preinstall` and `bin/doctor`.
+1. Run `bin/install_local_dev_tools`, then `bin/preinstall` and `bin/doctor`.
 2. If it reports failures, fix the provided errors and run it again.
 3. Continue only after `bin/doctor` succeeds.
 
@@ -28,7 +28,7 @@ Legend:
 flowchart TD
 	A[[USER: Start new product setup]] --> B[[USER: Run bin/init_project --destination ~/Code/my-super-app my-super-app -- --no-dev]]
 	B --> C[[SCRIPT: init_project copies workspace to destination and delegates to init_new_project in copied workspace]]
-	C --> D[[SCRIPT: init_new_project runs setup_tools, preinstall, and doctor]]
+	C --> D[[SCRIPT: init_new_project runs install_local_dev_tools, preinstall, and doctor]]
 	D --> E{Checks pass?}
 	E -- No --> F[[USER: Read FAIL output and fix environment issues]]
 	F --> D
@@ -83,7 +83,7 @@ What this does:
 1. Copies template workspace into a new destination workspace (sibling by default when `--destination` is omitted).
 2. Preserves copied git histories for the workspace and template repos; nothing is removed automatically.
 3. Delegates to `init_new_project` inside the copied workspace.
-4. Runs guided machine setup (`setup_tools`) for missing tool install/auth prompts.
+4. Runs guided machine setup (`install_local_dev_tools`) for missing tool install/auth prompts.
 5. Runs prechecks (`preinstall`, `doctor`).
 6. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
 7. Uses one of two remote workflows:
