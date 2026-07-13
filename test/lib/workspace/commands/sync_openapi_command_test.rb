@@ -23,7 +23,7 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
         Workspace.stubs(:run).returns(true)
         Workspace.stubs(:fail_with_help)
 
-        result = Workspace::Commands::SyncOpenapiCommand.new.call
+        result = Workspace::Services::SyncOpenapi.new.call
         assert_equal 0, result
 
         assert File.exist?(File.join(root, "contracts", "openapi", "openapi.yml"))
@@ -68,7 +68,7 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
         Workspace.stubs(:run).returns(true)
         Workspace.stubs(:fail_with_help)
 
-        result = Workspace::Commands::SyncOpenapiCommand.new.call
+        result = Workspace::Services::SyncOpenapi.new.call
         assert_equal 0, result
 
         assert File.exist?(File.join(root, "contracts", "openapi", "openapi.yml"))

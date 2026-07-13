@@ -6,8 +6,8 @@ require "fileutils"
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class BootstrapCommand
+  module Services
+    class Bootstrap
       def initialize
         @failures = []
       end

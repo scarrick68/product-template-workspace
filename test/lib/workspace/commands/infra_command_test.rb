@@ -3,14 +3,14 @@
 require "stringio"
 
 require_relative "../../../test_helper"
-require_relative "../../../../lib/workspace/commands/infra/provision_infra_command"
+require_relative "../../../../lib/workspace/services/infra/provision_infra"
 
 class InfraCommandTest < Minitest::Test
   def test_returns_usage_when_action_missing
     Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply] [environment]")
     Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production")
 
-    result = Workspace::Commands::Infra::ProvisionInfraCommand.new([]).call
+    result = Workspace::Services::Infra::ProvisionInfra.new([]).call
 
     assert_equal 1, result
   end
@@ -21,7 +21,7 @@ class InfraCommandTest < Minitest::Test
       has_entry(details: "Supported actions: doctor, configure, plan, apply")
     )
 
-    result = Workspace::Commands::Infra::ProvisionInfraCommand.new(["destroy"]).call
+    result = Workspace::Services::Infra::ProvisionInfra.new(["destroy"]).call
 
     assert_equal 1, result
   end
@@ -43,18 +43,18 @@ class InfraCommandTest < Minitest::Test
     ])
     Workspace.stubs(:ok)
     Workspace.stubs(:info)
-    File.stubs(:exist?).with(Workspace::Commands::Infra::ProvisionInfraCommand::CONFIG_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::CONFIG_FILE).returns(false)
 
-    File.expects(:write).with(Workspace::Commands::Infra::ProvisionInfraCommand::CONFIG_FILE, includes("app_name: my-product"))
+    File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::CONFIG_FILE, includes("app_name: my-product"))
     File.expects(:write).with(
-      File.join(Workspace::Commands::Infra::ProvisionInfraCommand::TERRAFORM_DIR, "terraform.tfvars.json"),
+      File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "terraform.tfvars.json"),
       includes("\"app_name\": \"my-product\"")
     )
 
     input = StringIO.new("my-product\nnyc\nnyc3\nexample-org\nmy-product-api\nmy-product-web\nmain\ny\nn\ny\naws_s3\n")
     output = StringIO.new
 
-    result = Workspace::Commands::Infra::ProvisionInfraCommand.new(["configure", "production"], stdin: input, stdout: output).call
+    result = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: input, stdout: output).call
 
     assert_equal 0, result
   end
@@ -69,11 +69,11 @@ class InfraCommandTest < Minitest::Test
 
     Workspace.expects(:abort_with_help).with(
       "Missing Terraform var-file.",
-      has_entry(details: "Expected file: #{File.join(Workspace::Commands::Infra::ProvisionInfraCommand::TERRAFORM_DIR, 'terraform.tfvars.json')}")
+      has_entry(details: "Expected file: #{File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, 'terraform.tfvars.json')}")
     ).raises(SystemExit.new(1))
 
     assert_raises(SystemExit) do
-      Workspace::Commands::Infra::ProvisionInfraCommand.new(["plan"]).call
+      Workspace::Services::Infra::ProvisionInfra.new(["plan"]).call
     end
   end
 
@@ -86,7 +86,7 @@ class InfraCommandTest < Minitest::Test
     File.stubs(:exist?).returns(true)
 
     sequence = sequence("infra-plan-sequence")
-    terraform_dir = Workspace::Commands::Infra::ProvisionInfraCommand::TERRAFORM_DIR
+    terraform_dir = Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR
 
     Workspace.expects(:run).with(
       "terraform -chdir=#{terraform_dir} init",
@@ -98,7 +98,7 @@ class InfraCommandTest < Minitest::Test
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
-    result = Workspace::Commands::Infra::ProvisionInfraCommand.new(["plan"], stdin: StringIO.new, stdout: StringIO.new).call
+    result = Workspace::Services::Infra::ProvisionInfra.new(["plan"], stdin: StringIO.new, stdout: StringIO.new).call
 
     assert_equal 0, result
   end
@@ -120,7 +120,7 @@ class InfraCommandTest < Minitest::Test
       { "purpose" => "frontend-web-client", "name" => "web-template", "path" => "repos/web-template" }
     ])
 
-    command = Workspace::Commands::Infra::ProvisionInfraCommand.new(["doctor"], stdin: StringIO.new, stdout: StringIO.new)
+    command = Workspace::Services::Infra::ProvisionInfra.new(["doctor"], stdin: StringIO.new, stdout: StringIO.new)
     resolver = mock("secrets_resolver")
     resolver.expects(:digitalocean_token).with(interactive: false).returns("token")
     command.instance_variable_set(:@secrets_resolver, resolver)
@@ -131,7 +131,7 @@ class InfraCommandTest < Minitest::Test
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/api-template")).returns(true)
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/web-template")).returns(true)
 
-    File.stubs(:exist?).with(Workspace::Commands::Infra::ProvisionInfraCommand::CONFIG_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::CONFIG_FILE).returns(false)
 
     assert_equal 0, command.call
   end

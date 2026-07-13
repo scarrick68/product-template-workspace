@@ -7,8 +7,8 @@ require "open3"
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class TestCommand
+  module Services
+    class Test
       def initialize(argv)
         @argv = argv
       end
@@ -43,7 +43,7 @@ module Workspace
           ],
           fixes: [
             "Run without arguments to discover all tests: bin/test",
-            "Pass a specific file or folder under test/, for example: bin/test test/lib/workspace/commands",
+            "Pass a specific file or folder under test/, for example: bin/test test/lib/workspace/services",
             "Ensure test files end with _test.rb."
           ]
         )

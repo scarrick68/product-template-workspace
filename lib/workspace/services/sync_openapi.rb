@@ -7,8 +7,8 @@ require "json"
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class SyncOpenapiCommand
+  module Services
+    class SyncOpenapi
       def call
         return 1 unless source_openapi_exists?
 

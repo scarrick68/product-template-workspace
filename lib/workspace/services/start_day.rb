@@ -5,8 +5,8 @@
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class StartDayCommand
+  module Services
+    class StartDay
       WORKFLOW_STEPS = [
         "preinstall",
         "doctor",

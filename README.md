@@ -116,7 +116,7 @@ The first priority scripts for developer ergonomics:
 - `bin/dev`: start core local services.
 - `bin/start-day`: run daily coordination workflow.
 - `bin/init_project <product-slug> [--destination PATH]`: copy this template workspace into a new app workspace (sibling by default), then run generated-workspace initialization inside the copy.
-- `bin/init_new_project <product-slug>`: guided first-time setup flow (setup_tools (required software installation), environment checks, bootstrap, rename, validation, optional dev launch).
+- `bin/init_new_project <product-slug>`: guided first-time setup flow (install_local_dev_tools (required software installation), environment checks, bootstrap, rename, validation, optional dev launch).
 - `bin/new_product <product-slug>`: orchestrate template-to-product rename across repos.
 - `bin/validate_product <product-slug>`: run post-rename validation checks and checklist.
 

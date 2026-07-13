@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../test_helper"
-require_relative "../../../../lib/workspace/commands/auth/github_auth_command"
+require_relative "../../../../lib/workspace/services/auth/github_auth"
 
 class GithubAuthDoctorCommandTest < Minitest::Test
   def test_returns_zero_when_all_checks_pass
@@ -21,7 +21,7 @@ class GithubAuthDoctorCommandTest < Minitest::Test
     Workspace.stubs(:capture).with("gh api orgs/example-org").returns(["{}", true])
     Workspace.stubs(:capture).with("gh api orgs/example-org/memberships/example-user").returns(["{\"state\":\"active\",\"role\":\"member\"}", true])
 
-    result = Workspace::Commands::Auth::GithubAuthCommand.new.call
+    result = Workspace::Services::Auth::GithubAuth.new.call
 
     assert_equal 0, result
   end
@@ -34,7 +34,7 @@ class GithubAuthDoctorCommandTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("git").returns(true)
     Workspace.stubs(:command_exists?).with("gh").returns(false)
 
-    result = Workspace::Commands::Auth::GithubAuthCommand.new.call
+    result = Workspace::Services::Auth::GithubAuth.new.call
 
     assert_equal 1, result
   end
@@ -49,7 +49,7 @@ class GithubAuthDoctorCommandTest < Minitest::Test
 
     Workspace.stubs(:capture).with("gh auth status").returns(["", false])
 
-    result = Workspace::Commands::Auth::GithubAuthCommand.new.call
+    result = Workspace::Services::Auth::GithubAuth.new.call
 
     assert_equal 1, result
   end

@@ -5,11 +5,11 @@ require "tmpdir"
 
 require_relative "../../../test_helper"
 
-class SetupToolsCommandTest < Minitest::Test
+class InstallLocalDevToolsCommandTest < Minitest::Test
   def setup
     @tmpdir = Dir.mktmpdir("setup-tools-test")
-    @prefs_path = File.join(@tmpdir, "setup_tools.yml")
-    Workspace::Commands::SetupToolsCommand.any_instance.stubs(:preferences_path).returns(@prefs_path)
+    @prefs_path = File.join(@tmpdir, "install_local_dev_tools.yml")
+    Workspace::Services::InstallLocalDevTools.any_instance.stubs(:preferences_path).returns(@prefs_path)
   end
 
   def teardown
@@ -19,9 +19,9 @@ class SetupToolsCommandTest < Minitest::Test
   def test_returns_zero_when_tools_installed_and_doctor_passes
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new(""), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new(""), stdout: StringIO.new)
 
     assert_equal 0, command.call
   end
@@ -30,7 +30,7 @@ class SetupToolsCommandTest < Minitest::Test
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.expects(:run).with(
       "brew install gh",
@@ -39,7 +39,7 @@ class SetupToolsCommandTest < Minitest::Test
 
     # Prompt: Install GitHub CLI now? -> yes
     stdin = StringIO.new("y\n")
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: stdin, stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: stdin, stdout: StringIO.new)
 
     assert_equal 0, command.call
   end
@@ -48,11 +48,11 @@ class SetupToolsCommandTest < Minitest::Test
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("n\n"), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("n\n"), stdout: StringIO.new)
 
     assert_equal 1, command.call
   end
@@ -61,11 +61,11 @@ class SetupToolsCommandTest < Minitest::Test
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
 
     assert_equal 1, command.call
   end
@@ -74,11 +74,11 @@ class SetupToolsCommandTest < Minitest::Test
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).returns(true)
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
 
     assert_equal 0, command.call
   end
@@ -86,7 +86,7 @@ class SetupToolsCommandTest < Minitest::Test
   def test_does_not_start_docker_desktop_without_explicit_confirmation
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.stubs(:capture).with("docker info").returns(["", false])
     Workspace.stubs(:capture).with("gh auth status").returns(["", true])
@@ -94,7 +94,7 @@ class SetupToolsCommandTest < Minitest::Test
 
     Workspace.expects(:run).with("open -a Docker", has_entry(allow_failure: true)).never
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
 
     assert_equal 0, command.call
   end
@@ -104,12 +104,12 @@ class SetupToolsCommandTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("gh").returns(false)
     Workspace.stubs(:command_exists?).with("brew").returns(false)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.expects(:run).with("/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"", has_entry(allow_failure: true)).never
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\nn\n"), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("y\nn\n"), stdout: StringIO.new)
 
     assert_equal 1, command.call
   end
@@ -118,7 +118,7 @@ class SetupToolsCommandTest < Minitest::Test
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).never
     Workspace.expects(:fail_with_help).with(
@@ -126,7 +126,7 @@ class SetupToolsCommandTest < Minitest::Test
       has_entry(details: "No input was available to answer install prompt for GitHub CLI.")
     ).once
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new(""), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new(""), stdout: StringIO.new)
 
     assert_equal 1, command.call
   end
@@ -136,7 +136,7 @@ class SetupToolsCommandTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:command_exists?).with("brew").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
-    Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
 
     sequence = sequence("brew-install-flow")
     Workspace.expects(:run)
@@ -151,7 +151,7 @@ class SetupToolsCommandTest < Minitest::Test
     # Prompts:
     # 1) Install GitHub CLI now? -> yes
     # 2) Homebrew is missing. Install Homebrew now? -> yes
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\ny\n"), stdout: StringIO.new)
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("y\ny\n"), stdout: StringIO.new)
 
     assert_equal 0, command.call
   end

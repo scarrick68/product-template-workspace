@@ -7,7 +7,7 @@ class InitProjectCommandTest < Minitest::Test
   def test_returns_usage_when_slug_missing
     Workspace.stubs(:fail_with_help)
 
-    command = Workspace::Commands::InitProjectCommand.new([])
+    command = Workspace::Services::InitProject.new([])
 
     assert_equal 1, command.call
   end
@@ -15,7 +15,7 @@ class InitProjectCommandTest < Minitest::Test
   def test_refuses_when_destination_is_workspace_root
     Workspace.stubs(:fail_with_help)
 
-    command = Workspace::Commands::InitProjectCommand.new(["--destination", Workspace::ROOT, "my-super-app"])
+    command = Workspace::Services::InitProject.new(["--destination", Workspace::ROOT, "my-super-app"])
 
     assert_equal 1, command.call
   end
@@ -24,7 +24,7 @@ class InitProjectCommandTest < Minitest::Test
     Workspace.stubs(:fail_with_help)
 
     nested = File.join(Workspace::ROOT, "tmp", "my-super-app")
-    command = Workspace::Commands::InitProjectCommand.new(["--destination", nested, "my-super-app"])
+    command = Workspace::Services::InitProject.new(["--destination", nested, "my-super-app"])
 
     assert_equal 1, command.call
   end
@@ -34,7 +34,7 @@ class InitProjectCommandTest < Minitest::Test
     Workspace.stubs(:fail_with_help)
     File.stubs(:exist?).with(destination_root).returns(true)
 
-    command = Workspace::Commands::InitProjectCommand.new(["--destination", destination_root, "my-super-app"])
+    command = Workspace::Services::InitProject.new(["--destination", destination_root, "my-super-app"])
 
     assert_equal 1, command.call
   end
@@ -42,7 +42,7 @@ class InitProjectCommandTest < Minitest::Test
   def test_returns_failure_when_destination_flag_has_no_value
     Workspace.stubs(:fail_with_help)
 
-    command = Workspace::Commands::InitProjectCommand.new(["--destination"])
+    command = Workspace::Services::InitProject.new(["--destination"])
 
     assert_equal 1, command.call
   end
@@ -71,7 +71,7 @@ class InitProjectCommandTest < Minitest::Test
       has_entries(chdir: destination_root, allow_failure: true)
     ).returns(true)
 
-    command = Workspace::Commands::InitProjectCommand.new(["--destination", destination_root, "my-super-app", "--", "--no-dev"])
+    command = Workspace::Services::InitProject.new(["--destination", destination_root, "my-super-app", "--", "--no-dev"])
 
     assert_equal 0, command.call
   end
@@ -100,7 +100,7 @@ class InitProjectCommandTest < Minitest::Test
       has_entries(chdir: destination_root, allow_failure: true)
     ).returns(true)
 
-    command = Workspace::Commands::InitProjectCommand.new(["my-super-app"])
+    command = Workspace::Services::InitProject.new(["my-super-app"])
 
     assert_equal 0, command.call
   end

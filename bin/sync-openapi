@@ -2,6 +2,6 @@
 # frozen_string_literal: true
 # Sync API OpenAPI spec into shared contract and consumer locations.
 
-require_relative "../lib/workspace/commands/sync_openapi_command"
+require_relative "../lib/workspace/services/sync_openapi"
 
-exit Workspace::Commands::SyncOpenapiCommand.new.call
+exit Workspace::Services::SyncOpenapi.new.call

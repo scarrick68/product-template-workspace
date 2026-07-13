@@ -9,8 +9,8 @@ require "yaml"
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class InitWorkspaceCredentialsFilesCommand
+  module Services
+    class InitWorkspaceCredentialsFiles
       def initialize(prompt: TTY::Prompt.new)
         @prompt = prompt
       end

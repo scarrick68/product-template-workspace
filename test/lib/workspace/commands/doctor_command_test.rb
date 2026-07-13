@@ -4,7 +4,7 @@ require_relative "../../../test_helper"
 
 class DoctorCommandSmokeTest < Minitest::Test
   def test_happy_path_returns_zero
-    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:command_exists?).returns(true)
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:capture).returns(["ok\n", true])
@@ -12,12 +12,12 @@ class DoctorCommandSmokeTest < Minitest::Test
     Workspace.stubs(:warn)
     Workspace.stubs(:fail_with_help)
 
-    result = Workspace::Commands::DoctorCommand.new.call
+    result = Workspace::Services::Doctor.new.call
     assert_equal 0, result
   end
 
   def test_missing_optional_tools_warns_but_returns_zero
-    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:ok)
     Workspace.stubs(:fail_with_help)
@@ -37,12 +37,12 @@ class DoctorCommandSmokeTest < Minitest::Test
     Workspace.expects(:warn).with("mise is not installed. Any Ruby 4+ installation is acceptable for workspace scripts.")
     Workspace.expects(:warn).with("Postgres client (psql) is not installed or not running. This is optional because the API project may use a Docker-managed Postgres container internally. But you must do one of the following: install psql, run Postgres in Docker, or configure your API project to use a different database.")
 
-    result = Workspace::Commands::DoctorCommand.new.call
+    result = Workspace::Services::Doctor.new.call
     assert_equal 0, result
   end
 
   def test_missing_required_tool_returns_one
-    Workspace::Commands::Auth::GithubAuthCommand.any_instance.stubs(:call).returns(0)
+    Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:ok)
     Workspace.stubs(:warn)
@@ -60,7 +60,7 @@ class DoctorCommandSmokeTest < Minitest::Test
 
     Workspace.expects(:fail_with_help).at_least_once
 
-    result = Workspace::Commands::DoctorCommand.new.call
+    result = Workspace::Services::Doctor.new.call
     assert_equal 1, result
   end
 end

@@ -4,7 +4,7 @@
 require "optparse"
 
 module Workspace
-  module Commands
+  module Services
     class InitNewProjectOptions
       USAGE_TEXT = "bin/init_new_project <product-slug> [--no-dev] [--skip-setup-tools] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push]".freeze
 

@@ -6,8 +6,8 @@ require_relative "../../workspace"
 require_relative "../../product_templates/renamer"
 
 module Workspace
-  module Commands
-    class NewProductCommand
+  module Services
+    class NewProduct
       def initialize(argv)
         @argv = argv
       end

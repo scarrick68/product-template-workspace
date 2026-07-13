@@ -6,9 +6,9 @@ require "json"
 require_relative "../../../workspace"
 
 module Workspace
-  module Commands
+  module Services
     module Auth
-      class GithubAuthCommand
+      class GithubAuth
       def call
         checks_failed = false
 

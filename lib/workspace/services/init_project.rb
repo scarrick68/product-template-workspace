@@ -8,8 +8,8 @@ require "shellwords"
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class InitProjectCommand
+  module Services
+    class InitProject
       def initialize(argv, stdin: $stdin, stdout: $stdout)
         @argv = argv.dup
         @stdin = stdin

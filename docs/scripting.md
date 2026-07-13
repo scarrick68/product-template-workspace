@@ -63,7 +63,7 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 
 ### Single-Responsibility Utility Scripts
 
-- `bin/setup_tools`: install/configure required local tools and software such as Homebrew, Ruby, GitHub CLI as well as others.
+- `bin/install_local_dev_tools`: install/configure required local tools and software such as Homebrew, Ruby, GitHub CLI as well as others.
 - `bin/preinstall`: verify Ruby compatibility and GitHub CLI readiness.
 - `bin/doctor`: verify local toolchain, auth, Docker daemon status, and configured ports.
 - `bin/bootstrap`: validate repo presence and install dependencies.

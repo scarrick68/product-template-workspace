@@ -3,11 +3,11 @@
 # Command object for workspace environment diagnostics.
 
 require_relative "../../workspace"
-require_relative "auth/github_auth_command"
+require_relative "auth/github_auth"
 
 module Workspace
-  module Commands
-    class DoctorCommand
+  module Services
+    class Doctor
       REQUIRED_COMMANDS = {
         "Ruby" => ["ruby", "ruby --version"],
         "Node" => ["node", "node --version"],
@@ -120,7 +120,7 @@ module Workspace
       end
 
       def check_github_auth
-        result = Workspace::Commands::Auth::GithubAuthCommand.new.call
+        result = Workspace::Services::Auth::GithubAuth.new.call
         mark_failed unless result.zero?
       end
 

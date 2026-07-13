@@ -5,8 +5,8 @@
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class PullCommand
+  module Services
+    class Pull
       def initialize
         @failures = []
         @warnings = []

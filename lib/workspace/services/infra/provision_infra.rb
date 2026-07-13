@@ -18,9 +18,9 @@ require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
 
 module Workspace
-  module Commands
+  module Services
     module Infra
-      class ProvisionInfraCommand
+      class ProvisionInfra
       SUPPORTED_COMMANDS = %w[doctor configure plan apply].freeze
       TERRAFORM_DIR = File.join(Workspace::ROOT, "infra", "digitalocean")
       CONFIG_FILE = File.join(Workspace::ROOT, "config", "infra.yml")

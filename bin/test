@@ -2,6 +2,6 @@
 # frozen_string_literal: true
 # Run all workspace tests or selected test targets.
 
-require_relative "../lib/workspace/commands/test_command"
+require_relative "../lib/workspace/services/test"
 
-exit Workspace::Commands::TestCommand.new(ARGV).call
+exit Workspace::Services::Test.new(ARGV).call

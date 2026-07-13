@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/workspace/commands/validate_product_command"
+require_relative "../lib/workspace/services/validate_product"
 
-exit Workspace::Commands::ValidateProductCommand.new(ARGV).call
+exit Workspace::Services::ValidateProduct.new(ARGV).call

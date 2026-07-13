@@ -5,8 +5,8 @@
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class DevCommand
+  module Services
+    class Dev
       BACKEND_PURPOSE = "backend-api"
       FRONTEND_PURPOSE = "frontend-web-client"
 

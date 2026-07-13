@@ -5,8 +5,8 @@
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class PreinstallCommand
+  module Services
+    class Preinstall
       def initialize
         @failed = false
       end

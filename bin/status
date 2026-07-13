@@ -2,6 +2,6 @@
 # frozen_string_literal: true
 # Print branch and working-tree status across workspace repositories.
 
-require_relative "../lib/workspace/commands/status_command"
+require_relative "../lib/workspace/services/status"
 
-exit Workspace::Commands::StatusCommand.new.call
+exit Workspace::Services::Status.new.call

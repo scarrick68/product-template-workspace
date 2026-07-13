@@ -5,8 +5,8 @@
 require_relative "../../workspace"
 
 module Workspace
-  module Commands
-    class StatusCommand
+  module Services
+    class Status
       def call
         Workspace.section("Status: Repository Overview")
         Workspace.existing_repositories.each do |repo|

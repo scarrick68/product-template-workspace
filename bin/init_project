@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/workspace/commands/init_project_command"
+require_relative "../lib/workspace/services/init_project"
 
-exit Workspace::Commands::InitProjectCommand.new(ARGV).call#!/usr/bin/env ruby
+exit Workspace::Services::InitProject.new(ARGV).call#!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/workspace/commands/init_project_command"
+require_relative "../lib/workspace/services/init_project"
 
-exit Workspace::Commands::InitProjectCommand.new(ARGV).call
+exit Workspace::Services::InitProject.new(ARGV).call

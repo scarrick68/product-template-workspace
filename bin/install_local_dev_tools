@@ -7,11 +7,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Run the Ruby command object once a working Ruby is available.
-run_setup_tools_with_ruby() {
+run_install_local_dev_tools_with_ruby() {
 	ruby - "$SCRIPT_DIR" <<'RUBY'
 script_dir = ARGV.shift
-require File.expand_path("../lib/workspace/commands/setup_tools_command", script_dir)
-exit Workspace::Commands::SetupToolsCommand.new.call
+require File.expand_path("../lib/workspace/services/install_local_dev_tools", script_dir)
+exit Workspace::Services::InstallLocalDevTools.new.call
 RUBY
 }
 
@@ -65,11 +65,11 @@ ensure_brew_in_path() {
 
 # Fast path: if Ruby is already present, hand off immediately.
 if command -v ruby >/dev/null 2>&1; then
-	run_setup_tools_with_ruby
+	run_install_local_dev_tools_with_ruby
 	exit $?
 fi
 
-echo "[WARN] Ruby was not found in PATH. Bootstrapping Homebrew + mise + Ruby so setup_tools can continue."
+echo "[WARN] Ruby was not found in PATH. Bootstrapping Homebrew + mise + Ruby so install_local_dev_tools can continue."
 
 # Bootstrap Homebrew only after explicit user confirmation.
 if ! ensure_brew_in_path; then
@@ -107,6 +107,6 @@ mise use --global "ruby@${REQUIRED_RUBY}"
 # Run setup tools via the freshly provisioned Ruby runtime.
 exec mise exec "ruby@${REQUIRED_RUBY}" -- ruby - "$SCRIPT_DIR" <<'RUBY'
 script_dir = ARGV.shift
-require File.expand_path("../lib/workspace/commands/setup_tools_command", script_dir)
-exit Workspace::Commands::SetupToolsCommand.new.call
+require File.expand_path("../lib/workspace/services/install_local_dev_tools", script_dir)
+exit Workspace::Services::InstallLocalDevTools.new.call
 RUBY

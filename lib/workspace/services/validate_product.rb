@@ -5,9 +5,9 @@ require_relative "../../workspace"
 require_relative "../../product_templates/validator"
 
 module Workspace
-  module Commands
+  module Services
     # Validates a renamed product workspace by delegating to the product validator workflow.
-    class ValidateProductCommand
+    class ValidateProduct
       def initialize(argv)
         @argv = argv
       end

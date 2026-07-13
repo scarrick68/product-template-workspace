@@ -24,7 +24,7 @@ class DevCommandTest < Minitest::Test
     File.stubs(:executable?).with(File.join(Workspace::ROOT, "repos", "my-super-app-api", "bin", "dev")).returns(true)
     File.stubs(:exist?).with(File.join(Workspace::ROOT, "repos", "my-super-app-web", "package.json")).returns(true)
 
-    command = Workspace::Commands::DevCommand.new
+    command = Workspace::Services::Dev.new
     command.send(:build_services)
 
     services = command.send(:services)
@@ -37,7 +37,7 @@ class DevCommandTest < Minitest::Test
   end
 
   def test_stops_conflicting_docker_container_on_opensearch_port
-    command = Workspace::Commands::DevCommand.new
+    command = Workspace::Services::Dev.new
 
     Workspace.stubs(:command_exists?).with("docker").returns(true)
     Workspace.stubs(:warn)
@@ -68,7 +68,7 @@ class DevCommandTest < Minitest::Test
   end
 
   def test_reuses_expected_opensearch_container_when_port_is_already_occupied
-    command = Workspace::Commands::DevCommand.new
+    command = Workspace::Services::Dev.new
     api_repo = File.join(Workspace::ROOT, "repos", "my-super-app-api")
 
     Workspace.stubs(:command_exists?).with("docker").returns(true)
