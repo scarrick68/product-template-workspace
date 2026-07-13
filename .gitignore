@@ -40,3 +40,6 @@ config/workspace.credentials.backups/
 
 # Local test runner output
 tmp/test.log
+
+# Ignore creds files for base template
+config/workspace.credentials*

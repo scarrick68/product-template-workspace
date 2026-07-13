@@ -209,10 +209,7 @@ module Workspace
 
       def confirm_repository_readiness(kind, ref)
         Workspace.info("Expected #{kind} repository: #{ref}")
-        stdout.print("Have you created this repo or confirmed it already exists? [y/N]: ")
-        answer = stdin.gets
-
-        return true if answer && answer.strip.match?(/\A(y|yes)\z/i)
+        return true if prompt_yes_no("Have you created this repo or confirmed it already exists?", default: false)
 
         Workspace.fail_with_help(
           "#{kind.capitalize} repository is not confirmed.",

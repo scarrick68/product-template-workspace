@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "io/console"
+require "tty-prompt"
 require_relative "factory"
 require_relative "store"
 
@@ -9,13 +10,14 @@ module Workspace
     class Resolver
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
-      def initialize(io: $stdout, input: $stdin, store: nil)
+      def initialize(io: $stdout, input: $stdin, store: nil, prompt: TTY::Prompt.new(input: @input, output: @io))
         @io = io
         @input = input
         @store = store || Store.new(
           env_adapter: Factory.env_adapter,
           keychain_adapter: Factory.keychain_adapter
         )
+        @prompt = prompt
       end
 
       def digitalocean_token(interactive: true)
@@ -30,7 +32,7 @@ module Workspace
 
       private
 
-      attr_reader :io, :input, :store
+      attr_reader :io, :input, :store, :prompt
 
       def prompt_for_token
         io.puts("DigitalOcean access token not found.")
@@ -38,10 +40,11 @@ module Workspace
         io.puts("1. Use token for this run only")
         io.puts("2. Print env var instructions")
         io.puts("3. Store token in #{store.keychain_adapter.name}") if store.keychain_adapter.writable?
-        io.print("Selection [1]: ")
 
-        choice = input.gets&.strip.to_s
-        choice = "1" if choice.empty?
+        allowed_choices = store.keychain_adapter.writable? ? %w[1 2 3] : %w[1 2]
+        choice = prompt.ask("Selection", default: "1") do |q|
+          q.in(allowed_choices)
+        end
 
         case choice
         when "2"
@@ -68,14 +71,7 @@ module Workspace
       end
 
       def prompt_token
-        io.print("DigitalOcean access token: ")
-        value = if input.respond_to?(:noecho)
-                  input.noecho(&:gets)
-                else
-                  input.gets
-                end
-        io.puts
-        token = value.to_s.strip
+        token = prompt.mask("DigitalOcean access token").to_s.strip
         token.empty? ? nil : token
       end
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "tty-prompt"
+
 module Workspace
   module CLI
     class UserPrompt
@@ -10,28 +12,22 @@ module Workspace
       def initialize(input: $stdin, output: $stdout)
         @input = input
         @output = output
+        @prompt = TTY::Prompt.new(input: input, output: output)
       end
 
       def for_value(prompt_message, default: nil, hint: nil)
         print_hint(hint)
-        output.print("#{prompt_message}#{default_suffix(default)}: ")
-
-        entered = input.gets&.strip
-        entered.nil? || entered.empty? ? default : entered
+        prompt.ask(prompt_message, default: default)
       end
 
       def yes_no(question, default: false, hint: nil)
         print_hint(hint)
-
-        indicator = default ? "Y/n" : "y/N"
-        output.print("#{question} [#{indicator}]: ")
-
-        normalize_bool(input.gets, default:)
+        prompt.yes?(question, default: default)
       end
 
       private
 
-      attr_reader :input, :output
+      attr_reader :input, :output, :prompt
 
       def normalize_bool(value, default:)
         normalized = value.to_s.strip.downcase

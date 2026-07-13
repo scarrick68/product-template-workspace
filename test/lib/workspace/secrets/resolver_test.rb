@@ -90,23 +90,32 @@ class SecretsResolverTest < Minitest::Test
 
   def test_returns_env_token_first
     store = build_store(env_value: "env-token", keychain_adapter: FakeWritableKeychainAdapter.new("kc-token"))
-    resolver = Workspace::Secrets::Resolver.new(io: StringIO.new, input: TtyInput.new, store: store)
+    prompt = mock("prompt")
+    prompt.expects(:ask).never
+    prompt.expects(:mask).never
+    resolver = Workspace::Secrets::Resolver.new(io: StringIO.new, input: TtyInput.new, store: store, prompt: prompt)
 
     assert_equal "env-token", resolver.digitalocean_token(interactive: true)
   end
 
   def test_returns_keychain_token_when_env_missing
     store = build_store(env_value: nil, keychain_adapter: FakeWritableKeychainAdapter.new("kc-token"))
-    resolver = Workspace::Secrets::Resolver.new(io: StringIO.new, input: TtyInput.new, store: store)
+    prompt = mock("prompt")
+    prompt.expects(:ask).never
+    prompt.expects(:mask).never
+    resolver = Workspace::Secrets::Resolver.new(io: StringIO.new, input: TtyInput.new, store: store, prompt: prompt)
 
     assert_equal "kc-token", resolver.digitalocean_token(interactive: true)
   end
 
   def test_prompts_when_env_and_keychain_missing
     io = StringIO.new
-    input = TtyInput.new("1\nrun-only-token\n")
+    input = TtyInput.new
+    prompt = mock("prompt")
+    prompt.expects(:ask).with { |question, **kwargs| question == "Selection" && kwargs[:default] == "1" }.returns("1")
+    prompt.expects(:mask).with("DigitalOcean access token").returns("run-only-token")
     store = build_store(env_value: nil, keychain_adapter: FakeWritableKeychainAdapter.new(nil))
-    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store)
+    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store, prompt: prompt)
 
     token = resolver.digitalocean_token(interactive: true)
 
@@ -116,9 +125,12 @@ class SecretsResolverTest < Minitest::Test
 
   def test_prints_env_instructions_when_option_two_selected
     io = StringIO.new
-    input = TtyInput.new("2\n")
+    input = TtyInput.new
+    prompt = mock("prompt")
+    prompt.expects(:ask).with { |question, **kwargs| question == "Selection" && kwargs[:default] == "1" }.returns("2")
+    prompt.expects(:mask).never
     store = build_store(env_value: nil, keychain_adapter: FakeWritableKeychainAdapter.new(nil))
-    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store)
+    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store, prompt: prompt)
 
     token = resolver.digitalocean_token(interactive: true)
 
@@ -129,10 +141,13 @@ class SecretsResolverTest < Minitest::Test
 
   def test_writes_token_when_writable_adapter_selected
     io = StringIO.new
-    input = TtyInput.new("3\nstored-token\n")
+    input = TtyInput.new
+    prompt = mock("prompt")
+    prompt.expects(:ask).with { |question, **kwargs| question == "Selection" && kwargs[:default] == "1" }.returns("3")
+    prompt.expects(:mask).with("DigitalOcean access token").returns("stored-token")
     keychain = FakeWritableKeychainAdapter.new(nil)
     store = build_store(env_value: nil, keychain_adapter: keychain)
-    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store)
+    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store, prompt: prompt)
 
     token = resolver.digitalocean_token(interactive: true)
 
@@ -143,10 +158,13 @@ class SecretsResolverTest < Minitest::Test
 
   def test_does_not_offer_write_option_for_unsupported_adapter
     io = StringIO.new
-    input = TtyInput.new("1\nrun-token\n")
+    input = TtyInput.new
+    prompt = mock("prompt")
+    prompt.expects(:ask).with { |question, **kwargs| question == "Selection" && kwargs[:default] == "1" }.returns("1")
+    prompt.expects(:mask).with("DigitalOcean access token").returns("run-token")
     keychain = FakeUnsupportedKeychainAdapter.new(nil)
     store = build_store(env_value: nil, keychain_adapter: keychain)
-    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store)
+    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store, prompt: prompt)
 
     resolver.digitalocean_token(interactive: true)
 
@@ -155,10 +173,13 @@ class SecretsResolverTest < Minitest::Test
 
   def test_warns_on_unsupported_os_adapter
     io = StringIO.new
-    input = TtyInput.new("1\nrun-token\n")
+    input = TtyInput.new
+    prompt = mock("prompt")
+    prompt.expects(:ask).with { |question, **kwargs| question == "Selection" && kwargs[:default] == "1" }.returns("1")
+    prompt.expects(:mask).with("DigitalOcean access token").returns("run-token")
     keychain = FakeUnsupportedKeychainAdapter.new(nil)
     store = build_store(env_value: nil, keychain_adapter: keychain)
-    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store)
+    resolver = Workspace::Secrets::Resolver.new(io: io, input: input, store: store, prompt: prompt)
 
     resolver.digitalocean_token(interactive: true)
 

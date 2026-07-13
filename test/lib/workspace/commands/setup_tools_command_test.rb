@@ -70,18 +70,15 @@ class SetupToolsCommandTest < Minitest::Test
     assert_equal 1, command.call
   end
 
-  def test_missing_tool_prompt_reads_stdin_before_install_decision
+  def test_missing_tool_prompt_reads_confirmation_before_install_decision
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false, true)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Commands::DoctorCommand.any_instance.stubs(:call).returns(0)
 
-    stdin = mock("stdin")
-    stdin.expects(:gets).once.returns("y\n")
-
     Workspace.expects(:run).with("brew install gh", has_entry(allow_failure: true)).returns(true)
 
-    command = Workspace::Commands::SetupToolsCommand.new(stdin: stdin, stdout: StringIO.new)
+    command = Workspace::Commands::SetupToolsCommand.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
 
     assert_equal 0, command.call
   end
