@@ -6,6 +6,7 @@ require "shellwords"
 require_relative "../../workspace"
 require_relative "../../workspace/cli/user_prompt"
 require_relative "auth/github_auth_command"
+require_relative "init_new_project_options"
 
 module Workspace
   module Commands
@@ -27,32 +28,41 @@ module Workspace
       end
 
       def call
-        options = parse_options
-        return 1 unless options
+        options = InitNewProjectOptions.parse(argv, stdout: stdout)
+        return 0 if options.help_requested?
 
-        product_slug = options[:product_slug]
-        return usage unless valid_slug?(product_slug)
+        unless options.valid?
+          Workspace.fail_with_help(
+            options.failure_summary,
+            details: options.failure_details,
+            fixes: options.failure_fixes
+          )
+          return 1
+        end
+
+        product_slug = options.product_slug
+        runtime_options = build_runtime_options(options)
 
         Workspace.section("Init: New Project Setup")
         Workspace.ok("Initializing new project: #{product_slug}")
         Workspace.info("This workflow will check environment, clone/bootstrap repos, rename templates, validate, and optionally launch dev services.")
 
-        unless options[:skip_setup_tools]
+        unless options.skip_setup_tools?
           return 1 unless run_step("Guided tool installation and auth setup", "setup_tools")
         end
         return 1 unless run_step("Environment prechecks", "preinstall")
         return 1 unless run_step("Environment diagnostics", "doctor")
         return 1 unless run_step("Repository bootstrap and dependency install", "bootstrap")
         return 1 unless run_step("Sync latest template changes", "pull")
-        return 1 unless configure_remote_automation!(options)
-        return 1 unless confirm_remote_repositories_ready(product_slug, options)
+        return 1 unless configure_remote_automation!(runtime_options)
+        return 1 unless confirm_remote_repositories_ready(product_slug, runtime_options, assume_repos_ready: options.assume_repos_ready?)
         return 1 unless run_step("Rename templates for new project", "new_product", [product_slug])
         return 1 unless run_step("Post-rename validation (tests/build checks)", "validate_product", [product_slug])
-        return 1 unless configure_remotes_and_push(product_slug, options)
+        return 1 unless configure_remotes_and_push(product_slug, runtime_options)
 
         print_summary(product_slug)
 
-        return 0 if options[:no_dev]
+        return 0 if options.no_dev?
 
         Workspace.info("Launching local development services to confirm setup is working (Ctrl+C to stop).")
         exec(Workspace.script_path("dev"))
@@ -62,71 +72,13 @@ module Workspace
 
       attr_reader :argv, :stdin, :stdout, :prompt
 
-      def parse_options
-        options = {
-          no_dev: false,
-          skip_setup_tools: false,
-          assume_repos_ready: false,
-          create_remotes: false,
-          create_remotes_explicit: false,
-          visibility: nil,
-          push_after_setup: true,
-          push_explicit: false
+      def build_runtime_options(options)
+        {
+          create_remotes: options.create_remotes?,
+          create_remotes_explicit: options.create_remotes_explicit?,
+          visibility: options.visibility,
+          push_after_setup: options.push_after_setup?
         }
-
-        argv.each do |arg|
-          case arg
-          when "--no-dev"
-            options[:no_dev] = true
-          when "--skip-setup-tools"
-            options[:skip_setup_tools] = true
-          when "--assume-repos-ready"
-            options[:assume_repos_ready] = true
-          when "--create-remotes"
-            options[:create_remotes] = true
-            options[:create_remotes_explicit] = true
-          when "--public"
-            options[:create_remotes] = true
-            options[:create_remotes_explicit] = true
-            options[:visibility] = "public"
-          when "--private"
-            options[:create_remotes] = true
-            options[:create_remotes_explicit] = true
-            options[:visibility] = "private"
-          when "--no-push"
-            options[:push_after_setup] = false
-            options[:push_explicit] = true
-          when "--push"
-            options[:push_after_setup] = true
-            options[:push_explicit] = true
-          when "-h", "--help"
-            return nil
-          else
-            options[:product_slug] ||= arg
-          end
-        end
-
-        options
-      end
-
-      def valid_slug?(value)
-        value.to_s.match?(/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/)
-      end
-
-      def usage
-        Workspace.fail_with_help(
-          "Missing or invalid product slug.",
-          details: "Usage: bin/init_new_project <product-slug> [--no-dev] [--skip-setup-tools] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push]",
-          fixes: [
-            "Use kebab-case product slug (example: my-super-app).",
-            "Run: bin/init_new_project my-super-app",
-            "Use --no-dev if you want setup without launching long-running services.",
-            "Use --skip-setup-tools if your machine is already configured and you want to skip guided installs/auth prompts.",
-            "Use --assume-repos-ready if remote backend/frontend repos are already created.",
-            "Use --create-remotes to create backend/frontend GitHub repositories automatically."
-          ]
-        )
-        1
       end
 
       def configure_remote_automation!(options)
@@ -180,9 +132,9 @@ module Workspace
         prompt.yes_no(question, default: default)
       end
 
-      def confirm_remote_repositories_ready(product_slug, options)
+      def confirm_remote_repositories_ready(product_slug, options, assume_repos_ready: false)
         return true if options[:create_remotes]
-        return true if options[:assume_repos_ready]
+        return true if assume_repos_ready
 
         backend_ref = expected_remote_ref(BACKEND_PURPOSE, "#{product_slug}-api")
         frontend_ref = expected_remote_ref(FRONTEND_PURPOSE, "#{product_slug}-web")
