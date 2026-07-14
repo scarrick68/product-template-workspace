@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/workspace/services/rename_product_command"
+
+exit Workspace::Services::RenameProductCommand.new(ARGV).call

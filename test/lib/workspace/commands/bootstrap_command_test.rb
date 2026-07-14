@@ -18,13 +18,13 @@ class BootstrapCommandSmokeTest < Minitest::Test
       Workspace.stubs(:repositories).returns(repos)
       Workspace.stubs(:existing_repositories).returns(repos)
       Workspace.stubs(:repo_name).with(repos.first).returns("api-template")
-      Workspace.stubs(:repo_path).with(repos.first).returns(repo_dir)
+      Workspace.stubs(:repo_path).returns(repo_dir)
       Workspace.stubs(:run).returns(true)
       Workspace.stubs(:ok)
       Workspace.stubs(:warn)
       Workspace.stubs(:fail_with_help)
       Workspace.stubs(:abort_with_help).raises("abort_with_help called unexpectedly")
-      Workspace.stubs(:script_path).with("preinstall").returns("bin/preinstall")
+      Workspace.stubs(:script_path).returns("bin/preinstall")
 
       command = Workspace::Services::Bootstrap.new
       command.stubs(:system).returns(true)

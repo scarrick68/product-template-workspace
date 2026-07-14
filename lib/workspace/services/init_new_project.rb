@@ -4,11 +4,12 @@
 
 require "shellwords"
 require_relative "../../workspace"
+require_relative "../context"
 require_relative "bootstrap"
 require_relative "doctor"
 require_relative "github_repository_setup"
 require_relative "init_new_project_options"
-require_relative "new_product"
+require_relative "rename_product_command"
 require_relative "pull"
 require_relative "validate_product"
 
@@ -24,10 +25,11 @@ module Workspace
         "docs/openapi-workflow.md"
       ].freeze
 
-      def initialize(argv, stdin: $stdin, stdout: $stdout)
+      def initialize(argv, stdin: $stdin, stdout: $stdout, context: Workspace::Context.new(root: Workspace::ROOT))
         @argv = argv.dup
         @stdin = stdin
         @stdout = stdout
+        @context = context
       end
 
       def call
@@ -53,15 +55,15 @@ module Workspace
           return 1 unless run_shell_step("Guided tool installation and auth setup", "install_local_dev_tools")
         end
         return 1 unless run_shell_step("Environment prechecks", "preinstall")
-        return 1 unless run_command_step("Environment diagnostics") { Workspace::Services::Doctor.new.call }
-        return 1 unless run_command_step("Repository bootstrap and dependency install") { Workspace::Services::Bootstrap.new.call }
-        return 1 unless run_command_step("Sync latest template changes") { Workspace::Services::Pull.new.call }
+        return 1 unless run_ruby_script_step("Environment diagnostics") { Workspace::Services::Doctor.new(context: context).call }
+        return 1 unless run_ruby_script_step("Repository bootstrap and dependency install") { Workspace::Services::Bootstrap.new(context: context).call }
+        return 1 unless run_ruby_script_step("Sync latest template changes") { Workspace::Services::Pull.new(context: context).call }
 
         remote_setup = github_repository_setup.call(options: options, product_slug: product_slug)
         return 1 unless remote_setup.success?
 
-        return 1 unless run_command_step("Rename templates for new project") { Workspace::Services::NewProduct.new([product_slug]).call }
-        return 1 unless run_command_step("Post-rename validation (tests/build checks)") { Workspace::Services::ValidateProduct.new([product_slug]).call }
+        return 1 unless run_ruby_script_step("Rename templates for new project") { Workspace::Services::RenameProductCommand.new([product_slug], context: context).call }
+        return 1 unless run_ruby_script_step("Post-rename validation (tests/build checks)") { Workspace::Services::ValidateProduct.new([product_slug], context: context).call }
         return 1 unless configure_remotes_and_push(remote_setup)
 
         print_summary(product_slug)
@@ -69,22 +71,22 @@ module Workspace
         return 0 if options.no_dev?
 
         Workspace.info("Launching local development services to confirm setup is working (Ctrl+C to stop).")
-        exec(Workspace.script_path("dev"))
+        exec(Workspace.script_path("dev", context: context))
       end
 
       private
 
-      attr_reader :argv, :stdin, :stdout
+      attr_reader :argv, :stdin, :stdout, :context
 
       def run_shell_step(label, script_name, args = [])
         Workspace.section("Init Step: #{label}", color: :magenta, divider_char: "-")
 
-        command_parts = [Workspace.script_path(script_name)] + args
+        command_parts = [Workspace.script_path(script_name, context: context)] + args
         command = command_parts.map { |part| Shellwords.escape(part) }.join(" ")
 
         Workspace.run(
           command,
-          chdir: Workspace::ROOT,
+          chdir: context.root,
           allow_failure: true,
           summary: "Init workflow failed at step: #{label}.",
           details: "Command: #{command}",
@@ -96,7 +98,7 @@ module Workspace
         )
       end
 
-      def run_command_step(label)
+      def run_ruby_script_step(label)
         Workspace.section("Init Step: #{label}", color: :magenta, divider_char: "-")
 
         exit_code = begin
@@ -143,7 +145,7 @@ module Workspace
       def connect_local_repositories(targets)
         targets.each do |target|
           local_path = target[:local_path]
-          absolute_path = File.join(Workspace::ROOT, local_path)
+          absolute_path = context.path(local_path)
           next unless Dir.exist?(absolute_path)
           next unless Dir.exist?(File.join(absolute_path, ".git"))
 
@@ -159,7 +161,7 @@ module Workspace
       def push_repositories(targets)
         targets.each do |target|
           local_path = target[:local_path]
-          absolute_path = File.join(Workspace::ROOT, local_path)
+          absolute_path = context.path(local_path)
           next unless Dir.exist?(absolute_path)
           next unless Dir.exist?(File.join(absolute_path, ".git"))
 
@@ -228,16 +230,16 @@ module Workspace
         workspace_target = {
           label: "template workspace",
           relative_path: ".",
-          absolute_path: Workspace::ROOT,
-          suggested_github: "<your-org>/#{File.basename(Workspace::ROOT)}"
+          absolute_path: context.root,
+          suggested_github: "<your-org>/#{File.basename(context.root)}"
         }
 
-        repo_targets = Workspace.repositories.map do |repo|
+        repo_targets = Workspace.repositories(context: context).map do |repo|
           relative_path = repo["path"].to_s
           {
             label: repo["name"].to_s,
             relative_path: relative_path,
-            absolute_path: File.join(Workspace::ROOT, relative_path),
+            absolute_path: context.path(relative_path),
             suggested_github: repo["github"].to_s.empty? ? "<your-org>/<repo-name>" : repo["github"].to_s
           }
         end
@@ -267,7 +269,7 @@ module Workspace
       end
 
       def github_repository_setup
-        @github_repository_setup ||= Workspace::Services::GithubRepositorySetup.new(stdin: stdin, stdout: stdout)
+        @github_repository_setup ||= Workspace::Services::GithubRepositorySetup.new(stdin: stdin, stdout: stdout, context: context)
       end
 
       def repository_path_for(purpose)
@@ -276,7 +278,7 @@ module Workspace
       end
 
       def repository_by_purpose(purpose)
-        Workspace.repositories.find { |repo| repo["purpose"].to_s == purpose }
+        Workspace.repositories(context: context).find { |repo| repo["purpose"].to_s == purpose }
       end
     end
   end

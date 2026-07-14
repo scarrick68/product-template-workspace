@@ -4,11 +4,13 @@
 
 require "fileutils"
 require_relative "../../workspace"
+require_relative "../context"
 
 module Workspace
   module Services
     class Bootstrap
-      def initialize
+      def initialize(context: Workspace::Context.new(root: Workspace::ROOT))
+        @context = context
         @failures = []
       end
 
@@ -26,10 +28,10 @@ module Workspace
 
       private
 
-      attr_reader :failures
+      attr_reader :context, :failures
 
       def run_preinstall_or_abort
-        return if system(Workspace.script_path("preinstall"))
+        return if system(Workspace.script_path("preinstall", context: context), chdir: context.root)
 
         Workspace.abort_with_help(
           "Bootstrap halted because pre-installation checks did not pass.",
@@ -46,14 +48,14 @@ module Workspace
       end
 
       def ensure_repositories_present
-        Workspace.repositories.each do |repo|
+        Workspace.repositories(context: context).each do |repo|
           ensure_repository_present(repo)
         end
       end
 
       def ensure_repository_present(repo)
         name = Workspace.repo_name(repo)
-        path = Workspace.repo_path(repo)
+        path = Workspace.repo_path(repo, context: context)
         github_slug = repo["github"]
 
         return Workspace.ok("#{name} present") if Dir.exist?(path)
@@ -116,14 +118,14 @@ module Workspace
       end
 
       def install_repository_dependencies
-        Workspace.existing_repositories.each do |repo|
+        Workspace.existing_repositories(context: context).each do |repo|
           install_dependencies_for_repository(repo)
         end
       end
 
       def install_dependencies_for_repository(repo)
         name = Workspace.repo_name(repo)
-        path = Workspace.repo_path(repo)
+        path = Workspace.repo_path(repo, context: context)
 
         install_ruby_dependencies(name, path)
         install_node_dependencies(name, path)

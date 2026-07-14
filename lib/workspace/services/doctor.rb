@@ -3,6 +3,7 @@
 # Command object for workspace environment diagnostics.
 
 require_relative "../../workspace"
+require_relative "../context"
 require_relative "auth/github_auth"
 
 module Workspace
@@ -36,9 +37,10 @@ module Workspace
 
       private
 
-      attr_reader :checks_failed
+      attr_reader :checks_failed, :context
 
-      def initialize
+      def initialize(context: Workspace::Context.new(root: Workspace::ROOT))
+        @context = context
         @checks_failed = false
       end
 
@@ -125,7 +127,7 @@ module Workspace
       end
 
       def check_expected_ports
-        Workspace.ports.each do |name, port|
+        Workspace.ports(context: context).each do |name, port|
           next unless port
 
           _out, occupied = Workspace.capture("lsof -iTCP:#{port} -sTCP:LISTEN -n -P")

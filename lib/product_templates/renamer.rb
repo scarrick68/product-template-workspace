@@ -9,11 +9,12 @@ require_relative "./project_paths"
 
 module ProductTemplates
   class Renamer
-    attr_reader :product_slug, :workspace_root
+    attr_reader :product_slug, :workspace_root, :repositories
 
-    def initialize(product_slug, workspace_root: Workspace::ROOT)
+    def initialize(product_slug, workspace_root: Workspace::ROOT, repositories: Workspace.repositories)
       @product_slug = product_slug.to_s.strip
       @workspace_root = workspace_root
+      @repositories = repositories
     end
 
     def call
@@ -45,7 +46,7 @@ module ProductTemplates
       @paths ||= ProjectPaths.new(
         product_slug,
         workspace_root: workspace_root,
-        repositories: Workspace.repositories
+        repositories: repositories
       )
     end
 

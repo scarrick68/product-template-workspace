@@ -3,13 +3,15 @@
 # Runs template-to-product rename flow for API and web repositories.
 
 require_relative "../../workspace"
+require_relative "../context"
 require_relative "../../product_templates/renamer"
 
 module Workspace
   module Services
-    class NewProduct
-      def initialize(argv)
+    class RenameProductCommand
+      def initialize(argv, context: Workspace::Context.new(root: Workspace::ROOT))
         @argv = argv
+        @context = context
       end
 
       def call
@@ -18,12 +20,16 @@ module Workspace
 
         # At the moment, this command is a thin wrapper around the product renamer workflow. 
         # In the future, we may add additional steps as needed.
-        ProductTemplates::Renamer.new(product_slug).call
+        ProductTemplates::Renamer.new(
+          product_slug,
+          workspace_root: context.root,
+          repositories: Workspace.repositories(context: context)
+        ).call
       end
 
       private
 
-      attr_reader :argv
+      attr_reader :argv, :context
 
       def usage
         Workspace.fail_with_help(
