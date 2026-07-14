@@ -4,6 +4,7 @@
 require "shellwords"
 require "tty-prompt"
 require_relative "../../workspace"
+require_relative "../context"
 require_relative "auth/github_auth"
 
 module Workspace
@@ -36,9 +37,10 @@ module Workspace
         end
       end
 
-      def initialize(stdin: $stdin, stdout: $stdout)
+      def initialize(stdin: $stdin, stdout: $stdout, context: Workspace::Context.new(root: Workspace::ROOT))
         @stdin = stdin
         @stdout = stdout
+        @context = context
         @prompt = TTY::Prompt.new(input: stdin, output: stdout)
       end
 
@@ -63,7 +65,7 @@ module Workspace
 
       private
 
-      attr_reader :stdin, :stdout, :prompt
+      attr_reader :stdin, :stdout, :prompt, :context
 
       def should_create_remotes?(options)
         return options.create_remotes? if options.create_remotes_explicit?
@@ -133,7 +135,7 @@ module Workspace
 
           success = Workspace.run(
             "gh repo create #{Shellwords.escape(target[:github_ref])} --#{visibility} --confirm",
-            chdir: Workspace::ROOT,
+            chdir: context.root,
             allow_failure: true,
             summary: "Failed to create #{target[:label]} repository #{target[:github_ref]}.",
             details: "Your account may not have permission to create repositories for this owner.",
@@ -187,7 +189,7 @@ module Workspace
       end
 
       def repository_by_purpose(purpose)
-        Workspace.repositories.find { |repo| repo["purpose"].to_s == purpose }
+        Workspace.repositories(context: context).find { |repo| repo["purpose"].to_s == purpose }
       end
 
       def manual_result(options, targets)

@@ -8,6 +8,7 @@ require "fileutils"
 require "rubygems"
 require "pastel"
 require_relative "workspace/project_manifest/loader"
+require_relative "workspace/context"
 
 module Workspace
   ROOT = File.expand_path("..", __dir__)
@@ -24,8 +25,9 @@ module Workspace
     bold ? pastel.bold(text) : text
   end
 
-  def load_yaml(path, fallback)
-    full_path = File.join(ROOT, path)
+  def load_yaml(path, fallback, context: nil)
+    root = context&.root || ROOT
+    full_path = File.join(root, path)
     return fallback unless File.exist?(full_path)
 
     YAML.safe_load(File.read(full_path), permitted_classes: [], aliases: false) || fallback
@@ -41,8 +43,14 @@ module Workspace
     )
   end
 
-  def ports
-    services = project_manifest_services
+  def ports(context: nil)
+    services = if context
+                 manifest = context.manifest
+                 raw = manifest["services"]
+                 raw.is_a?(Hash) ? raw : {}
+               else
+                 project_manifest_services
+               end
     unless services.empty?
       return services.each_with_object({}) do |(name, config), acc|
         acc[name] = Integer(config["port"])
@@ -51,10 +59,21 @@ module Workspace
       end
     end
 
-    load_yaml("config/ports.yml", {})
+    load_yaml("config/ports.yml", {}, context: context)
   end
 
-  def repositories
+  def repositories(context: nil)
+    if context
+      manifest_repositories = context.repositories
+      return manifest_repositories unless manifest_repositories.empty?
+
+      config = load_yaml("config/repos.yml", {}, context: context)
+      list = config["repositories"]
+      return default_repositories unless list.is_a?(Array) && !list.empty?
+
+      return list
+    end
+
     manifest_repositories = project_manifest_repositories
     return manifest_repositories unless manifest_repositories.empty?
 
@@ -76,12 +95,13 @@ module Workspace
     repo["name"]
   end
 
-  def repo_path(repo)
-    File.join(ROOT, repo.fetch("path"))
+  def repo_path(repo, context: nil)
+    root = context&.root || ROOT
+    File.join(root, repo.fetch("path"))
   end
 
-  def existing_repositories
-    repositories.select { |repo| Dir.exist?(repo_path(repo)) }
+  def existing_repositories(context: nil)
+    repositories(context: context).select { |repo| Dir.exist?(repo_path(repo, context: context)) }
   end
 
   def command_exists?(command)
@@ -206,8 +226,12 @@ module Workspace
     ruby_version >= required_ruby_version
   end
 
-  def script_path(name)
-    File.join(ROOT, "bin", name)
+  def script_path(name, context: nil)
+    if context
+      context.script_path(name)
+    else
+      File.join(ROOT, "bin", name)
+    end
   end
 
   def project_manifest

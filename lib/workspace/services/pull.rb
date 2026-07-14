@@ -3,18 +3,20 @@
 # Command object for fast-forward pulls across workspace repositories.
 
 require_relative "../../workspace"
+require_relative "../context"
 
 module Workspace
   module Services
     class Pull
-      def initialize
+      def initialize(context: Workspace::Context.new(root: Workspace::ROOT))
+        @context = context
         @failures = []
         @warnings = []
       end
 
       def call
         Workspace.section("Pull: Sync Repositories")
-        Workspace.existing_repositories.each do |repo|
+        Workspace.existing_repositories(context: context).each do |repo|
           pull_repository(repo)
         end
 
@@ -23,11 +25,11 @@ module Workspace
 
       private
 
-      attr_reader :failures, :warnings
+      attr_reader :context, :failures, :warnings
 
       def pull_repository(repo)
         name = Workspace.repo_name(repo)
-        path = Workspace.repo_path(repo)
+        path = Workspace.repo_path(repo, context: context)
 
         return report_missing_git_metadata(name, path) unless git_repo?(path)
 
