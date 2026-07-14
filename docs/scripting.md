@@ -50,7 +50,7 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 
 ### Aggregate Getting-Started Scripts
 
-- `bin/init_project`: copy-first project generation entrypoint. Creates destination workspace copy, then delegates app / project installation to `init_new_project` in the copied workspace.
+- `bin/new_project`: copy-first project generation entrypoint. Creates destination workspace copy, then delegates app / project installation to `init_new_project` in the copied workspace.
 - `bin/init_new_project`: guided onboarding workflow run inside a project workspace; orchestrates setup checks, bootstrap, rename, validation, and optional dev launch.
 - `bin/start-day`: daily orchestration workflow for already-initialized workspaces. Pull updates, check status, launch dev services, and run any other daily coordination tasks needed to start dev work.
 
