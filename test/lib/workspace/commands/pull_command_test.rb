@@ -11,7 +11,7 @@ class PullCommandSmokeTest < Minitest::Test
 
       Workspace.stubs(:existing_repositories).returns(repos)
       Workspace.stubs(:repo_name).with(repos.first).returns("api-template")
-      Workspace.stubs(:repo_path).with(repos.first).returns(repo_dir)
+      Workspace.stubs(:repo_path).returns(repo_dir)
       Workspace.stubs(:capture).returns(["", true])
       Workspace.stubs(:capture).with("git branch --show-current", chdir: repo_dir).returns(["feature/auth\n", true])
       Workspace.stubs(:capture).with("git status --porcelain", chdir: repo_dir).returns(["", true])
