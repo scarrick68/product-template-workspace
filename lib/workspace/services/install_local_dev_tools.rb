@@ -8,6 +8,8 @@ require "rbconfig"
 require "tty-prompt"
 require_relative "../../workspace"
 require_relative "doctor"
+require_relative "local_env_setup/config/service_auth_config"
+require_relative "local_env_setup/config/service_config"
 require_relative "local_env_setup/installers/install_docker"
 require_relative "local_env_setup/installers/install_doctl"
 require_relative "local_env_setup/installers/install_gh"
@@ -18,13 +20,8 @@ module Workspace
   module Services
     class InstallLocalDevTools
       PREFERENCES_PATH = File.join(Workspace::ROOT, ".workspace", "install_local_dev_tools.yml")
-      REQUIRED_TOOLS = [
-        { id: "ruby", label: "Ruby", command: "ruby" },
-        { id: "docker", label: "Docker", command: "docker" },
-        { id: "doctl", label: "doctl", command: "doctl" },
-        { id: "gh", label: "GitHub CLI", command: "gh" },
-        { id: "terraform", label: "Terraform", command: "terraform" }
-      ].freeze
+      REQUIRED_TOOLS = LocalEnvSetup::Config::ServiceConfig.required_tools
+      SERVICE_AUTH_CONFIGS = LocalEnvSetup::Config::ServiceAuthConfig.all
 
       def initialize(stdin: $stdin, stdout: $stdout)
         @stdin = stdin
@@ -113,9 +110,9 @@ module Workspace
 
         REQUIRED_TOOLS.each do |tool|
           if tool_installed?(tool)
-            Workspace.ok("#{tool[:label]}: installed")
+            Workspace.ok("#{tool.label}: installed")
           else
-            Workspace.warn("#{tool[:label]}: missing")
+            Workspace.warn("#{tool.label}: missing")
             missing << tool
           end
         end
@@ -124,9 +121,9 @@ module Workspace
       end
 
       def tool_installed?(tool)
-        return ruby_ready? if tool[:id] == "ruby"
+        return ruby_ready? if tool.ruby?
 
-        command_available?(tool[:command])
+        command_available?(tool.command)
       end
 
       def ruby_ready?
@@ -138,14 +135,14 @@ module Workspace
 
         missing_tools.each do |tool|
           should_install = prompt_yes_no(
-            "Install #{tool[:label]} now?",
+            "Install #{tool.label} now?",
             default: false,
             require_input: true
           )
           if should_install == :no_input
             Workspace.fail_with_help(
               "Interactive confirmation is required to install missing tools.",
-              details: "No input was available to answer install prompt for #{tool[:label]}.",
+              details: "No input was available to answer install prompt for #{tool.label}.",
               assumptions: [
                 "The current execution context does not provide stdin input for prompts.",
                 "Required tool installs should not be silently skipped when confirmations cannot be answered."
@@ -159,7 +156,7 @@ module Workspace
             return false
           end
 
-          preferences["install_missing"][tool[:id]] = should_install
+          preferences["install_missing"][tool.id] = should_install
           next unless should_install
 
           install_tool(tool)
@@ -169,36 +166,12 @@ module Workspace
       end
 
       def install_tool(tool)
-        case tool[:id]
-        when "ruby"
-          return unless ensure_homebrew
+        return Workspace.warn("No installer is configured for #{tool.label}.") unless tool.installable?
+        return unless ensure_homebrew
 
-          LocalEnvSetup::Installers::InstallRuby.new.call
-          refresh_command_availability("mise")
-          refresh_command_availability("ruby")
-        when "docker"
-          return unless ensure_homebrew
-
-          LocalEnvSetup::Installers::InstallDocker.new.call
-          refresh_command_availability("docker")
-        when "doctl"
-          return unless ensure_homebrew
-
-          LocalEnvSetup::Installers::InstallDoctl.new.call
-          refresh_command_availability("doctl")
-        when "gh"
-          return unless ensure_homebrew
-
-          LocalEnvSetup::Installers::InstallGh.new.call
-          refresh_command_availability("gh")
-        when "terraform"
-          return unless ensure_homebrew
-
-          LocalEnvSetup::Installers::InstallTerraform.new.call
-          refresh_command_availability("terraform")
-        else
-          Workspace.warn("No installer is configured for #{tool[:label]}.")
-        end
+        tool.installer_class.new.call
+        refresh_command_availability("mise") if tool.ruby?
+        refresh_command_availability(tool.command)
       end
 
       def ensure_homebrew
@@ -237,8 +210,7 @@ module Workspace
         Workspace.section("Optional Configuration", color: :magenta, divider_char: "-")
 
         configure_docker_daemon
-        configure_github_auth
-        configure_doctl_auth
+        SERVICE_AUTH_CONFIGS.each { |config| configure_service_auth(config) }
       end
 
       def configure_docker_daemon
@@ -283,49 +255,23 @@ module Workspace
         Workspace.warn("Docker daemon did not become ready yet. Continue once Docker finishes starting.")
       end
 
-      def configure_github_auth
-        return unless command_available?("gh")
+      def configure_service_auth(config)
+        return unless command_available?(config.command)
 
-        _out, ok = Workspace.capture("gh auth status")
-        return Workspace.ok("GitHub CLI auth: configured") if ok
+        _out, ok = Workspace.capture(config.status_command)
+        return Workspace.ok(config.success_message) if ok
 
-        default = preferences.dig("configure", "gh_auth")
-        should_auth = prompt_yes_no("GitHub CLI is not authenticated. Run gh auth login now?", default: default.nil? ? false : default)
-        preferences["configure"]["gh_auth"] = should_auth
+        default = preferences.dig("configure", config.preference_key)
+        should_auth = prompt_yes_no(config.prompt, default: default.nil? ? false : default)
+        preferences["configure"][config.preference_key] = should_auth
         return unless should_auth
 
         Workspace.run(
-          "gh auth login",
+          config.auth_command,
           allow_failure: true,
-          summary: "GitHub CLI authentication failed.",
-          details: "gh auth login did not complete successfully.",
-          fixes: [
-            "Retry gh auth login and complete prompts.",
-            "If using SSO orgs, authorize token access after login."
-          ]
-        )
-      end
-
-      def configure_doctl_auth
-        return unless command_available?("doctl")
-
-        _out, ok = Workspace.capture("doctl auth list")
-        return Workspace.ok("doctl auth: configured") if ok
-
-        default = preferences.dig("configure", "doctl_auth")
-        should_auth = prompt_yes_no("doctl is not authenticated. Run doctl auth init now?", default: default.nil? ? false : default)
-        preferences["configure"]["doctl_auth"] = should_auth
-        return unless should_auth
-
-        Workspace.run(
-          "doctl auth init",
-          allow_failure: true,
-          summary: "doctl authentication failed.",
-          details: "doctl auth init did not complete successfully.",
-          fixes: [
-            "Retry doctl auth init and provide a valid token.",
-            "Confirm token scope includes required DigitalOcean permissions."
-          ]
+          summary: config.failure_summary,
+          details: config.failure_details,
+          fixes: config.failure_fixes
         )
       end
 
@@ -336,7 +282,7 @@ module Workspace
         unless missing.empty?
           Workspace.fail_with_help(
             "Required tools are still missing after setup.",
-            details: "Missing: #{missing.map { |tool| tool[:label] }.join(', ')}",
+            details: "Missing: #{missing.map(&:label).join(', ')}",
             assumptions: [
               "Workspace setup and infrastructure workflows require all tools listed above.",
               "Continuing without required tools will cause follow-on failures in later commands."
