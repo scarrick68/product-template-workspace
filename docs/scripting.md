@@ -29,7 +29,6 @@ The workspace CLI now follows a layered structure so user-facing command contrac
 
 - `bin/`: Shell-visible entrypoints.
 - `bin/workspace`: canonical executable for all user-facing commands.
-- `bin/<legacy-script>`: compatibility wrappers that delegate into `bin/workspace` command groups.
 - `lib/workspace/cli.rb`: top-level command router (`new-project`, `credentials`, `repository`, `infra`).
 - `lib/workspace/commands/`: CLI command and subcommand dispatchers. This is the public command layer.
 - `lib/workspace/commands/<group>/`: grouped subcommands (for example infra, repository, credentials actions).
@@ -95,8 +94,6 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 - `bin/workspace repository rename`: perform template rename orchestration only.
 - `bin/workspace repository verify`: run post-rename validation checks and checklist.
 - `bin/workspace infra <doctor|configure|plan|apply>`: infrastructure workflows for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
-
-Compatibility wrappers (`bin/infra`, `bin/new_project`, `bin/init_new_project`, `bin/rename_product`, `bin/validate_product`) remain available but should be treated as transitional shortcuts.
 
 ## Notes
 
