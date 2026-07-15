@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/lib/ruby_service_dispatch.sh"
 source "${SCRIPT_DIR}/lib/ruby_toolchain_bootstrap.sh"
+REQUIRED_RUBY="$(read_required_ruby_version "$WORKSPACE_ROOT")"
 
 # Run the Ruby command object once a working Ruby is available.
 run_install_local_dev_tools_with_ruby() {
@@ -16,13 +17,19 @@ run_install_local_dev_tools_with_ruby() {
 		"Workspace::Services::InstallLocalDevTools"
 }
 
-# Fast path: if Ruby is already present, hand off immediately.
-if command -v ruby >/dev/null 2>&1; then
+
+# Fast path: run immediately when current PATH Ruby is project-compatible.
+if command -v ruby >/dev/null 2>&1 && ruby_compatible_with_required_version "$REQUIRED_RUBY"; then
 	run_install_local_dev_tools_with_ruby
 	exit $?
 fi
 
-echo "[WARN] Ruby was not found in PATH. Bootstrapping Homebrew + mise + Ruby so install_local_dev_tools can continue."
+if command -v ruby >/dev/null 2>&1; then
+	echo "[WARN] Ruby $(ruby -e 'print RUBY_VERSION') is not compatible with required Ruby ${REQUIRED_RUBY}."
+	echo "       Bootstrapping a compatible Ruby via mise."
+else
+	echo "[WARN] Ruby was not found in PATH. Bootstrapping Homebrew + mise + Ruby so install_local_dev_tools can continue."
+fi
 
 # Bootstrap Homebrew only after explicit user confirmation.
 if ! ensure_brew_in_path; then
@@ -46,8 +53,6 @@ if ! command -v mise >/dev/null 2>&1; then
 	brew install mise
 fi
 
-REQUIRED_RUBY="$(read_required_ruby_version "$WORKSPACE_ROOT")"
-
 if ! prompt_yes_no "Install Ruby ${REQUIRED_RUBY} with mise now?"; then
 	echo "[FAIL] Cannot continue without Ruby ${REQUIRED_RUBY}. Re-run and allow Ruby installation, or install Ruby manually first."
 	exit 1
@@ -57,9 +62,15 @@ echo "[INFO] Installing Ruby ${REQUIRED_RUBY} via mise"
 mise install "ruby@${REQUIRED_RUBY}"
 mise use --global "ruby@${REQUIRED_RUBY}"
 
+# Prefer plain `ruby` service dispatch after mise setup by activating mise in this shell.
+if command -v mise >/dev/null 2>&1; then
+	eval "$(mise activate bash)"
+fi
+
+require_compatible_ruby_or_fail "$REQUIRED_RUBY"
+
 # Run setup tools via the freshly provisioned Ruby runtime.
-run_workspace_service_with_mise_ruby \
-	"$REQUIRED_RUBY" \
+run_workspace_service_with_ruby \
 	"$SCRIPT_DIR" \
 	"../lib/workspace/services/install_local_dev_tools" \
 	"Workspace::Services::InstallLocalDevTools"

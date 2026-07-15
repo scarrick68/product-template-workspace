@@ -26,6 +26,18 @@ class InstallLocalDevToolsCommandTest < Minitest::Test
     assert_equal 0, command.call
   end
 
+  def test_does_not_prompt_to_reuse_preferences_when_saved_file_has_no_choices
+    File.write(@prefs_path, { "install_missing" => {}, "configure" => {} }.to_yaml)
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
+
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new(""), stdout: StringIO.new)
+    command.expects(:prompt_yes_no).never
+
+    assert_equal 0, command.call
+  end
+
   def test_installs_missing_gh_when_user_confirms
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:command_exists?).with("gh").returns(false, true)
