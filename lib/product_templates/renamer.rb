@@ -24,7 +24,6 @@ module ProductTemplates
       update_project_manifest_repo_config
       update_workspace_repo_config
       print_summary
-      print_manual_steps
       0
     end
 
@@ -191,16 +190,6 @@ module ProductTemplates
       Workspace.ok("product rename complete")
       Workspace.info("API repository: #{paths.backend_app_relative_path}")
       Workspace.info("WEB repository: #{paths.frontend_app_relative_path}")
-    end
-
-    def print_manual_steps
-      puts
-      Workspace.warn("Manual follow-up required:")
-      puts "  [ ] Create or rename GitHub repositories to match new names."
-      puts "  [ ] Update git remotes in renamed repos if needed."
-      puts "  [ ] Create or rename deployment projects (Kamal/Fly/etc)."
-      puts "  [ ] Copy environment variables and credentials for new app names."
-      puts "  [ ] Review CI workflow names and repository badges."
     end
   end
 end
