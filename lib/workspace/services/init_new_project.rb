@@ -64,7 +64,7 @@ module Workspace
         return 1 unless remote_setup.success?
 
         return 1 unless step_runner.ruby("Rename templates for new project") { Workspace::Services::RenameProductCommand.new([product_slug], context: context).call }
-        return 1 unless step_runner.ruby("Post-rename validation (tests/build checks)") { Workspace::Services::ValidateProduct.new([product_slug], context: context).call }
+        return 1 unless step_runner.ruby("Post-rename validation (tests/build checks)") { Workspace::Services::ValidateProduct.new([product_slug], context: context, stdin: stdin, stdout: stdout).call }
         return 1 unless repository_remote_setup.call(remote_setup)
 
         print_summary(product_slug)

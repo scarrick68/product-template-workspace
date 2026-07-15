@@ -3,35 +3,53 @@
 
 require_relative "../workspace"
 require_relative "./project_paths"
+require_relative "./local_infrastructure/backend_ci"
+require_relative "./validation/check"
+require_relative "./validation/check_runner"
+require_relative "./validation/report"
 
 module ProductTemplates
   class Validator
-    attr_reader :product_slug, :workspace_root, :repositories
+    attr_reader :product_slug, :workspace_root, :repositories, :stdin, :stdout
 
-    def initialize(product_slug, workspace_root: Workspace::ROOT, repositories: Workspace.repositories)
+    def initialize(product_slug, workspace_root: Workspace::ROOT, repositories: Workspace.repositories, stdin: $stdin, stdout: $stdout)
       @product_slug = product_slug.to_s.strip
       @workspace_root = workspace_root
       @repositories = repositories
+      @stdin = stdin
+      @stdout = stdout
     end
 
     def call
       validate_product_slug!
+      return 1 unless backend_ci.prepare
 
-      checks = [
-        check("API CI", "bin/ci", chdir: paths.backend_current_path, chdir_label: paths.backend_current_relative_path),
-        check("WEB lint", "npm run lint", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
-        check("WEB tests", "npm run test", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
-        check("WEB build", "npm run build", chdir: paths.frontend_current_path, chdir_label: paths.frontend_current_relative_path),
-        check("Workspace status", "bin/status", chdir: workspace_root, chdir_label: ".")
-      ]
+      results = check_runner.run(check_definitions)
+      report.print(results)
 
-      print_checklist(checks)
-      print_manual_steps
-
-      checks.all? { |item| item[:ok] } ? 0 : 1
+      results.all?(&:passed?) ? 0 : 1
     end
 
     private
+
+    def check_definitions
+      [
+        check("API CI", "bin/ci", paths.backend_current_path, paths.backend_current_relative_path),
+        check("WEB lint", "npm run lint", paths.frontend_current_path, paths.frontend_current_relative_path),
+        check("WEB tests", "npm run test", paths.frontend_current_path, paths.frontend_current_relative_path),
+        check("WEB build", "npm run build", paths.frontend_current_path, paths.frontend_current_relative_path),
+        check("Workspace status", "bin/status", workspace_root, ".")
+      ]
+    end
+
+    def check(name, command, directory, directory_label)
+      Validation::Check.new(
+        name: name,
+        command: command,
+        directory: directory,
+        directory_label: directory_label
+      )
+    end
 
     def validate_product_slug!
       return if product_slug.match?(/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/)
@@ -46,6 +64,16 @@ module ProductTemplates
       )
     end
 
+    def backend_ci
+      @backend_ci ||= LocalInfrastructure::BackendCI.new(
+        backend_path: paths.backend_current_path,
+        backend_label: paths.backend_current_relative_path,
+        workspace_root: workspace_root,
+        stdin: stdin,
+        stdout: stdout
+      )
+    end
+
     def paths
       @paths ||= ProjectPaths.new(
         product_slug,
@@ -54,33 +82,12 @@ module ProductTemplates
       )
     end
 
-    def check(name, command, chdir:, chdir_label: nil)
-      path_label = chdir_label || chdir
-      if !Dir.exist?(chdir)
-        Workspace.warn("#{name} skipped: missing directory #{path_label}")
-        return { name: name, ok: false, note: "missing #{path_label}" }
-      end
-
-      ok = Workspace.run(command, chdir: chdir, allow_failure: true)
-      { name: name, ok: ok, note: ok ? "passed" : "failed" }
+    def check_runner
+      @check_runner ||= Validation::CheckRunner.new
     end
 
-    def print_checklist(checks)
-      puts
-      Workspace.ok("Template -> Product Handoff Checklist")
-      checks.each do |item|
-        marker = item[:ok] ? "[x]" : "[ ]"
-        puts "  #{marker} #{item[:name]} (#{item[:note]})"
-      end
-    end
-
-    def print_manual_steps
-      puts
-      Workspace.warn("Manual follow-up required:")
-      puts "  [ ] Verify GitHub repo names and remote origins for renamed apps."
-      puts "  [ ] Verify deployment app/project names and secrets."
-      puts "  [ ] Run bin/sync-openapi and confirm contract consumers still resolve paths."
-      puts "  [ ] Smoke test local startup with bin/bootstrap and bin/start-day."
+    def report
+      @report ||= Validation::Report.new
     end
   end
 end

@@ -16,7 +16,7 @@ module Workspace
         end
 
         def call
-          Workspace::Services::ValidateProduct.new(argv, context: context).call
+          Workspace::Services::ValidateProduct.new(argv, context: context, stdin: stdin, stdout: stdout).call
         end
 
         private
