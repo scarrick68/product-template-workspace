@@ -5,7 +5,7 @@ require_relative "../../../lib/product_templates/renamer"
 
 class ProductTemplatesRenamerTest < Minitest::Test
   def test_happy_path_uses_purpose_paths_and_updates_config
-    # This is a lightweight integration test: it validates repo moves + repos.yml updates,
+    # This is a lightweight integration test: it validates repo moves + manifest/repo config updates,
     # while stubbing script executability so we do not need real template_rename files.
     Dir.mktmpdir do |tmpdir|
       FileUtils.mkdir_p(File.join(tmpdir, "repos", "api-template", "bin"))
@@ -25,6 +25,39 @@ class ProductTemplatesRenamerTest < Minitest::Test
               name: web-template
               path: repos/web-template
               github: example-org/web-template
+        YAML
+      )
+
+      project_manifest_path = File.join(tmpdir, "config", "project.yml")
+      File.write(
+        project_manifest_path,
+        <<~YAML
+          project:
+            name: Product Template Workspace
+            slug: product-template-workspace
+            default_environment: production
+
+          repositories:
+            api:
+              purpose: backend-api
+              name: api-template
+              path: repos/api-template
+              github: example-org/api-template
+            web:
+              purpose: frontend-web-client
+              name: web-template
+              path: repos/web-template
+              github: example-org/web-template
+
+          services:
+            api:
+              repository: api
+              port: 5001
+
+          environments:
+            production:
+              infrastructure:
+                provider: digitalocean
         YAML
       )
 
@@ -68,6 +101,18 @@ class ProductTemplatesRenamerTest < Minitest::Test
       assert_equal "my-super-app-web", frontend["name"]
       assert_equal "repos/my-super-app-web", frontend["path"]
       assert_equal "example-org/my-super-app-web", frontend["github"]
+
+      updated_manifest = YAML.safe_load(File.read(project_manifest_path), permitted_classes: [], aliases: false)
+      backend_manifest = updated_manifest.fetch("repositories").fetch("api")
+      frontend_manifest = updated_manifest.fetch("repositories").fetch("web")
+
+      assert_equal "my-super-app-api", backend_manifest["name"]
+      assert_equal "repos/my-super-app-api", backend_manifest["path"]
+      assert_equal "example-org/my-super-app-api", backend_manifest["github"]
+
+      assert_equal "my-super-app-web", frontend_manifest["name"]
+      assert_equal "repos/my-super-app-web", frontend_manifest["path"]
+      assert_equal "example-org/my-super-app-web", frontend_manifest["github"]
     end
   end
 end

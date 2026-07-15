@@ -21,14 +21,18 @@ module Workspace
       path("bin", name)
     end
 
-    # Load and memoize the project manifest from this workspace.
-    def manifest
+    # Load the project manifest from this workspace.
+    #
+    # `reload: true` is used by flows that mutate config/project.yml during the
+    # same process (for example rename -> validate in new-project init).
+    def manifest(reload: false)
+      @manifest = nil if reload
       @manifest ||= ProjectManifest::Loader.new(root: root).load || {}
     end
 
     # Return repository definitions declared in the manifest.
     def repositories
-      manifest.fetch("repositories", [])
+      manifest(reload: true).fetch("repositories", [])
     end
 
     # Resolve a repository's absolute path from its manifest entry.

@@ -70,10 +70,10 @@ module Workspace
             "Without repository source metadata, automation cannot fetch missing code."
           ],
           fixes: [
-            "Add github: owner/repo for #{name} in config/repos.yml.",
+            "Add github: owner/repo for #{name} in config/project.yml.repositories.",
             "Verify GitHub CLI authentication with: gh auth status.",
             "Or manually clone the repository into #{path}.",
-            "If this repository should be optional, set optional: true in config/repos.yml."
+            "If this repository should be optional, set optional: true in config/project.yml.repositories."
           ]
         )
         failures << name
@@ -96,7 +96,7 @@ module Workspace
           ],
           fixes: [
             "Check authentication status with: gh auth status",
-            "Confirm repository access in GitHub and validate config/repos.yml values.",
+            "Confirm repository access in GitHub and validate config/project.yml repository values.",
             "Retry clone manually from the same directory to inspect tool output."
           ]
         )
@@ -109,7 +109,7 @@ module Workspace
             "Your GitHub account has permission to read this repository."
           ],
           fixes: [
-            "Verify network access and that the repository URL is correct in config/repos.yml.",
+            "Verify network access and that the repository URL is correct in config/project.yml.",
             "Ensure you have access rights to the repository (SSH key or token).",
             "Try cloning manually with the configured command: #{clone_command}"
           ]

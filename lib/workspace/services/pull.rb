@@ -225,9 +225,9 @@ module Workspace
             "A missing .git directory usually means the repository was not cloned correctly."
           ],
           fixes: [
-            "Confirm config/repos.yml points to the correct path.",
+            "Confirm config/project.yml.repositories points to the correct path.",
             "Run bin/bootstrap to clone missing repositories.",
-            "If this repository should not be pulled, remove or mark it optional in config/repos.yml."
+            "If this repository should not be pulled, remove or mark it optional in config/project.yml.repositories."
           ]
         )
       end

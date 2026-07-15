@@ -21,6 +21,7 @@ module ProductTemplates
       validate_product_slug!
       run_repo_renamers
       rename_repo_directories
+      update_project_manifest_repo_config
       update_workspace_repo_config
       print_summary
       print_manual_steps
@@ -145,6 +146,25 @@ module ProductTemplates
         rename_script_relative: paths.frontend_rename_script_relative,
         rename_script_path: paths.frontend_rename_script_path
       }
+    end
+
+    def update_project_manifest_repo_config
+      manifest_path = File.join(workspace_root, "config", "project.yml")
+      return unless File.exist?(manifest_path)
+
+      manifest = YAML.safe_load(File.read(manifest_path), permitted_classes: [], aliases: false) || {}
+      repositories_section = manifest["repositories"]
+      return unless repositories_section
+
+      case repositories_section
+      when Hash
+        repositories_section.each_value { |repo| paths.update_repo_entry!(repo) if repo.is_a?(Hash) }
+      when Array
+        repositories_section.each { |repo| paths.update_repo_entry!(repo) if repo.is_a?(Hash) }
+      end
+
+      File.write(manifest_path, YAML.dump(manifest))
+      Workspace.ok("updated config/project.yml with renamed repository paths")
     end
 
     def update_workspace_repo_config
