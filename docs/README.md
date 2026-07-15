@@ -16,6 +16,7 @@ Use this section as the primary index when you are trying to get work done quick
 	- Start at `local-development.md`
 - Script inventory and command responsibilities:
 	- Start at `scripting.md`
+	- See `scripting.md#cli-directory-purposes` for command/service directory boundaries.
 - OpenAPI contract synchronization across repos:
 	- Start at `openapi-workflow.md`
 - Cross-repository testing expectations:
