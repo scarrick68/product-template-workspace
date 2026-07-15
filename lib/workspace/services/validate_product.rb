@@ -9,9 +9,11 @@ module Workspace
   module Services
     # Validates a renamed product workspace by delegating to the product validator workflow.
     class ValidateProduct
-      def initialize(argv, context: Workspace::Context.new(root: Workspace::ROOT))
+      def initialize(argv, context: Workspace::Context.new(root: Workspace::ROOT), stdin: $stdin, stdout: $stdout)
         @argv = argv
         @context = context
+        @stdin = stdin
+        @stdout = stdout
       end
 
       def call
@@ -21,13 +23,15 @@ module Workspace
         ProductTemplates::Validator.new(
           product_slug,
           workspace_root: context.root,
-          repositories: Workspace.repositories(context: context)
+          repositories: Workspace.repositories(context: context),
+          stdin: stdin,
+          stdout: stdout
         ).call
       end
 
       private
 
-      attr_reader :argv, :context
+      attr_reader :argv, :context, :stdin, :stdout
 
       def usage
         Workspace.fail_with_help(
