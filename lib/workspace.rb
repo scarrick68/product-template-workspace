@@ -127,6 +127,55 @@ module Workspace
     [output, status.success?]
   end
 
+  def docker_daemon_running?
+    _out, running = capture("docker info")
+    running
+  end
+
+  def ensure_docker_daemon_running(
+    wait_attempts: 30,
+    wait_interval: 1,
+    launch_message: nil,
+    summary: "Could not start Docker Desktop.",
+    details: "The command 'open -g -a Docker' failed.",
+    fixes: []
+  )
+    return true if docker_daemon_running?
+    return false unless command_exists?("open")
+
+    return wait_for_docker_daemon(wait_attempts: wait_attempts, wait_interval: wait_interval) if docker_desktop_app_running?
+
+    info(launch_message) if launch_message
+
+    started = run(
+      "open -g -a Docker",
+      allow_failure: true,
+      summary: summary,
+      details: details,
+      fixes: fixes
+    )
+    return false unless started
+
+    wait_for_docker_daemon(wait_attempts: wait_attempts, wait_interval: wait_interval)
+  end
+
+  def wait_for_docker_daemon(wait_attempts:, wait_interval:)
+    wait_attempts.times do
+      return true if docker_daemon_running?
+
+      sleep wait_interval
+    end
+
+    false
+  end
+
+  def docker_desktop_app_running?
+    return false unless RUBY_PLATFORM.include?("darwin")
+
+    _out, running = capture("pgrep -x Docker")
+    running
+  end
+
   def ok(message)
     puts "#{styled_label('OK', color: :green)} #{message}"
   end

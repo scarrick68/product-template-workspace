@@ -238,32 +238,23 @@ module Workspace
         preferences["configure"]["docker_start"] = should_start
         return unless should_start
 
-        Workspace.run(
-          "open -a Docker",
-          allow_failure: true,
+        running = Workspace.ensure_docker_daemon_running(
+          wait_attempts: 30,
+          wait_interval: 1,
+          launch_message: "Docker daemon is not running. Attempting to start Docker Desktop in background.",
           summary: "Could not start Docker Desktop.",
-          details: "The command 'open -a Docker' failed.",
+          details: "The command 'open -g -a Docker' failed.",
           fixes: [
             "Launch Docker Desktop manually from Applications.",
             "Retry this script after Docker is running."
           ]
         )
 
-        wait_for_docker_daemon
-      end
-
-      def wait_for_docker_daemon
-        30.times do
-          _out, running = Workspace.capture("docker info")
-          if running
-            Workspace.ok("Docker daemon is now running")
-            return
-          end
-
-          sleep 1
+        if running
+          Workspace.ok("Docker daemon is now running")
+        else
+          Workspace.warn("Docker daemon did not become ready yet. Continue once Docker finishes starting.")
         end
-
-        Workspace.warn("Docker daemon did not become ready yet. Continue once Docker finishes starting.")
       end
 
       def configure_service_auth(config)

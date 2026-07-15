@@ -104,7 +104,7 @@ class InstallLocalDevToolsCommandTest < Minitest::Test
     Workspace.stubs(:capture).with("gh auth status").returns(["", true])
     Workspace.stubs(:capture).with("doctl auth list").returns(["", true])
 
-    Workspace.expects(:run).with("open -a Docker", has_entry(allow_failure: true)).never
+    Workspace.expects(:run).with("open -g -a Docker", has_entry(allow_failure: true)).never
 
     command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
 
