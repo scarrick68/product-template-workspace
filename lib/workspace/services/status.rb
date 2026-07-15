@@ -39,9 +39,9 @@ module Workspace
           "Repository metadata missing for #{name}.",
           details: "Expected a git repository at #{path}, but .git was not found.",
           fixes: [
-            "Confirm config/repos.yml points to the correct repository path.",
+            "Confirm config/project.yml.repositories points to the correct repository path.",
             "If the folder is missing, run bin/bootstrap or clone the repository manually.",
-            "If the folder is not meant to be tracked, remove or mark it optional in config/repos.yml."
+            "If the folder is not meant to be tracked, remove or mark it optional in config/project.yml.repositories."
           ],
           assumptions: [
             "Status assumes each configured path contains a cloned git repository.",

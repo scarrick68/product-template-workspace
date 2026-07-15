@@ -10,6 +10,12 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
       Workspace.const_set(:ROOT, root)
 
       begin
+        write_manifest(
+          root,
+          api_path: "repos/api-template",
+          web_path: "repos/web-template"
+        )
+
         source = File.join(root, "repos", "api-template", "docs")
         FileUtils.mkdir_p(source)
         File.write(File.join(source, "openapi.yml"), "openapi: 3.1.0\n")
@@ -42,6 +48,12 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
       Workspace.const_set(:ROOT, root)
 
       begin
+        write_manifest(
+          root,
+          api_path: "repos/my-super-app-api",
+          web_path: "repos/my-super-app-web"
+        )
+
         api_repo_path = File.join(root, "repos", "my-super-app-api", "docs")
         FileUtils.mkdir_p(api_repo_path)
         File.write(File.join(api_repo_path, "openapi.yml"), "openapi: 3.1.0\n")
@@ -78,5 +90,46 @@ class SyncOpenapiCommandSmokeTest < Minitest::Test
         Workspace.const_set(:ROOT, original_root)
       end
     end
+  end
+
+  private
+
+  def write_manifest(root, api_path:, web_path:)
+    config_dir = File.join(root, "config")
+    FileUtils.mkdir_p(config_dir)
+    File.write(
+      File.join(config_dir, "project.yml"),
+      <<~YAML
+        project:
+          name: Product Template Workspace
+          slug: product-template-workspace
+          default_environment: production
+
+        repositories:
+          api:
+            purpose: backend-api
+            name: #{File.basename(api_path)}
+            path: #{api_path}
+            github: example-org/#{File.basename(api_path)}
+          web:
+            purpose: frontend-web-client
+            name: #{File.basename(web_path)}
+            path: #{web_path}
+            github: example-org/#{File.basename(web_path)}
+
+        services:
+          api:
+            repository: api
+            port: 5001
+          web:
+            repository: web
+            port: 3000
+
+        environments:
+          production:
+            infrastructure:
+              provider: digitalocean
+      YAML
+    )
   end
 end

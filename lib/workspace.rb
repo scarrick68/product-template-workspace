@@ -63,32 +63,28 @@ module Workspace
   end
 
   def repositories(context: nil)
-    if context
-      manifest_repositories = context.repositories
-      return manifest_repositories unless manifest_repositories.empty?
+    manifest_repositories = if context
+                              normalize_repository_definitions(context.repositories)
+                            else
+                              project_manifest_repositories
+                            end
 
-      config = load_yaml("config/repos.yml", {}, context: context)
-      list = config["repositories"]
-      return default_repositories unless list.is_a?(Array) && !list.empty?
-
-      return list
-    end
-
-    manifest_repositories = project_manifest_repositories
     return manifest_repositories unless manifest_repositories.empty?
 
-    config = load_yaml("config/repos.yml", {})
-    list = config["repositories"]
-    return default_repositories unless list.is_a?(Array) && !list.empty?
-
-    list
-  end
-
-  def default_repositories
-    [
-      { "name" => "api-template", "path" => "repos/api-template" },
-      { "name" => "web-template", "path" => "repos/web-template" },
-    ]
+    root = context&.root || ROOT
+    abort_with_help(
+      "Repository configuration is missing from project manifest.",
+      details: "Expected repository entries under config/project.yml -> repositories in #{root}.",
+      assumptions: [
+        "The project manifest is the single source of truth for repository metadata.",
+        "Workspace commands require repository purpose/name/path entries to be present in the manifest."
+      ],
+      fixes: [
+        "Add repository entries under config/project.yml: repositories.",
+        "Ensure each repository defines at least purpose, name, and path.",
+        "Re-run the workspace command after fixing manifest repositories."
+      ]
+    )
   end
 
   def repo_name(repo)
@@ -246,9 +242,19 @@ module Workspace
 
   def project_manifest_repositories
     return [] unless project_manifest.is_a?(Hash)
-    return [] unless project_manifest["repositories"].is_a?(Array)
 
-    project_manifest["repositories"]
+    normalize_repository_definitions(project_manifest["repositories"])
+  end
+
+  def normalize_repository_definitions(raw_repositories)
+    case raw_repositories
+    when Array
+      raw_repositories.select { |repo| repo.is_a?(Hash) }
+    when Hash
+      raw_repositories.values.select { |repo| repo.is_a?(Hash) }
+    else
+      []
+    end
   end
 
   def project_manifest_services

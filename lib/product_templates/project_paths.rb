@@ -99,9 +99,9 @@ module ProductTemplates
       unless repo
         Workspace.abort_with_help(
           "Repository configuration missing for purpose '#{purpose}'.",
-          details: "Could not find repository entry with purpose '#{purpose}' in config/repos.yml.",
+          details: "Could not find repository entry with purpose '#{purpose}' in config/project.yml.repositories.",
           fixes: [
-            "Add a repository entry with purpose '#{purpose}' in config/repos.yml.",
+            "Add a repository entry with purpose '#{purpose}' in config/project.yml.repositories.",
             "Ensure required keys are present: name, path, github."
           ]
         )
