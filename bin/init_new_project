@@ -1,6 +1,4 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/workspace/services/init_new_project"
-
-exit Workspace::Services::InitNewProject.new(ARGV).call
+exec File.expand_path("workspace", __dir__), "repository", "setup", *ARGV

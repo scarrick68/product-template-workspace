@@ -1,6 +1,4 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "../lib/workspace/services/validate_product"
-
-exit Workspace::Services::ValidateProduct.new(ARGV).call
+exec File.expand_path("workspace", __dir__), "repository", "verify", *ARGV

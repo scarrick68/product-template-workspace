@@ -1,8 +1,4 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Run Terraform/OpenTofu infra utility commands for DigitalOcean deployment.
-
-require_relative "../lib/workspace/services/infra/provision_infra"
-
-exit Workspace::Services::Infra::ProvisionInfra.new(ARGV).call
+exec File.expand_path("workspace", __dir__), "infra", *ARGV
