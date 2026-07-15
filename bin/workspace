@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/workspace/cli"
+
+exit Workspace::CLI::Runner.new(ARGV, stdin: $stdin, stdout: $stdout, stderr: $stderr).call
