@@ -26,8 +26,8 @@ Legend:
 
 ```mermaid
 flowchart TD
-	A[[USER: Start new product setup]] --> B[[USER: Run bin/new_project --destination ~/Code/my-super-app my-super-app -- --no-dev]]
-	B --> C[[SCRIPT: new_project copies workspace to destination and delegates to init_new_project in copied workspace]]
+	A[[USER: Start new product setup]] --> B[[USER: Run bin/workspace new-project --destination ~/Code/my-super-app my-super-app -- --no-dev]]
+	B --> C[[SCRIPT: workspace new-project copies workspace to destination and delegates to repository setup in copied workspace]]
 	C --> D[[SCRIPT: init_new_project runs install_local_dev_tools, preinstall, and doctor]]
 	D --> E{Checks pass?}
 	E -- No --> F[[USER: Read FAIL output and fix environment issues]]
@@ -64,7 +64,7 @@ flowchart TD
 ```mermaid
 flowchart TD
 	A[[USER: Need manual path?]] --> B{Use one-command init?}
-	B -- Yes --> C[[USER: Use bin/init_new_project]]
+	B -- Yes --> C[[USER: Use bin/workspace repository setup]]
 	B -- No --> D[[USER: Run manual rename and validation steps]]
 	D --> E[[USER: Follow template-specific rename docs]]
 	E --> F[[USER + SCRIPT: run workspace/template checks]]
@@ -75,7 +75,7 @@ flowchart TD
 Command:
 
 ```bash
-bin/new_project --destination ~/Code/my-super-app my-super-app -- --no-dev
+bin/workspace new-project --destination ~/Code/my-super-app my-super-app -- --no-dev
 ```
 
 What this does:

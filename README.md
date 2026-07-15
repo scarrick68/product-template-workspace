@@ -115,10 +115,10 @@ The first priority scripts for developer ergonomics:
 - `bin/sync-openapi`: copy OpenAPI from API template into shared targets.
 - `bin/dev`: start core local services.
 - `bin/start-day`: run daily coordination workflow.
-- `bin/new_project <product-slug> [--destination PATH]`: copy this template workspace into a new app workspace (sibling by default), then run generated-workspace initialization inside the copy.
-- `bin/init_new_project <product-slug>`: guided first-time setup flow (install_local_dev_tools (required software installation), environment checks, bootstrap, rename, validation, optional dev launch).
-- `bin/new_product <product-slug>`: orchestrate template-to-product rename across repos.
-- `bin/validate_product <product-slug>`: run post-rename validation checks and checklist.
+- `bin/workspace new-project <product-slug> [--destination PATH]`: copy this template workspace into a new app workspace (sibling by default), then run generated-workspace initialization inside the copy.
+- `bin/workspace repository setup <product-slug>`: guided first-time setup flow (install_local_dev_tools (required software installation), environment checks, bootstrap, rename, validation, optional dev launch).
+- `bin/workspace repository rename <product-slug>`: orchestrate template-to-product rename across repos.
+- `bin/workspace repository verify <product-slug>`: run post-rename validation checks and checklist.
 
 ## Local Port Conventions
 

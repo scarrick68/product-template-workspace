@@ -23,6 +23,29 @@ Use Ruby as the default language for workspace scripts.
 - Keep script output concise and action-oriented.
 - For failures, always include assumptions and concrete remediation steps.
 
+## CLI Directory Purposes
+
+The workspace CLI now follows a layered structure so user-facing command contracts stay stable while implementation details evolve.
+
+- `bin/`: Shell-visible entrypoints.
+- `bin/workspace`: canonical executable for all user-facing commands.
+- `lib/workspace/cli.rb`: top-level command router (`new-project`, `credentials`, `repository`, `infra`).
+- `lib/workspace/commands/`: CLI command and subcommand dispatchers. This is the public command layer.
+- `lib/workspace/commands/<group>/`: grouped subcommands (for example infra, repository, credentials actions).
+- `lib/workspace/services/`: internal application services used by commands; not intended as shell contracts.
+- `lib/workspace/services/<domain>/`: deeper domain implementations (for example infra/auth/local env setup installers).
+- `lib/workspace/context.rb`: workspace-root context object used by commands/services to run against the correct workspace instance.
+- `lib/workspace.rb`: shared runtime helpers (output, command execution, config/repository discovery).
+- `test/lib/workspace/commands/`: tests for command dispatch and command-level behavior.
+- `test/lib/workspace/`: tests for lower-level support modules and non-command behavior.
+
+### Boundary Rule
+
+- `Workspace::Commands::*`: user-discoverable CLI operations.
+- `Workspace::Services::*`: internal implementation invoked by commands.
+
+In practice, new shell features should be introduced by adding/updating command classes under `lib/workspace/commands/` and then delegating to one or more services under `lib/workspace/services/`.
+
 ## Current Tooling Gems
 
 - `pastel`
@@ -50,8 +73,8 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 
 ### Aggregate Getting-Started Scripts
 
-- `bin/new_project`: copy-first project generation entrypoint. Creates destination workspace copy, then delegates app / project installation to `init_new_project` in the copied workspace.
-- `bin/init_new_project`: guided onboarding workflow run inside a project workspace; orchestrates setup checks, bootstrap, rename, validation, and optional dev launch.
+- `bin/workspace new-project`: copy-first project generation entrypoint. Creates destination workspace copy, then runs project initialization in the copied workspace context.
+- `bin/workspace repository setup`: guided onboarding workflow run inside a project workspace; orchestrates setup checks, bootstrap, rename, validation, and optional dev launch.
 - `bin/start-day`: daily orchestration workflow for already-initialized workspaces. Pull updates, check status, launch dev services, and run any other daily coordination tasks needed to start dev work.
 
 ### Development Scripts
@@ -68,9 +91,9 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 - `bin/doctor`: verify local toolchain, auth, Docker daemon status, and configured ports.
 - `bin/bootstrap`: validate repo presence and install dependencies.
 - `bin/github_auth_doctor`: verify credentials and permissions for GitHub repo workflows.
-- `bin/new_product`: perform template rename orchestration only.
-- `bin/validate_product`: run post-rename validation checks and checklist.
-- `bin/infra`: run infrastructure workflows (`doctor`, `configure`, `plan`, `apply`) for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
+- `bin/workspace repository rename`: perform template rename orchestration only.
+- `bin/workspace repository verify`: run post-rename validation checks and checklist.
+- `bin/workspace infra <doctor|configure|plan|apply>`: infrastructure workflows for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
 
 ## Notes
 
