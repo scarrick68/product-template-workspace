@@ -46,6 +46,22 @@ The workspace CLI now follows a layered structure so user-facing command contrac
 
 In practice, new shell features should be introduced by adding/updating command classes under `lib/workspace/commands/` and then delegating to one or more services under `lib/workspace/services/`.
 
+## Command Flow Map
+
+Canonical project setup flow now routes through `bin/workspace`:
+
+1. `bin/workspace new-project ...`
+2. `bin/workspace repository setup ...` (inside the generated workspace context)
+3. `bin/workspace repository rename ...`
+4. `bin/workspace repository verify ...`
+
+Infrastructure provisioning is intentionally a separate phase:
+
+1. `bin/workspace infra doctor [environment]`
+2. `bin/workspace infra configure [environment]`
+3. `bin/workspace infra plan [environment]`
+4. `bin/workspace infra apply [environment]`
+
 ## Current Tooling Gems
 
 - `pastel`
@@ -87,7 +103,7 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 ### Single-Responsibility Utility Scripts
 
 - `bin/install_local_dev_tools`: install/configure required local tools and software such as Homebrew, Ruby, GitHub CLI as well as others.
-- `bin/preinstall`: verify Ruby compatibility and GitHub CLI readiness.
+- `bin/preinstall_checks`: verify Ruby compatibility and GitHub CLI readiness.
 - `bin/doctor`: verify local toolchain, auth, Docker daemon status, and configured ports.
 - `bin/bootstrap`: validate repo presence and install dependencies.
 - `bin/github_auth_doctor`: verify credentials and permissions for GitHub repo workflows.

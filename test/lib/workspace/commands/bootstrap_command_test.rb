@@ -24,7 +24,7 @@ class BootstrapCommandSmokeTest < Minitest::Test
       Workspace.stubs(:warn)
       Workspace.stubs(:fail_with_help)
       Workspace.stubs(:abort_with_help).raises("abort_with_help called unexpectedly")
-      Workspace.stubs(:script_path).returns("bin/preinstall")
+      Workspace.stubs(:script_path).returns("bin/preinstall_checks")
 
       command = Workspace::Services::Bootstrap.new
       command.stubs(:system).returns(true)

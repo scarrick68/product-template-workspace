@@ -12,11 +12,11 @@ class InitStepRunnerTest < Minitest::Test
     Workspace.stubs(:section)
 
     Workspace.expects(:script_path)
-      .with("preinstall", context: context)
-      .returns("/tmp/generated-workspace/bin/preinstall")
+      .with("preinstall_checks", context: context)
+      .returns("/tmp/generated-workspace/bin/preinstall_checks")
 
     expected_command = [
-      Shellwords.escape("/tmp/generated-workspace/bin/preinstall"),
+      Shellwords.escape("/tmp/generated-workspace/bin/preinstall_checks"),
       Shellwords.escape("--flag"),
       Shellwords.escape("value with space")
     ].join(" ")
@@ -26,7 +26,7 @@ class InitStepRunnerTest < Minitest::Test
       has_entries(chdir: "/tmp/generated-workspace", allow_failure: true)
     ).returns(true)
 
-    assert runner.shell("Environment prechecks", "preinstall", args: ["--flag", "value with space"])
+    assert runner.shell("Environment prechecks", "preinstall_checks", args: ["--flag", "value with space"])
   end
 
   def test_ruby_returns_true_when_block_returns_zero

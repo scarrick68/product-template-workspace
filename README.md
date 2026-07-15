@@ -107,7 +107,7 @@ The workspace now includes a root `Gemfile` for shared tooling dependencies:
 
 The first priority scripts for developer ergonomics:
 
-- `bin/preinstall`: verify Ruby compatibility and GitHub CLI authentication before install workflows.
+- `bin/preinstall_checks`: verify Ruby compatibility and GitHub CLI authentication before install workflows.
 - `bin/bootstrap`: verify repos and install dependencies.
 - `bin/doctor`: check local workstation prerequisites and ports.
 - `bin/status`: show git branch and dirty state across repos.

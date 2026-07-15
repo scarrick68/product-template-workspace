@@ -13,6 +13,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 exec ruby - "$SCRIPT_DIR" <<'RUBY'
 script_dir = ARGV.shift
-require File.expand_path("../lib/workspace/services/preinstall", script_dir)
-exit Workspace::Services::Preinstall.new.call
+require File.expand_path("../lib/workspace/services/preinstall_checks", script_dir)
+exit Workspace::Services::PreinstallChecks.new.call
 RUBY

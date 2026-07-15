@@ -55,7 +55,7 @@ module Workspace
         unless options.skip_setup_tools?
           return 1 unless step_runner.shell("Guided tool installation and auth setup", "install_local_dev_tools")
         end
-        return 1 unless step_runner.shell("Environment prechecks", "preinstall")
+        return 1 unless step_runner.shell("Environment prechecks", "preinstall_checks")
         return 1 unless step_runner.ruby("Environment diagnostics") { Workspace::Services::Doctor.new(context: context).call }
         return 1 unless step_runner.ruby("Repository bootstrap and dependency install") { Workspace::Services::Bootstrap.new(context: context).call }
         return 1 unless step_runner.ruby("Sync latest template changes") { Workspace::Services::Pull.new(context: context).call }

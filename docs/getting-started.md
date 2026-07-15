@@ -6,7 +6,7 @@ This guide covers the fastest path to bootstrap a new product from templates and
 
 Validation:
 
-1. Run `bin/install_local_dev_tools`, then `bin/preinstall` and `bin/doctor`.
+1. Run `bin/install_local_dev_tools`, then `bin/preinstall_checks` and `bin/doctor`.
 2. If it reports failures, fix the provided errors and run it again.
 3. Continue only after `bin/doctor` succeeds.
 
@@ -16,6 +16,19 @@ Repeatability:
 2. If environment changes (Ruby, Docker, auth), re-run before continuing.
 
 ## Recommended Path: One-Command Bootstrap
+
+## Canonical Entrypoints
+
+Use `bin/workspace` as the public CLI contract for project setup flows:
+
+- `bin/workspace new-project <product-slug> [--destination PATH]`
+- `bin/workspace repository setup <product-slug> [init options]`
+- `bin/workspace repository rename <product-slug>`
+- `bin/workspace repository verify <product-slug>`
+
+Infrastructure starts separately after project setup via:
+
+- `bin/workspace infra <doctor|configure|plan|apply> [environment]`
 
 ## New App Setup Flow
 
@@ -27,35 +40,35 @@ Legend:
 ```mermaid
 flowchart TD
 	A[[USER: Start new product setup]] --> B[[USER: Run bin/workspace new-project --destination ~/Code/my-super-app my-super-app -- --no-dev]]
-	B --> C[[SCRIPT: workspace new-project copies workspace to destination and delegates to repository setup in copied workspace]]
-	C --> D[[SCRIPT: init_new_project runs install_local_dev_tools, preinstall, and doctor]]
+	B --> C[[SCRIPT: workspace new-project copies workspace to destination and delegates to workspace repository setup in copied workspace]]
+	C --> D[[SCRIPT: repository setup runs install_local_dev_tools, preinstall_checks, and doctor]]
 	D --> E{Checks pass?}
 	E -- No --> F[[USER: Read FAIL output and fix environment issues]]
 	F --> D
-	E -- Yes --> G[[SCRIPT: init_new_project runs bootstrap and pull]]
+	E -- Yes --> G[[SCRIPT: repository setup runs bootstrap and pull]]
 	G --> H{Use --create-remotes?}
 	H -- No --> I[[USER: Confirm backend and frontend remotes exist]]
 	I --> J{Repos ready?}
 	J -- No --> K[[USER: Create repos manually and rerun]]
 	K --> I
-	J -- Yes --> L[[SCRIPT: init_new_project runs new_product]]
-	H -- Yes --> M[[SCRIPT: init_new_project with github_auth_doctor]]
+	J -- Yes --> L[[SCRIPT: repository setup runs repository rename]]
+	H -- Yes --> M[[SCRIPT: repository setup verifies GitHub auth/permissions]]
 	M --> N{Auth checks pass?}
 	N -- No --> O[[USER: Fix gh auth and owner permissions]]
 	O --> M
 	N -- Yes --> L
-	L --> P[[SCRIPT: init_new_project runs validate_product]]
+	L --> P[[SCRIPT: repository setup runs repository verify]]
 	P --> Q{Validation passes?}
 	Q -- No --> R[[USER: Fix reported issues and rerun validation]]
 	R --> P
 	Q -- Yes --> S{Create remotes mode?}
-	S -- No --> T[[SCRIPT: init_new_project runs unset_origin_remotes]]
-	S -- Yes --> U[[SCRIPT: init_new_project runs gh repo create]]
-	U --> V[[SCRIPT: init_new_project runs git remote add origin]]
+	S -- No --> T[[SCRIPT: repository setup unsets inherited template origins]]
+	S -- Yes --> U[[SCRIPT: repository setup creates missing remotes on GitHub]]
+	U --> V[[SCRIPT: repository setup configures local git origins]]
 	V --> W{Push enabled?}
-	W -- Yes --> X[[SCRIPT: init_new_project runs git push]]
+	W -- Yes --> X[[SCRIPT: repository setup pushes current branch where available]]
 	W -- No --> Y[[USER: Skip push for manual follow-up]]
-	X --> Z[[SCRIPT: init_new_project runs optional dev step]]
+	X --> Z[[SCRIPT: repository setup runs optional dev step]]
 	Y --> Z
 	T --> Z
 	Z --> AA[[USER: Ready for feature development]]
@@ -82,15 +95,15 @@ What this does:
 
 1. Copies template workspace into a new destination workspace (sibling by default when `--destination` is omitted).
 2. Preserves copied git histories for the workspace and template repos; nothing is removed automatically.
-3. Delegates to `init_new_project` inside the copied workspace.
+3. Delegates to `bin/workspace repository setup` inside the copied workspace.
 4. Runs guided machine setup (`install_local_dev_tools`) for missing tool install/auth prompts.
-5. Runs prechecks (`preinstall`, `doctor`).
+5. Runs prechecks (`preinstall_checks`, `doctor`).
 6. Clones/bootstraps dependencies and updates repos (`bootstrap`, `pull`).
 7. Uses one of two remote workflows:
 	- manual mode (default): prompts to confirm backend/frontend remotes already exist.
 	- automated mode (`--create-remotes`): verifies GitHub permissions, creates remotes with selected visibility, sets local origins, and optionally pushes.
-8. Runs template rename orchestration (`new_product`).
-9. Runs post-rename validation (`validate_product`).
+8. Runs template rename orchestration (`bin/workspace repository rename`).
+9. Runs post-rename validation (`bin/workspace repository verify`).
 10. Configures git remotes:
 	- manual mode: unsets template `origin` remotes and prints add-remote hints.
 	- automated mode: points local repos to newly created product remotes.
@@ -117,7 +130,7 @@ Validation after command:
 
 ## Remote Setup After Bootstrap
 
-After `init_new_project`, origin remotes are unset to avoid accidental pushes to template repositories.
+After `bin/workspace repository setup`, origin remotes are unset in manual mode to avoid accidental pushes to template repositories.
 
 Use printed commands from the init output, then verify:
 

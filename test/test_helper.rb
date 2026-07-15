@@ -8,7 +8,7 @@ require "tmpdir"
 
 require_relative "../lib/workspace"
 require_relative "../lib/workspace/services/bootstrap"
-require_relative "../lib/workspace/services/preinstall"
+require_relative "../lib/workspace/services/preinstall_checks"
 require_relative "../lib/workspace/services/doctor"
 require_relative "../lib/workspace/services/pull"
 require_relative "../lib/workspace/services/status"
