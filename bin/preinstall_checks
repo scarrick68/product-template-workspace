@@ -3,16 +3,11 @@
 
 set -euo pipefail
 
-if ! command -v ruby >/dev/null 2>&1; then
-	echo "[FAIL] Ruby is required but was not found in PATH."
-	echo "       Install Ruby (mise/rbenv/asdf/Homebrew), then verify with: ruby --version. We recommend Mise but any Ruby version manager should work."
-	exit 1
-fi
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/ruby_service_dispatch.sh"
 
-exec ruby - "$SCRIPT_DIR" <<'RUBY'
-script_dir = ARGV.shift
-require File.expand_path("../lib/workspace/services/preinstall_checks", script_dir)
-exit Workspace::Services::PreinstallChecks.new.call
-RUBY
+require_ruby_or_fail
+run_workspace_service_with_ruby \
+	"$SCRIPT_DIR" \
+	"../lib/workspace/services/preinstall_checks" \
+	"Workspace::Services::PreinstallChecks"
