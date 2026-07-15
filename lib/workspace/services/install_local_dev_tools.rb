@@ -70,21 +70,32 @@ module Workspace
         parsed = YAML.safe_load(File.read(preferences_path), permitted_classes: [], aliases: false)
         return unless parsed.is_a?(Hash)
 
+        install_missing = parsed.fetch("install_missing", {})
+        configure = parsed.fetch("configure", {})
+        return unless saved_preferences_present?(install_missing, configure)
+
         if skip_prompt
-          preferences["install_missing"].merge!(parsed.fetch("install_missing", {}))
-          preferences["configure"].merge!(parsed.fetch("configure", {}))
+          preferences["install_missing"].merge!(install_missing)
+          preferences["configure"].merge!(configure)
           return
         end
 
         if prompt_yes_no("Reuse saved setup preferences from previous run?", default: true)
-          preferences["install_missing"].merge!(parsed.fetch("install_missing", {}))
-          preferences["configure"].merge!(parsed.fetch("configure", {}))
+          preferences["install_missing"].merge!(install_missing)
+          preferences["configure"].merge!(configure)
           Workspace.info("Loaded saved setup preferences.")
         else
           Workspace.info("Starting with fresh interactive choices.")
         end
       rescue Psych::SyntaxError
         Workspace.warn("Ignoring invalid preferences yml file at #{preferences_path}.")
+      end
+
+      def saved_preferences_present?(install_missing, configure)
+        install_hash = install_missing.is_a?(Hash) ? install_missing : {}
+        configure_hash = configure.is_a?(Hash) ? configure : {}
+
+        !install_hash.empty? || !configure_hash.empty?
       end
 
       def save_preferences
