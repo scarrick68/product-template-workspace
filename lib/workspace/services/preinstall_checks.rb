@@ -6,7 +6,7 @@ require_relative "../../workspace"
 
 module Workspace
   module Services
-    class Preinstall
+    class PreinstallChecks
       def initialize
         @failed = false
       end
@@ -115,8 +115,8 @@ module Workspace
           ],
           fixes: [
             "Resolve each failure block above in order.",
-            "Re-run this script: bin/preinstall",
-            "Run bin/bootstrap only after preinstall passes."
+            "Re-run this script: bin/preinstall_checks",
+            "Run bin/bootstrap only after preinstall_checks passes."
           ]
         )
         1
