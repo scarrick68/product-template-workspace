@@ -31,18 +31,18 @@ module Workspace
       attr_reader :context, :failures
 
       def run_preinstall_or_abort
-        return if system(Workspace.script_path("preinstall", context: context), chdir: context.root)
+        return if system(Workspace.script_path("preinstall_checks", context: context), chdir: context.root)
 
         Workspace.abort_with_help(
           "Bootstrap halted because pre-installation checks did not pass.",
-          details: "The preinstall step failed, so dependency installation was skipped.",
+          details: "The preinstall_checks step failed, so dependency installation was skipped.",
           assumptions: [
             "Bootstrap assumes a compatible Ruby and authenticated GitHub CLI are already available.",
-            "Dependency and repository commands are likely to fail until preinstall issues are fixed."
+            "Dependency and repository commands are likely to fail until preinstall_checks issues are fixed."
           ],
           fixes: [
-            "Run bin/preinstall and resolve every failure it reports.",
-            "After preinstall passes, run bin/bootstrap again."
+            "Run bin/preinstall_checks and resolve every failure it reports.",
+            "After preinstall_checks passes, run bin/bootstrap again."
           ]
         )
       end

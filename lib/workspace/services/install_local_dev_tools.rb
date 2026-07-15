@@ -344,7 +344,7 @@ module Workspace
             fixes: [
               "Re-run: bin/install_local_dev_tools and choose yes for each missing required tool you want installed automatically.",
               "Or install missing tools manually, then re-run bin/install_local_dev_tools to verify.",
-              "After install_local_dev_tools passes, continue with bin/preinstall and bin/doctor."
+              "After install_local_dev_tools passes, continue with bin/preinstall_checks and bin/doctor."
             ]
           )
           return 1

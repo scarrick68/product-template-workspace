@@ -8,7 +8,7 @@ module Workspace
   module Services
     class StartDay
       WORKFLOW_STEPS = [
-        "preinstall",
+        "preinstall_checks",
         "doctor",
         "pull",
         "status",
