@@ -1,7 +1,13 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
+#!/usr/bin/env bash
 # Verify local toolchain, auth, Docker daemon, and expected ports.
 
-require_relative "../lib/workspace/services/doctor"
+set -euo pipefail
 
-exit Workspace::Services::Doctor.new.call
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/ruby_service_dispatch.sh"
+
+require_ruby_or_fail
+run_workspace_service_with_ruby \
+	"$SCRIPT_DIR" \
+	"../lib/workspace/services/doctor" \
+	"Workspace::Services::Doctor"
