@@ -10,7 +10,6 @@
 # - Resolve Terraform/OpenTofu binary via INFRA_TERRAFORM_BIN or PATH.
 # - Resolve var file via INFRA_VAR_FILE (default: terraform.tfvars.json).
 
-require "shellwords"
 require "json"
 require "yaml"
 require "tty-prompt"
@@ -19,16 +18,15 @@ require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
 require_relative "./configuration_prompt"
 require_relative "./manifest_configuration"
+require_relative "./terraform_workspace"
+require_relative "./terraform_runner"
 require_relative "./terraform_variables"
 
 module Workspace
   module Services
     module Infra
       class ProvisionInfra
-        TERRAFORM_DIR = File.join(Workspace::ROOT, "infra", "digitalocean_v2")
         PROJECT_MANIFEST_FILE = File.join(Workspace::ROOT, "config", "project.yml")
-        DEFAULT_VAR_FILE = "terraform.tfvars.json"
-        DEFAULT_PLAN_FILE = "tfplan"
         DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
         def initialize(argv, stdin: $stdin, stdout: $stdout)
@@ -38,6 +36,8 @@ module Workspace
           @prompt = TTY::Prompt.new(input: @stdin, output: @stdout)
           @secrets_resolver = Workspace::Secrets::Resolver.new(io: @stdout, input: @stdin)
           @manifest_configuration = Workspace::Services::Infra::ManifestConfiguration.new(root: Workspace::ROOT)
+          @terraform_workspace = Workspace::Services::Infra::TerraformWorkspace.new
+          @terraform_runner = Workspace::Services::Infra::TerraformRunner.new(workspace: @terraform_workspace)
         end
 
         def call
@@ -101,15 +101,26 @@ module Workspace
 
           Workspace.ok("infra configure completed for #{environment}")
           Workspace.info("Generated: config/project.yml")
-          Workspace.info("Generated: infra/digitalocean_v2/#{terraform_var_file_name}")
+          Workspace.info("Generated: infra/digitalocean_v2/#{terraform_workspace.var_file_name}")
           0
         end
 
         def run_terraform_action(action)
           prepare_working_directory!
           ensure_digitalocean_access_token(interactive: true)
-          run_init
-          run_action(action)
+          terraform_runner.init
+
+          case action
+          when "plan"
+            terraform_runner.plan
+          when "apply"
+            terraform_runner.apply
+          when "safe_destroy"
+            terraform_runner.safe_destroy
+          when "total_destruction"
+            terraform_runner.destroy
+          end
+
           Workspace.ok("infra #{action} completed")
           0
         end
@@ -120,11 +131,11 @@ module Workspace
         end
 
         def ensure_terraform_directory_exists!
-          return if Dir.exist?(TERRAFORM_DIR)
+          return if Dir.exist?(terraform_workspace.directory)
 
           Workspace.abort_with_help(
             "Terraform directory is missing.",
-            details: "Expected directory: #{TERRAFORM_DIR}",
+            details: "Expected directory: #{terraform_workspace.directory}",
             fixes: [
               "Ensure infra scaffold exists under infra/digitalocean_v2.",
               "Run this command from the product-template-workspace root."
@@ -133,37 +144,20 @@ module Workspace
         end
 
         def ensure_var_file_exists!
-          return if File.exist?(terraform_var_file_path)
+          return if File.exist?(terraform_workspace.var_file_path)
 
           Workspace.abort_with_help(
             "Missing Terraform var-file.",
-            details: "Expected file: #{terraform_var_file_path}",
+            details: "Expected file: #{terraform_workspace.var_file_path}",
             fixes: [
-              "Create infra/digitalocean_v2/#{terraform_var_file_name} with environment values.",
+              "Create infra/digitalocean_v2/#{terraform_workspace.var_file_name} with environment values.",
               "Populate required keys listed in infra/digitalocean_v2/variables.tf."
             ]
           )
         end
 
-        def run_init
-          Workspace.info("Initializing infra working directory")
-          Workspace.run(terraform_command("init"), chdir: Workspace::ROOT)
-        end
-
-        def run_action(action)
-          Workspace.info("Running infra #{action}")
-
-          action_flags = ["-var-file=#{Shellwords.escape(terraform_var_file_name)}"]
-          action_flags << "-out=#{Shellwords.escape(terraform_plan_file_name)}" if action == "plan"
-
-          Workspace.run(
-            terraform_command(action, *action_flags),
-            chdir: Workspace::ROOT
-          )
-        end
-
         def write_terraform_var_file!(tfvars)
-          path = terraform_var_file_path
+          path = terraform_workspace.var_file_path
           File.write(path, JSON.pretty_generate(tfvars) + "\n")
         end
 
@@ -291,48 +285,16 @@ module Workspace
           token
         end
 
-        def terraform_command(subcommand, *extra_flags)
-          [
-            Shellwords.escape(terraform_binary),
-            "-chdir=#{Shellwords.escape(TERRAFORM_DIR)}",
-            subcommand,
-            *extra_flags
-          ].join(" ")
-        end
-
-        def terraform_binary
-          @terraform_binary ||= begin
-            configured_binary = ENV.fetch("INFRA_TERRAFORM_BIN", "").strip
-            return configured_binary unless configured_binary.empty?
-            return "terraform" if Workspace.command_exists?("terraform")
-            return "tofu" if Workspace.command_exists?("tofu")
-
-            Workspace.abort_with_help(
-              "Terraform/OpenTofu CLI not found.",
-              details: "Install terraform/tofu or set INFRA_TERRAFORM_BIN.",
-              fixes: [
-                "Install Terraform: https://developer.hashicorp.com/terraform/install",
-                "Install OpenTofu: https://opentofu.org/docs/intro/install/",
-                "Export INFRA_TERRAFORM_BIN=/path/to/terraform"
-              ]
-            )
-          end
-        end
-
-        def terraform_var_file_name
-          ENV.fetch("INFRA_VAR_FILE", DEFAULT_VAR_FILE).strip
-        end
-
-        def terraform_var_file_path
-          File.join(TERRAFORM_DIR, terraform_var_file_name)
-        end
-
-        def terraform_plan_file_name
-          ENV.fetch("INFRA_PLAN_FILE", DEFAULT_PLAN_FILE).strip
-        end
-
         def manifest_configuration
           @manifest_configuration
+        end
+
+        def terraform_workspace
+          @terraform_workspace
+        end
+
+        def terraform_runner
+          @terraform_runner
         end
       end
     end

@@ -4,12 +4,13 @@ require "stringio"
 
 require_relative "../../../test_helper"
 require_relative "../../../../lib/workspace/services/infra/provision_infra"
+require_relative "../../../../lib/workspace/services/infra/terraform_workspace"
 require_relative "../../../../lib/workspace/services/infra/terraform_variables"
 
 class InfraCommandTest < Minitest::Test
   def test_returns_usage_when_action_missing
-    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply] [environment]")
-    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production")
+    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply|safe_destroy|total_destruction] [environment]")
+    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production | bin/infra safe_destroy production")
 
     result = Workspace::Services::Infra::ProvisionInfra.new([]).call
 
@@ -18,11 +19,11 @@ class InfraCommandTest < Minitest::Test
 
   def test_returns_one_when_action_is_unsupported
     Workspace.expects(:fail_with_help).with(
-      "Unsupported infra action 'destroy'.",
-      has_entry(details: "Supported actions: doctor, configure, plan, apply")
+      "Unsupported infra action 'nuke'.",
+      has_entry(details: "Supported actions: doctor, configure, plan, apply, safe_destroy, total_destruction")
     )
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["destroy"]).call
+    result = Workspace::Services::Infra::ProvisionInfra.new(["nuke"]).call
 
     assert_equal 1, result
   end
@@ -48,7 +49,7 @@ class InfraCommandTest < Minitest::Test
 
     File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, includes("infrastructure:"))
     File.expects(:write).with(
-      File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "terraform.tfvars.json"),
+      File.join(Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY, "terraform.tfvars.json"),
       includes("\"project_name\": \"my-product\"")
     )
 
@@ -70,7 +71,7 @@ class InfraCommandTest < Minitest::Test
 
     Workspace.expects(:abort_with_help).with(
       "Missing Terraform var-file.",
-      has_entry(details: "Expected file: #{File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, 'terraform.tfvars.json')}")
+      has_entry(details: "Expected file: #{File.join(Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY, 'terraform.tfvars.json')}")
     ).raises(SystemExit.new(1))
 
     assert_raises(SystemExit) do
@@ -87,7 +88,7 @@ class InfraCommandTest < Minitest::Test
     File.stubs(:exist?).returns(true)
 
     sequence = sequence("infra-plan-sequence")
-    terraform_dir = Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR
+    terraform_dir = Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY
 
     Workspace.expects(:run).with(
       "terraform -chdir=#{terraform_dir} init",
@@ -100,6 +101,58 @@ class InfraCommandTest < Minitest::Test
     ).in_sequence(sequence).returns(true)
 
     result = Workspace::Services::Infra::ProvisionInfra.new(["plan"], stdin: StringIO.new, stdout: StringIO.new).call
+
+    assert_equal 0, result
+  end
+
+  def test_safe_destroy_runs_init_then_targeted_destroy
+    Workspace.stubs(:info)
+    Workspace.stubs(:ok)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("tofu").returns(false)
+    Dir.stubs(:exist?).returns(true)
+    File.stubs(:exist?).returns(true)
+
+    sequence = sequence("infra-safe-destroy-sequence")
+    terraform_dir = Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} init",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} destroy -var-file=terraform.tfvars.json -target=digitalocean_app.rails -target=digitalocean_app.frontend",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    result = Workspace::Services::Infra::ProvisionInfra.new(["safe_destroy"], stdin: StringIO.new, stdout: StringIO.new).call
+
+    assert_equal 0, result
+  end
+
+  def test_total_destruction_runs_init_then_full_destroy
+    Workspace.stubs(:info)
+    Workspace.stubs(:ok)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("tofu").returns(false)
+    Dir.stubs(:exist?).returns(true)
+    File.stubs(:exist?).returns(true)
+
+    sequence = sequence("infra-total-destruction-sequence")
+    terraform_dir = Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} init",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} destroy -var-file=terraform.tfvars.json",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    result = Workspace::Services::Infra::ProvisionInfra.new(["total_destruction"], stdin: StringIO.new, stdout: StringIO.new).call
 
     assert_equal 0, result
   end
@@ -191,7 +244,7 @@ class InfraCommandTest < Minitest::Test
   private
 
   def terraform_declared_variable_names
-    variables_path = File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "variables.tf")
+    variables_path = File.join(Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY, "variables.tf")
     File.read(variables_path).scan(/^variable\s+"([^"]+)"/).flatten.sort
   end
 end
