@@ -17,7 +17,13 @@ require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
 require_relative "./configuration_prompt"
+require_relative "./doctor/blob_storage_check"
+require_relative "./doctor/cli_availability_checks"
+require_relative "./doctor/provider_authentication_checks"
+require_relative "./doctor/repository_check"
+require_relative "./doctor/runner"
 require_relative "./manifest_configuration"
+require_relative "./terraform_preflight"
 require_relative "./terraform_workspace"
 require_relative "./terraform_runner"
 require_relative "./terraform_variables"
@@ -34,10 +40,11 @@ module Workspace
           @stdin = stdin
           @stdout = stdout
           @prompt = TTY::Prompt.new(input: @stdin, output: @stdout)
-          @secrets_resolver = Workspace::Secrets::Resolver.new(io: @stdout, input: @stdin)
+          @secrets_resolver = Workspace::Secrets::Resolver.new(stdout: @stdout, stdin: @stdin)
           @manifest_configuration = Workspace::Services::Infra::ManifestConfiguration.new(root: Workspace::ROOT)
           @terraform_workspace = Workspace::Services::Infra::TerraformWorkspace.new
           @terraform_runner = Workspace::Services::Infra::TerraformRunner.new(workspace: @terraform_workspace)
+          @terraform_preflight = Workspace::Services::Infra::TerraformPreflight.new(workspace: @terraform_workspace)
         end
 
         def call
@@ -59,31 +66,24 @@ module Workspace
         attr_reader :argv, :stdin, :stdout, :prompt
 
         def run_doctor(environment)
+          cli_checks = Workspace::Services::Infra::Doctor::CliAvailabilityChecks.new.to_a
+
+          provider_checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
+            secrets_resolver: secrets_resolver,
+            digitalocean_token_key: DIGITALOCEAN_TOKEN_KEY
+          ).to_a
+
           checks = [
-            ["Terraform/OpenTofu CLI", -> { check_cli_available(["terraform", "tofu"], "Terraform/OpenTofu") }],
-            ["doctl CLI", -> { check_cli_available(["doctl"], "doctl") }],
-            ["GitHub CLI", -> { check_cli_available(["gh"], "GitHub CLI") }],
-            ["git CLI", -> { check_cli_available(["git"], "git") }],
-            [DIGITALOCEAN_TOKEN_KEY, -> { check_digitalocean_access_token }],
-            ["doctl auth", -> { check_doctl_auth }],
-            ["gh auth", -> { check_gh_auth }],
-            ["expected repositories", -> { check_expected_repositories }],
-            ["blob store readiness", -> { check_blob_store_readiness(environment) }]
+            *cli_checks,
+            *provider_checks,
+            Workspace::Services::Infra::Doctor::RepositoryCheck.new,
+            Workspace::Services::Infra::Doctor::BlobStorageCheck.new(
+              manifest_configuration: manifest_configuration,
+              environment: environment
+            )
           ]
 
-          failed_checks = []
-          checks.each do |label, check|
-            failed_checks << label unless check.call
-          end
-
-          unless failed_checks.empty?
-            Workspace.info("infra doctor failed checks: #{failed_checks.join(', ')}")
-            Workspace.fail("infra doctor detected one or more issues")
-            return 1
-          end
-
-          Workspace.ok("infra doctor checks passed")
-          0
+          Workspace::Services::Infra::Doctor::Runner.new(checks: checks).call
         end
 
         def run_configure(environment)
@@ -106,7 +106,7 @@ module Workspace
         end
 
         def run_terraform_action(action)
-          prepare_working_directory!
+          terraform_preflight.check!
           ensure_digitalocean_access_token(interactive: true)
           terraform_runner.init
 
@@ -125,156 +125,9 @@ module Workspace
           0
         end
 
-        def prepare_working_directory!
-          ensure_terraform_directory_exists!
-          ensure_var_file_exists!
-        end
-
-        def ensure_terraform_directory_exists!
-          return if Dir.exist?(terraform_workspace.directory)
-
-          Workspace.abort_with_help(
-            "Terraform directory is missing.",
-            details: "Expected directory: #{terraform_workspace.directory}",
-            fixes: [
-              "Ensure infra scaffold exists under infra/digitalocean_v2.",
-              "Run this command from the product-template-workspace root."
-            ]
-          )
-        end
-
-        def ensure_var_file_exists!
-          return if File.exist?(terraform_workspace.var_file_path)
-
-          Workspace.abort_with_help(
-            "Missing Terraform var-file.",
-            details: "Expected file: #{terraform_workspace.var_file_path}",
-            fixes: [
-              "Create infra/digitalocean_v2/#{terraform_workspace.var_file_name} with environment values.",
-              "Populate required keys listed in infra/digitalocean_v2/variables.tf."
-            ]
-          )
-        end
-
         def write_terraform_var_file!(tfvars)
           path = terraform_workspace.var_file_path
           File.write(path, JSON.pretty_generate(tfvars) + "\n")
-        end
-
-        def check_cli_available(commands, label)
-          found = commands.find { |name| Workspace.command_exists?(name) }
-          if found
-            Workspace.ok("#{label}: #{found}")
-            return true
-          end
-
-          Workspace.fail("#{label}: missing (checked #{commands.join(', ')})")
-          false
-        end
-
-        def check_digitalocean_access_token
-          token = ensure_digitalocean_access_token(interactive: false)
-          if token
-            Workspace.ok("#{DIGITALOCEAN_TOKEN_KEY}: available")
-            return true
-          end
-
-          Workspace.fail("#{DIGITALOCEAN_TOKEN_KEY}: missing")
-          false
-        end
-
-        def check_doctl_auth
-          return true unless Workspace.command_exists?("doctl")
-
-          _out, success = Workspace.capture("doctl account get")
-          if success
-            Workspace.ok("doctl auth: valid")
-            return true
-          end
-
-          Workspace.fail("doctl auth: invalid (run: doctl auth init)")
-          false
-        end
-
-        def check_gh_auth
-          return true unless Workspace.command_exists?("gh")
-
-          _out, success = Workspace.capture("gh auth status")
-          if success
-            Workspace.ok("gh auth: valid")
-            return true
-          end
-
-          Workspace.fail("gh auth: invalid (run: gh auth login)")
-          false
-        end
-
-        def check_expected_repositories
-          all_found = true
-          targets = {
-            "backend-api" => default_repo_name("backend-api", "api-template"),
-            "frontend-web-client" => default_repo_name("frontend-web-client", "web-template")
-          }
-
-          targets.each do |purpose, name|
-            repo = Workspace.repositories.find { |item| item["purpose"].to_s == purpose }
-            path = repo && repo["path"]
-            absolute_path = path && File.join(Workspace::ROOT, path)
-
-            if absolute_path && Dir.exist?(absolute_path)
-              Workspace.ok("repo #{name}: found")
-            else
-              Workspace.fail("repo #{name}: missing")
-              all_found = false
-            end
-          end
-
-          all_found
-        end
-
-        def check_blob_store_readiness(environment)
-          config = manifest_configuration.read(environment: environment)
-          spaces_enabled = dig_value(config, "components", "spaces", fallback: true)
-          return true unless spaces_enabled
-
-          provider = config["blob_store_provider"].to_s.strip
-          return true if provider.empty?
-
-          return check_aws_s3_readiness if provider == "aws_s3"
-
-          Workspace.ok("blob storage provider '#{provider}': selected")
-          true
-        end
-
-        def check_aws_s3_readiness
-          Workspace.info("blob storage provider aws_s3: checking CLI/auth readiness")
-
-          return false unless check_cli_available(["aws"], "AWS CLI")
-
-          _out, success = Workspace.capture("aws sts get-caller-identity")
-          if success
-            Workspace.ok("AWS auth: valid")
-            return true
-          end
-
-          Workspace.fail("AWS auth: invalid (run: aws configure, then aws sts get-caller-identity)")
-          false
-        end
-
-        def default_repo_name(purpose, fallback)
-          repo = Workspace.repositories.find { |item| item["purpose"].to_s == purpose }
-          return fallback unless repo
-
-          repo["name"].to_s.empty? ? fallback : repo["name"].to_s
-        end
-
-        def dig_value(hash, *keys, fallback: nil)
-          value = keys.reduce(hash) do |memo, key|
-            break nil unless memo.is_a?(Hash)
-
-            memo[key]
-          end
-          value.nil? ? fallback : value
         end
 
         def ensure_digitalocean_access_token(interactive:)
@@ -295,6 +148,14 @@ module Workspace
 
         def terraform_runner
           @terraform_runner
+        end
+
+        def terraform_preflight
+          @terraform_preflight
+        end
+
+        def secrets_resolver
+          @secrets_resolver
         end
       end
     end

@@ -45,6 +45,7 @@ class InfraCommandTest < Minitest::Test
     ])
     Workspace.stubs(:ok)
     Workspace.stubs(:info)
+    File.stubs(:exist?).returns(false)
     File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
 
     File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, includes("infrastructure:"))
