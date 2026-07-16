@@ -89,7 +89,7 @@ environments:
 
         opensearch:
           enabled: true
-          size: db-s-1vcpu-1gb
+          size: db-s-1vcpu-2gb
 
         spaces:
           enabled: true

@@ -26,7 +26,7 @@ class InfraCommandTest < Minitest::Test
     assert_equal 1, result
   end
 
-  def test_configure_writes_infra_yml_and_tfvars
+  def test_configure_writes_project_manifest_and_tfvars
     Workspace.stubs(:repositories).returns([
       {
         "purpose" => "backend-api",
@@ -43,12 +43,12 @@ class InfraCommandTest < Minitest::Test
     ])
     Workspace.stubs(:ok)
     Workspace.stubs(:info)
-    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::CONFIG_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
 
-    File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::CONFIG_FILE, includes("app_name: my-product"))
+    File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, includes("infrastructure:"))
     File.expects(:write).with(
       File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "terraform.tfvars.json"),
-      includes("\"app_name\": \"my-product\"")
+      includes("\"project_name\": \"my-product\"")
     )
 
     input = StringIO.new("my-product\nnyc\nnyc3\nexample-org\nmy-product-api\nmy-product-web\nmain\ny\nn\ny\naws_s3\n")
@@ -94,7 +94,7 @@ class InfraCommandTest < Minitest::Test
     ).in_sequence(sequence).returns(true)
 
     Workspace.expects(:run).with(
-      "terraform -chdir=#{terraform_dir} plan -var-file=terraform.tfvars.json",
+      "terraform -chdir=#{terraform_dir} plan -var-file=terraform.tfvars.json -out=tfplan",
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
@@ -131,8 +131,68 @@ class InfraCommandTest < Minitest::Test
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/api-template")).returns(true)
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/web-template")).returns(true)
 
-    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::CONFIG_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
 
     assert_equal 0, command.call
+  end
+
+  def test_generated_tfvars_are_declared_by_root_module
+    command = Workspace::Services::Infra::ProvisionInfra.new([], stdin: StringIO.new, stdout: StringIO.new)
+
+    config = {
+      "app_name" => "my-product",
+      "environment" => "production",
+      "region" => "nyc",
+      "do_region" => "nyc3",
+      "github" => {
+        "owner" => "example-org",
+        "api_repo" => "my-product-api",
+        "web_repo" => "my-product-web",
+        "branch" => "main"
+      },
+      "sizes" => {
+        "api" => "basic-xxs",
+        "worker" => "basic-xxs",
+        "web" => "basic-xxs",
+        "postgres" => "db-s-1vcpu-1gb",
+        "opensearch" => "db-s-1vcpu-2gb"
+      }
+    }
+
+    generated_keys = command.send(:terraform_variables_for, config).keys.sort
+    declared_keys = terraform_declared_variable_names
+    undeclared = generated_keys - declared_keys
+
+    assert_empty undeclared, "Generated undeclared Terraform variables: #{undeclared.join(', ')}"
+  end
+
+  def test_tfvars_do_not_contain_credentials
+    command = Workspace::Services::Infra::ProvisionInfra.new([], stdin: StringIO.new, stdout: StringIO.new)
+
+    config = {
+      "app_name" => "my-product",
+      "environment" => "production",
+      "region" => "nyc",
+      "do_region" => "nyc3",
+      "github" => {
+        "owner" => "example-org",
+        "api_repo" => "my-product-api",
+        "web_repo" => "my-product-web",
+        "branch" => "main"
+      },
+      "sizes" => {}
+    }
+
+    generated_keys = command.send(:terraform_variables_for, config).keys
+    sensitive_keys = %w[digitalocean_access_token spaces_access_key_id spaces_secret_access_key aws_access_key_id aws_secret_access_key]
+
+    assert_empty generated_keys & sensitive_keys
+  end
+
+  private
+
+  def terraform_declared_variable_names
+    variables_path = File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "variables.tf")
+    File.read(variables_path).scan(/^variable\s+"([^"]+)"/).flatten.sort
   end
 end
