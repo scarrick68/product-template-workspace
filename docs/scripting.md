@@ -109,7 +109,7 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 - `bin/github_auth_doctor`: verify credentials and permissions for GitHub repo workflows.
 - `bin/workspace repository rename`: perform template rename orchestration only.
 - `bin/workspace repository verify`: run post-rename validation checks and checklist.
-- `bin/workspace infra <doctor|configure|plan|apply>`: infrastructure workflows for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean/README.md` for launch flow details.
+- `bin/workspace infra <doctor|configure|plan|apply>`: infrastructure workflows for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean_v2/README.md` for launch flow details.
 
 ## Notes
 

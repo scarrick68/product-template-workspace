@@ -11,7 +11,7 @@ Use this section as the primary index when you are trying to get work done quick
 - First-time product bootstrap and remote setup:
 	- Start at `getting-started.md`
 - Infrastructure provisioning and production launch prep:
-	- Start at `../infra/digitalocean/README.md`
+	- Start at `../infra/digitalocean_v2/README.md`
 - Day-to-day local development loop:
 	- Start at `local-development.md`
 - Script inventory and command responsibilities:
