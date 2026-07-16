@@ -101,7 +101,12 @@ class InfraCommandTest < Minitest::Test
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["plan"], stdin: StringIO.new, stdout: StringIO.new).call
+    command = Workspace::Services::Infra::ProvisionInfra.new(["plan"], stdin: StringIO.new, stdout: StringIO.new)
+    blob_storage_manager = mock("blob_storage_manager")
+    blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
+    command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+
+    result = command.call
 
     assert_equal 0, result
   end
@@ -127,7 +132,12 @@ class InfraCommandTest < Minitest::Test
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["safe_destroy"], stdin: StringIO.new, stdout: StringIO.new).call
+    command = Workspace::Services::Infra::ProvisionInfra.new(["safe_destroy"], stdin: StringIO.new, stdout: StringIO.new)
+    blob_storage_manager = mock("blob_storage_manager")
+    blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
+    command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+
+    result = command.call
 
     assert_equal 0, result
   end
@@ -153,7 +163,12 @@ class InfraCommandTest < Minitest::Test
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["total_destruction"], stdin: StringIO.new, stdout: StringIO.new).call
+    command = Workspace::Services::Infra::ProvisionInfra.new(["total_destruction"], stdin: StringIO.new, stdout: StringIO.new)
+    blob_storage_manager = mock("blob_storage_manager")
+    blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
+    command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+
+    result = command.call
 
     assert_equal 0, result
   end

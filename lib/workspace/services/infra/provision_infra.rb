@@ -16,6 +16,7 @@ require "tty-prompt"
 require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
+require_relative "./blob_storage_manager"
 require_relative "./configuration_prompt"
 require_relative "./doctor/blob_storage_check"
 require_relative "./doctor/cli_availability_checks"
@@ -42,6 +43,11 @@ module Workspace
           @prompt = TTY::Prompt.new(input: @stdin, output: @stdout)
           @secrets_resolver = Workspace::Secrets::Resolver.new(stdout: @stdout, stdin: @stdin)
           @manifest_configuration = Workspace::Services::Infra::ManifestConfiguration.new(root: Workspace::ROOT)
+          @blob_storage_manager = Workspace::Services::Infra::BlobStorageManager.new(
+            manifest_configuration: @manifest_configuration,
+            secrets_resolver: @secrets_resolver,
+            stdin: @stdin
+          )
           @terraform_workspace = Workspace::Services::Infra::TerraformWorkspace.new
           @terraform_runner = Workspace::Services::Infra::TerraformRunner.new(workspace: @terraform_workspace)
           @terraform_preflight = Workspace::Services::Infra::TerraformPreflight.new(workspace: @terraform_workspace)
@@ -57,7 +63,7 @@ module Workspace
           when "configure"
             run_configure(options.environment)
           else
-            run_terraform_action(options.action)
+            run_terraform_action(options.action, options.environment)
           end
         end
 
@@ -79,7 +85,8 @@ module Workspace
             Workspace::Services::Infra::Doctor::RepositoryCheck.new,
             Workspace::Services::Infra::Doctor::BlobStorageCheck.new(
               manifest_configuration: manifest_configuration,
-              environment: environment
+              environment: environment,
+              secrets_resolver: secrets_resolver
             )
           ]
 
@@ -105,9 +112,10 @@ module Workspace
           0
         end
 
-        def run_terraform_action(action)
+        def run_terraform_action(action, environment)
           terraform_preflight.check!
           ensure_digitalocean_access_token(interactive: true)
+          blob_storage_manager.ensure_spaces_credentials_for_provisioning(environment: environment, interactive: true)
           terraform_runner.init
 
           case action
@@ -140,6 +148,10 @@ module Workspace
 
         def manifest_configuration
           @manifest_configuration
+        end
+
+        def blob_storage_manager
+          @blob_storage_manager
         end
 
         def terraform_workspace
