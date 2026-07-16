@@ -18,6 +18,7 @@ require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
 require_relative "./blob_storage_manager"
 require_relative "./configuration_prompt"
+require_relative "./credentials"
 require_relative "./doctor/blob_storage_check"
 require_relative "./doctor/cli_availability_checks"
 require_relative "./doctor/provider_authentication_checks"
@@ -34,7 +35,6 @@ module Workspace
     module Infra
       class ProvisionInfra
         PROJECT_MANIFEST_FILE = File.join(Workspace::ROOT, "config", "project.yml")
-        DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
         def initialize(argv, stdin: $stdin, stdout: $stdout)
           @argv = argv.dup
@@ -42,6 +42,7 @@ module Workspace
           @stdout = stdout
           @prompt = TTY::Prompt.new(input: @stdin, output: @stdout)
           @secrets_resolver = Workspace::Secrets::Resolver.new(stdout: @stdout, stdin: @stdin)
+          @credentials = Workspace::Services::Infra::Credentials.new(secrets_resolver: @secrets_resolver)
           @manifest_configuration = Workspace::Services::Infra::ManifestConfiguration.new(root: Workspace::ROOT)
           @blob_storage_manager = Workspace::Services::Infra::BlobStorageManager.new(
             manifest_configuration: @manifest_configuration,
@@ -75,8 +76,7 @@ module Workspace
           cli_checks = Workspace::Services::Infra::Doctor::CliAvailabilityChecks.new.to_a
 
           provider_checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
-            secrets_resolver: secrets_resolver,
-            digitalocean_token_key: DIGITALOCEAN_TOKEN_KEY
+            credentials: credentials
           ).to_a
 
           checks = [
@@ -95,7 +95,7 @@ module Workspace
 
         def run_configure(environment)
           base_config = manifest_configuration.read(environment: environment)
-          ensure_digitalocean_access_token(interactive: true)
+          credentials.export_terraform_environment!(interactive: true)
           Workspace.info("Starting guided infra configure flow for #{environment}.")
           Workspace.info("Press Enter to accept defaults shown in [brackets].")
           config = Workspace::Services::Infra::ConfigurationPrompt.new(
@@ -114,7 +114,7 @@ module Workspace
 
         def run_terraform_action(action, environment)
           terraform_preflight.check!
-          ensure_digitalocean_access_token(interactive: true)
+          credentials.export_terraform_environment!(interactive: true)
           blob_storage_manager.ensure_spaces_credentials_for_provisioning(environment: environment, interactive: true)
           terraform_runner.init
 
@@ -138,16 +138,12 @@ module Workspace
           File.write(path, JSON.pretty_generate(tfvars) + "\n")
         end
 
-        def ensure_digitalocean_access_token(interactive:)
-          token = @secrets_resolver.digitalocean_token(interactive: interactive)
-          return nil if token.nil? || token.empty?
-
-          ENV[DIGITALOCEAN_TOKEN_KEY] = token
-          token
-        end
-
         def manifest_configuration
           @manifest_configuration
+        end
+
+        def credentials
+          @credentials
         end
 
         def blob_storage_manager

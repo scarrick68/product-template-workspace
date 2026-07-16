@@ -105,6 +105,9 @@ class InfraCommandTest < Minitest::Test
     blob_storage_manager = mock("blob_storage_manager")
     blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
     command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+    credentials = mock("credentials")
+    credentials.expects(:export_terraform_environment!).with(interactive: true).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
 
     result = command.call
 
@@ -136,6 +139,9 @@ class InfraCommandTest < Minitest::Test
     blob_storage_manager = mock("blob_storage_manager")
     blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
     command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+    credentials = mock("credentials")
+    credentials.expects(:export_terraform_environment!).with(interactive: true).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
 
     result = command.call
 
@@ -167,6 +173,9 @@ class InfraCommandTest < Minitest::Test
     blob_storage_manager = mock("blob_storage_manager")
     blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
     command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+    credentials = mock("credentials")
+    credentials.expects(:export_terraform_environment!).with(interactive: true).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
 
     result = command.call
 
@@ -192,8 +201,12 @@ class InfraCommandTest < Minitest::Test
 
     command = Workspace::Services::Infra::ProvisionInfra.new(["doctor"], stdin: StringIO.new, stdout: StringIO.new)
     resolver = mock("secrets_resolver")
-    resolver.expects(:digitalocean_token).with(interactive: false).returns("token")
     command.instance_variable_set(:@secrets_resolver, resolver)
+    credentials = mock("credentials")
+    credentials.expects(:digitalocean_token_env_key).returns("DIGITALOCEAN_ACCESS_TOKEN")
+    credentials.expects(:digitalocean_token_available?).returns(true)
+    credentials.expects(:export_terraform_environment!).with(interactive: false).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
 
     Workspace.stubs(:capture).with("doctl account get").returns(["", true])
     Workspace.stubs(:capture).with("gh auth status").returns(["", true])
