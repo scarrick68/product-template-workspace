@@ -19,6 +19,7 @@ require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
 require_relative "./configuration_prompt"
 require_relative "./manifest_configuration"
+require_relative "./terraform_variables"
 
 module Workspace
   module Services
@@ -90,13 +91,13 @@ module Workspace
           ensure_digitalocean_access_token(interactive: true)
           Workspace.info("Starting guided infra configure flow for #{environment}.")
           Workspace.info("Press Enter to accept defaults shown in [brackets].")
-          config = ConfigurationPrompt.new(
+          config = Workspace::Services::Infra::ConfigurationPrompt.new(
             prompt: prompt,
             output: stdout
           ).call(environment: environment, defaults: base_config)
 
           manifest_configuration.write(environment: environment, configuration: config)
-          write_terraform_var_file!(terraform_variables_for(config))
+          write_terraform_var_file!(Workspace::Services::Infra::TerraformVariables.new(config).to_h)
 
           Workspace.ok("infra configure completed for #{environment}")
           Workspace.info("Generated: config/project.yml")
@@ -164,36 +165,6 @@ module Workspace
         def write_terraform_var_file!(tfvars)
           path = terraform_var_file_path
           File.write(path, JSON.pretty_generate(tfvars) + "\n")
-        end
-
-        def terraform_variables_for(config)
-          app_name = config.fetch("app_name")
-          do_region = config.fetch("do_region")
-          sizes = config.fetch("sizes", {})
-          github = config.fetch("github", {})
-          github_owner = github["owner"].to_s.strip
-          web_repo_name = github["web_repo"].to_s.strip
-          frontend_repo = [github_owner, web_repo_name].reject(&:empty?).join("/")
-
-          {
-            "project_name" => app_name,
-            "rails_app_name" => github.fetch("api_repo", "#{app_name}-api"),
-            "app_region" => config.fetch("region"),
-            "web_instance_size_slug" => sizes.fetch("api", "basic-xxs"),
-            "worker_instance_size_slug" => sizes.fetch("worker", "basic-xxs"),
-            "frontend_app_name" => github.fetch("web_repo", "#{app_name}-web"),
-            "frontend_repo" => frontend_repo,
-            "frontend_branch" => github.fetch("branch", "main"),
-            "frontend_web_instance_size_slug" => sizes.fetch("web", "basic-xxs"),
-            "postgres_name" => "#{app_name}-postgres",
-            "postgres_region" => do_region,
-            "postgres_size" => sizes.fetch("postgres", "db-s-1vcpu-1gb"),
-            "opensearch_name" => "#{app_name}-opensearch",
-            "opensearch_region" => do_region
-          }.tap do |tfvars|
-            opensearch_size = sizes["opensearch"].to_s.strip
-            tfvars["opensearch_size"] = opensearch_size unless opensearch_size.empty?
-          end
         end
 
         def check_cli_available(commands, label)

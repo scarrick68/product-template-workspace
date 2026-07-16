@@ -4,6 +4,7 @@ require "stringio"
 
 require_relative "../../../test_helper"
 require_relative "../../../../lib/workspace/services/infra/provision_infra"
+require_relative "../../../../lib/workspace/services/infra/terraform_variables"
 
 class InfraCommandTest < Minitest::Test
   def test_returns_usage_when_action_missing
@@ -137,8 +138,6 @@ class InfraCommandTest < Minitest::Test
   end
 
   def test_generated_tfvars_are_declared_by_root_module
-    command = Workspace::Services::Infra::ProvisionInfra.new([], stdin: StringIO.new, stdout: StringIO.new)
-
     config = {
       "app_name" => "my-product",
       "environment" => "production",
@@ -159,7 +158,7 @@ class InfraCommandTest < Minitest::Test
       }
     }
 
-    generated_keys = command.send(:terraform_variables_for, config).keys.sort
+    generated_keys = Workspace::Services::Infra::TerraformVariables.new(config).to_h.keys.sort
     declared_keys = terraform_declared_variable_names
     undeclared = generated_keys - declared_keys
 
@@ -167,8 +166,6 @@ class InfraCommandTest < Minitest::Test
   end
 
   def test_tfvars_do_not_contain_credentials
-    command = Workspace::Services::Infra::ProvisionInfra.new([], stdin: StringIO.new, stdout: StringIO.new)
-
     config = {
       "app_name" => "my-product",
       "environment" => "production",
@@ -180,10 +177,12 @@ class InfraCommandTest < Minitest::Test
         "web_repo" => "my-product-web",
         "branch" => "main"
       },
-      "sizes" => {}
+      "sizes" => {
+        "opensearch" => "db-s-1vcpu-2gb"
+      }
     }
 
-    generated_keys = command.send(:terraform_variables_for, config).keys
+    generated_keys = Workspace::Services::Infra::TerraformVariables.new(config).to_h.keys
     sensitive_keys = %w[digitalocean_access_token spaces_access_key_id spaces_secret_access_key aws_access_key_id aws_secret_access_key]
 
     assert_empty generated_keys & sensitive_keys
