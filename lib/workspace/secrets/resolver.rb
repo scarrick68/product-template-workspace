@@ -3,70 +3,70 @@
 require "io/console"
 require "tty-prompt"
 require_relative "factory"
-require_relative "store"
 
 module Workspace
   module Secrets
     class Resolver
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
-      def initialize(io: $stdout, input: $stdin, store: nil, prompt: TTY::Prompt.new(input: @input, output: @io))
-        @io = io
-        @input = input
-        @store = store || Store.new(
-          env_adapter: Factory.env_adapter,
-          keychain_adapter: Factory.keychain_adapter
-        )
+      def initialize(stdout: $stdout, stdin: $stdin, workspace_adapter: nil, prompt: TTY::Prompt.new(input: @stdin, output: @stdout))
+        @stdout = stdout
+        @stdin = stdin
+        @workspace_adapter = workspace_adapter || Factory.workspace_credentials_adapter
         @prompt = prompt
       end
 
       def digitalocean_token(interactive: true)
-        result = store.read(DIGITALOCEAN_TOKEN_KEY)
-        return result.value if present?(result.value)
+        workspace_token = workspace_adapter.read(DIGITALOCEAN_TOKEN_KEY).to_s.strip if workspace_adapter.available?
+        if present?(workspace_token)
+          return workspace_token unless interactive && interactive_input?
+
+          return resolve_existing_token(token: workspace_token, source: workspace_adapter.name)
+        end
+
+        env_token = ENV.fetch(DIGITALOCEAN_TOKEN_KEY, "").to_s.strip
+        if present?(env_token)
+          return env_token unless interactive && interactive_input?
+
+          return resolve_existing_token(token: env_token, source: "environment variable")
+        end
 
         return nil unless interactive && interactive_input?
 
-        warn_if_unsupported
         prompt_for_token
       end
 
       private
 
-      attr_reader :io, :input, :store, :prompt
+      attr_reader :stdin, :stdout, :workspace_adapter, :prompt
+
+      def resolve_existing_token(token:, source:)
+        use_existing = prompt.yes?("Use existing DigitalOcean access token from #{source}?", default: true)
+        selected_token = use_existing ? token : prompt_token
+
+        return nil unless present?(selected_token)
+
+        persist_workspace_token(selected_token)
+        selected_token
+      end
 
       def prompt_for_token
-        io.puts("DigitalOcean access token not found.")
-        io.puts("Choose how to continue:")
-        io.puts("1. Use token for this run only")
-        io.puts("2. Print env var instructions")
-        io.puts("3. Store token in #{store.keychain_adapter.name}") if store.keychain_adapter.writable?
-
-        allowed_choices = store.keychain_adapter.writable? ? %w[1 2 3] : %w[1 2]
-        choice = prompt.ask("Selection", default: "1") do |q|
-          q.in(allowed_choices)
-        end
+        choice = prompt.select(
+          "DigitalOcean access token not found. Choose how to continue:",
+          ["Provide token and save to workspace credentials", "Print env var instructions"],
+          default: "Provide token and save to workspace credentials"
+        )
 
         case choice
-        when "2"
+        when "Print env var instructions"
           print_env_instructions
           nil
-        when "3"
-          if store.keychain_adapter.writable?
-            token = prompt_token
-            return nil unless present?(token)
-
-            if store.write(DIGITALOCEAN_TOKEN_KEY, token)
-              io.puts("Saved DIGITALOCEAN_ACCESS_TOKEN to #{store.keychain_adapter.name}.")
-            else
-              io.puts("Unable to save token to #{store.keychain_adapter.name}; using token for this run only.")
-            end
-
-            token
-          else
-            prompt_token
-          end
         else
-          prompt_token
+          token = prompt_token
+          return nil unless present?(token)
+
+          persist_workspace_token(token)
+          token
         end
       end
 
@@ -76,15 +76,16 @@ module Workspace
       end
 
       def print_env_instructions
-        io.puts("Run:")
-        io.puts("export DIGITALOCEAN_ACCESS_TOKEN=your_token_here")
+        prompt.say("Run:")
+        prompt.say("export DIGITALOCEAN_ACCESS_TOKEN=your_token_here")
       end
 
-      def warn_if_unsupported
-        adapter = store.keychain_adapter
-        return unless adapter.respond_to?(:warning)
-
-        io.puts(adapter.warning)
+      def persist_workspace_token(token)
+        if workspace_adapter.available? && workspace_adapter.writable? && workspace_adapter.write(DIGITALOCEAN_TOKEN_KEY, token)
+          prompt.say("Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials.")
+        else
+          prompt.say("Unable to save token to workspace credentials. Run: bin/workspace credentials init")
+        end
       end
 
       def present?(value)
@@ -92,7 +93,7 @@ module Workspace
       end
 
       def interactive_input?
-        input.respond_to?(:tty?) && input.tty?
+        stdin.respond_to?(:tty?) && stdin.tty?
       end
     end
   end
