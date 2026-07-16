@@ -6,7 +6,7 @@ module Workspace
       # Parses positional command-line arguments for `bin/infra` and returns
       # the selected command action/environment pair used by ProvisionInfra.
       class CommandLineOptions
-        SUPPORTED_COMMANDS = %w[doctor configure plan apply].freeze
+        SUPPORTED_COMMANDS = %w[doctor configure plan apply safe_destroy total_destruction].freeze
         DEFAULT_ENVIRONMENT = "production"
 
         Result = Struct.new(:action, :environment, :exit_code, keyword_init: true) do
@@ -19,8 +19,8 @@ module Workspace
           first_arg = argv.first.to_s.strip
 
           if first_arg.empty?
-            Workspace.info("Usage: bin/infra [doctor|configure|plan|apply] [environment]")
-            Workspace.info("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production")
+            Workspace.info("Usage: bin/infra [doctor|configure|plan|apply|safe_destroy|total_destruction] [environment]")
+            Workspace.info("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production | bin/infra safe_destroy production")
             return Result.new(exit_code: 1)
           end
 
@@ -32,7 +32,9 @@ module Workspace
                 "Run: bin/infra doctor",
                 "Run: bin/infra configure production",
                 "Run: bin/infra plan production",
-                "Run: bin/infra apply production"
+                "Run: bin/infra apply production",
+                "Run: bin/infra safe_destroy production",
+                "Run: bin/infra total_destruction production"
               ]
             )
 
