@@ -94,7 +94,8 @@ module Workspace
                 "size" => dig_value(configuration, "sizes", "postgres") || "db-s-1vcpu-1gb"
               },
               "opensearch" => {
-                "enabled" => dig_value(configuration, "components", "opensearch", fallback: true)
+                "enabled" => dig_value(configuration, "components", "opensearch", fallback: true),
+                "size" => dig_value(configuration, "sizes", "opensearch") || "db-s-1vcpu-2gb"
               },
               "spaces" => {
                 "enabled" => dig_value(configuration, "components", "spaces", fallback: true),
@@ -102,11 +103,6 @@ module Workspace
               }
             }
           )
-
-          opensearch_size = dig_value(configuration, "sizes", "opensearch").to_s.strip
-          unless opensearch_size.empty?
-            manifest["environments"][environment]["infrastructure"]["components"]["opensearch"]["size"] = opensearch_size
-          end
 
           File.write(manifest_path, manifest.to_yaml)
         end
