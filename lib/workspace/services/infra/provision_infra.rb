@@ -16,17 +16,16 @@ require "yaml"
 require "tty-prompt"
 require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
+require_relative "./command_line_options"
 
 module Workspace
   module Services
     module Infra
       class ProvisionInfra
-        SUPPORTED_COMMANDS = %w[doctor configure plan apply].freeze
         TERRAFORM_DIR = File.join(Workspace::ROOT, "infra", "digitalocean_v2")
         PROJECT_MANIFEST_FILE = File.join(Workspace::ROOT, "config", "project.yml")
         DEFAULT_VAR_FILE = "terraform.tfvars.json"
         DEFAULT_PLAN_FILE = "tfplan"
-        DEFAULT_ENVIRONMENT = "production"
         DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
 
         def initialize(argv, stdin: $stdin, stdout: $stdout)
@@ -38,16 +37,16 @@ module Workspace
         end
 
         def call
-          action = requested_action
-          return usage unless action
+          options = CommandLineOptions.parse(argv)
+          return options.exit_code unless options.valid?
 
-          case action
+          case options.action
           when "doctor"
-            run_doctor
+            run_doctor(options.environment)
           when "configure"
-            run_configure
+            run_configure(options.environment)
           else
-            run_terraform_action(action)
+            run_terraform_action(options.action)
           end
         end
 
@@ -55,32 +54,7 @@ module Workspace
 
         attr_reader :argv, :stdin, :stdout, :prompt
 
-        def requested_action
-          first_arg = argv.first
-          return nil if first_arg.nil? || first_arg.strip.empty?
-          return first_arg if SUPPORTED_COMMANDS.include?(first_arg)
-
-          Workspace.fail_with_help(
-            "Unsupported infra action '#{first_arg}'.",
-            details: "Supported actions: #{SUPPORTED_COMMANDS.join(', ')}",
-            fixes: [
-              "Run: bin/infra doctor",
-              "Run: bin/infra configure production",
-              "Run: bin/infra plan production",
-              "Run: bin/infra apply production"
-            ]
-          )
-
-          nil
-        end
-
-        def usage
-          Workspace.info("Usage: bin/infra [doctor|configure|plan|apply] [environment]")
-          Workspace.info("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production")
-          1
-        end
-
-        def run_doctor
+        def run_doctor(environment)
           checks = [
             ["Terraform/OpenTofu CLI", -> { check_cli_available(["terraform", "tofu"], "Terraform/OpenTofu") }],
             ["doctl CLI", -> { check_cli_available(["doctl"], "doctl") }],
@@ -90,7 +64,7 @@ module Workspace
             ["doctl auth", -> { check_doctl_auth }],
             ["gh auth", -> { check_gh_auth }],
             ["expected repositories", -> { check_expected_repositories }],
-            ["blob store readiness", -> { check_blob_store_readiness }]
+            ["blob store readiness", -> { check_blob_store_readiness(environment) }]
           ]
 
           failed_checks = []
@@ -108,8 +82,7 @@ module Workspace
           0
         end
 
-        def run_configure
-          environment = requested_environment
+        def run_configure(environment)
           base_config = existing_infra_config(environment)
           ensure_digitalocean_access_token(interactive: true)
           Workspace.info("Starting guided infra configure flow for #{environment}.")
@@ -180,13 +153,6 @@ module Workspace
             terraform_command(action, *action_flags),
             chdir: Workspace::ROOT
           )
-        end
-
-        def requested_environment
-          value = argv[1].to_s.strip
-          return DEFAULT_ENVIRONMENT if value.empty?
-
-          value
         end
 
         def existing_infra_config(environment)
@@ -507,8 +473,8 @@ module Workspace
           all_found
         end
 
-        def check_blob_store_readiness
-          config = existing_infra_config(requested_environment)
+        def check_blob_store_readiness(environment)
+          config = existing_infra_config(environment)
           spaces_enabled = dig_value(config, "components", "spaces", fallback: true)
           return true unless spaces_enabled
 
