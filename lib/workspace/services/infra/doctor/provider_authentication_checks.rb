@@ -6,30 +6,28 @@ module Workspace
       module Doctor
         class ProviderAuthenticationChecks
           class DigitaloceanTokenCheck
-            def initialize(secrets_resolver:, digitalocean_token_key:)
-              @secrets_resolver = secrets_resolver
-              @digitalocean_token_key = digitalocean_token_key
+            def initialize(credentials:)
+              @credentials = credentials
             end
 
             def label
-              digitalocean_token_key
+              credentials.digitalocean_token_env_key
             end
 
             def call
-              token = secrets_resolver.digitalocean_token(interactive: false)
-              if token.nil? || token.empty?
-                Workspace.fail("#{digitalocean_token_key}: missing")
+              unless credentials.digitalocean_token_available?
+                Workspace.fail("#{credentials.digitalocean_token_env_key}: missing")
                 return false
               end
 
-              ENV[digitalocean_token_key] = token
-              Workspace.ok("#{digitalocean_token_key}: available")
+              credentials.export_terraform_environment!(interactive: false)
+              Workspace.ok("#{credentials.digitalocean_token_env_key}: available")
               true
             end
 
             private
 
-            attr_reader :secrets_resolver, :digitalocean_token_key
+            attr_reader :credentials
           end
 
           class DoctlAuthCheck
@@ -70,16 +68,14 @@ module Workspace
             end
           end
 
-          def initialize(secrets_resolver:, digitalocean_token_key:)
-            @secrets_resolver = secrets_resolver
-            @digitalocean_token_key = digitalocean_token_key
+          def initialize(credentials:)
+            @credentials = credentials
           end
 
           def to_a
             [
               DigitaloceanTokenCheck.new(
-                secrets_resolver: secrets_resolver,
-                digitalocean_token_key: digitalocean_token_key
+                credentials: credentials
               ),
               DoctlAuthCheck.new,
               GhAuthCheck.new
@@ -88,7 +84,7 @@ module Workspace
 
           private
 
-          attr_reader :secrets_resolver, :digitalocean_token_key
+          attr_reader :credentials
         end
       end
     end

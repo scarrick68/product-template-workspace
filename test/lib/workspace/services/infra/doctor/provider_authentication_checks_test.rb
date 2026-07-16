@@ -5,10 +5,10 @@ require_relative "../../../../../../lib/workspace/services/infra/doctor/provider
 
 class DoctorProviderAuthenticationChecksTest < Minitest::Test
   def test_to_a_builds_expected_labels
-    resolver = mock("secrets_resolver")
+    credentials = mock("credentials")
+    credentials.expects(:digitalocean_token_env_key).returns("DIGITALOCEAN_ACCESS_TOKEN")
     checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
-      secrets_resolver: resolver,
-      digitalocean_token_key: "DIGITALOCEAN_ACCESS_TOKEN"
+      credentials: credentials
     ).to_a
 
     assert_equal [
@@ -19,27 +19,39 @@ class DoctorProviderAuthenticationChecksTest < Minitest::Test
   end
 
   def test_digitalocean_token_check_sets_env_and_reports_available
-    resolver = mock("secrets_resolver")
+    credentials = mock("credentials")
     checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
-      secrets_resolver: resolver,
-      digitalocean_token_key: "DIGITALOCEAN_ACCESS_TOKEN"
+      credentials: credentials
     ).to_a
 
     token_check = checks.first
-    resolver.expects(:digitalocean_token).with(interactive: false).returns("token")
+    credentials.expects(:digitalocean_token_env_key).returns("DIGITALOCEAN_ACCESS_TOKEN")
+    credentials.expects(:digitalocean_token_available?).returns(true)
+    credentials.expects(:export_terraform_environment!).with(interactive: false).returns(true)
     Workspace.expects(:ok).with("DIGITALOCEAN_ACCESS_TOKEN: available")
 
     assert_equal true, token_check.call
-    assert_equal "token", ENV["DIGITALOCEAN_ACCESS_TOKEN"]
-  ensure
-    ENV.delete("DIGITALOCEAN_ACCESS_TOKEN")
+  end
+
+  def test_digitalocean_token_check_reports_missing
+    credentials = mock("credentials")
+    checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
+      credentials: credentials
+    ).to_a
+
+    token_check = checks.first
+    credentials.expects(:digitalocean_token_available?).returns(false)
+    credentials.expects(:digitalocean_token_env_key).returns("DIGITALOCEAN_ACCESS_TOKEN")
+    credentials.expects(:export_terraform_environment!).never
+    Workspace.expects(:fail).with("DIGITALOCEAN_ACCESS_TOKEN: missing")
+
+    assert_equal false, token_check.call
   end
 
   def test_doctl_auth_check_reports_invalid_auth
-    resolver = mock("secrets_resolver")
+    credentials = mock("credentials")
     checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
-      secrets_resolver: resolver,
-      digitalocean_token_key: "DIGITALOCEAN_ACCESS_TOKEN"
+      credentials: credentials
     ).to_a
 
     doctl_check = checks[1]
@@ -51,10 +63,9 @@ class DoctorProviderAuthenticationChecksTest < Minitest::Test
   end
 
   def test_gh_auth_check_reports_valid_auth
-    resolver = mock("secrets_resolver")
+    credentials = mock("credentials")
     checks = Workspace::Services::Infra::Doctor::ProviderAuthenticationChecks.new(
-      secrets_resolver: resolver,
-      digitalocean_token_key: "DIGITALOCEAN_ACCESS_TOKEN"
+      credentials: credentials
     ).to_a
 
     gh_check = checks[2]
