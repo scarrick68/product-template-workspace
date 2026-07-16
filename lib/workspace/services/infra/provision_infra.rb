@@ -17,6 +17,7 @@ require "tty-prompt"
 require_relative "../../../workspace"
 require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
+require_relative "./configuration_prompt"
 
 module Workspace
   module Services
@@ -87,7 +88,10 @@ module Workspace
           ensure_digitalocean_access_token(interactive: true)
           Workspace.info("Starting guided infra configure flow for #{environment}.")
           Workspace.info("Press Enter to accept defaults shown in [brackets].")
-          config = collect_configuration(environment, base_config)
+          config = ConfigurationPrompt.new(
+            prompt: prompt,
+            output: stdout
+          ).call(environment: environment, defaults: base_config)
 
           write_project_manifest_infra_config!(environment, config)
           write_terraform_var_file!(terraform_variables_for(config))
@@ -194,110 +198,6 @@ module Workspace
           {}
         end
 
-        def collect_configuration(environment, existing)
-          Workspace.info("Step 1/4: Core application settings")
-          Workspace.info("These values define app naming and deploy regions.")
-          app_name = prompt_value(
-            "app_name",
-            default: dig_value(existing, "app_name") || default_app_name,
-            hint: "Used in Terraform resource names and app identifiers."
-          )
-
-          region = prompt_value(
-            "region",
-            default: dig_value(existing, "region") || "nyc",
-            hint: "App Platform region slug (for example: nyc)."
-          )
-          do_region = prompt_value(
-            "do_region",
-            default: dig_value(existing, "do_region") || "nyc3",
-            hint: "DigitalOcean infrastructure region slug (for example: nyc3)."
-          )
-
-          Workspace.info("Step 2/4: Source repositories")
-          Workspace.info("These repos and branch names are used for App Platform deploy sources.")
-          github_owner = prompt_value(
-            "github.owner",
-            default: dig_value(existing, "github", "owner") || default_github_owner,
-            hint: "GitHub org/user that owns both API and web repositories."
-          )
-          api_repo = prompt_value(
-            "github.api_repo",
-            default: dig_value(existing, "github", "api_repo") || default_repo_name("backend-api", "api-template"),
-            hint: "Repository name only (without owner)."
-          )
-          web_repo = prompt_value(
-            "github.web_repo",
-            default: dig_value(existing, "github", "web_repo") || default_repo_name("frontend-web-client", "web-template"),
-            hint: "Repository name only (without owner)."
-          )
-          branch = prompt_value(
-            "github.branch",
-            default: dig_value(existing, "github", "branch") || "main",
-            hint: "Branch App Platform should auto-deploy from."
-          )
-
-          Workspace.info("Step 3/4: Component toggles")
-          Workspace.info("Disable components only if you plan to provide equivalent external services.")
-          enable_postgres = prompt_bool(
-            "components.postgres",
-            default: dig_value(existing, "components", "postgres", fallback: true),
-            hint: "Enable managed PostgreSQL provisioning."
-          )
-          enable_opensearch = prompt_bool(
-            "components.opensearch",
-            default: dig_value(existing, "components", "opensearch", fallback: true),
-            hint: "Enable managed OpenSearch provisioning."
-          )
-          enable_spaces = prompt_bool(
-            "components.spaces",
-            default: dig_value(existing, "components", "spaces", fallback: true),
-            hint: "Enable blob storage env wiring and optional provisioning."
-          )
-
-          Workspace.info("Step 4/4: Blob storage provider")
-          Workspace.info("Use digitalocean_spaces for managed provisioning, or aws_s3 for external bucket/credentials.")
-          spaces_provider = prompt_value(
-            "spaces_provider (digitalocean_spaces|aws_s3)",
-            default: dig_value(existing, "spaces_provider") || "digitalocean_spaces",
-            hint: "aws_s3 mode expects AWS CLI auth and bucket credentials to be available."
-          )
-
-          if enable_spaces && spaces_provider == "aws_s3"
-            Workspace.info("Hint: run 'bin/infra doctor' after configure to verify AWS CLI and auth readiness.")
-          end
-
-          {
-            "app_name" => app_name,
-            "environment" => environment,
-            "region" => region,
-            "do_region" => do_region,
-            "github" => {
-              "owner" => github_owner,
-              "api_repo" => api_repo,
-              "web_repo" => web_repo,
-              "branch" => branch,
-              "auto_deploy" => true
-            },
-            "components" => {
-              "api" => true,
-              "worker" => true,
-              "web" => true,
-              "postgres" => enable_postgres,
-              "opensearch" => enable_opensearch,
-              "spaces" => enable_spaces
-            },
-            "sizes" => {
-              "api" => dig_value(existing, "sizes", "api") || "basic-xxs",
-              "worker" => dig_value(existing, "sizes", "worker") || "basic-xxs",
-              "web" => dig_value(existing, "sizes", "web") || "basic-xxs",
-              "postgres" => dig_value(existing, "sizes", "postgres") || "db-s-1vcpu-1gb",
-              "opensearch" => dig_value(existing, "sizes", "opensearch")
-            },
-            "spaces_provider" => spaces_provider
-          }
-        end
-
         def write_project_manifest_infra_config!(environment, config)
           manifest = load_project_manifest
 
@@ -390,16 +290,6 @@ module Workspace
             opensearch_size = sizes["opensearch"].to_s.strip
             tfvars["opensearch_size"] = opensearch_size unless opensearch_size.empty?
           end
-        end
-
-        def prompt_value(label, default: nil, hint: nil)
-          stdout.puts("  Hint: #{hint}") unless hint.to_s.empty?
-          prompt.ask(label, default: default)
-        end
-
-        def prompt_bool(label, default:, hint: nil)
-          stdout.puts("  Hint: #{hint}") unless hint.to_s.empty?
-          prompt.yes?(label, default: default)
         end
 
         def check_cli_available(commands, label)
