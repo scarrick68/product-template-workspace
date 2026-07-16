@@ -8,7 +8,6 @@ contracts/openapi/*
 .workspace/*
 !.workspace/.keep
 
-config/infra.yml
 config/workspace.credentials.key
 config/workspace.credentials.yml.enc
 config/workspace.credentials.backups/
@@ -32,6 +31,7 @@ config/workspace.credentials.backups/
 # Terraform plans
 **/*.tfplan
 **/*tfplan
+infra/digitalocean_v2/tfplan
 
 # Terraform crash logs
 **/crash.log

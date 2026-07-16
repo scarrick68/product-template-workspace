@@ -14,7 +14,7 @@ flowchart TD
 	C -- No --> D[USER: Fix missing CLI, auth, token, or repo issues]
 	D --> B
 	C -- Yes --> E[SCRIPT: Run bin/infra configure production]
-	E --> F[USER: Review generated config/infra.yml]
+	E --> F[USER: Review generated config/project.yml infrastructure settings]
 	F --> G[USER: Review generated terraform.tfvars.json]
 	G --> H[SCRIPT: Run bin/infra plan production]
 	H --> I{Plan looks correct?}
@@ -73,36 +73,34 @@ flowchart TD
 
 ## Infra CLI
 
-- `bin/infra doctor`
+- `bin/workspace infra doctor`
 	- Checks terraform/tofu, doctl, gh, git, DO token, doctl auth, gh auth, and expected repos.
-- `bin/infra configure production`
+- `bin/workspace infra configure production`
 	- Prompts for core app/infra values.
-	- Writes `config/infra.yml` and `infra/digitalocean/terraform.tfvars.json`.
-- `bin/infra plan production` and `bin/infra apply production`
+	- Updates `config/project.yml` environment infrastructure and writes `infra/digitalocean_v2/terraform.tfvars.json`.
+- `bin/workspace infra plan production` and `bin/workspace infra apply production`
 	- Run terraform init then selected action using generated tfvars.
 
 ## Launch Guide
 
 Recommended production flow:
 
-1. `bin/infra doctor` (checks required CLIs, auth state, token presence, expected repos, and blob-store readiness prerequisites)
-2. `bin/infra configure production` (guides config prompts and writes `config/infra.yml` plus `terraform.tfvars.json`)
-3. `bin/infra plan production` (runs terraform init and previews infrastructure changes before apply)
-4. `bin/infra apply production` (runs terraform init/apply to provision and wire configured infrastructure resources)
+1. `bin/workspace infra doctor` (checks required CLIs, auth state, token presence, expected repos, and blob-store readiness prerequisites)
+2. `bin/workspace infra configure production` (guides config prompts and writes project manifest infrastructure plus `terraform.tfvars.json`)
+3. `bin/workspace infra plan production` (runs terraform init and previews infrastructure changes before apply)
+4. `bin/workspace infra apply production` (runs terraform init/apply to provision and wire configured infrastructure resources)
 
 Example command sequence:
 
 ```bash
-bin/infra doctor
-bin/infra configure production
-bin/infra plan production
-bin/infra apply production
+bin/workspace infra doctor
+bin/workspace infra configure production
+bin/workspace infra plan production
+bin/workspace infra apply production
 ```
 
-Deploy note:
-
-- The current `bin/infra` command set supports `doctor`, `configure`, `plan`, and `apply`.
-- A dedicated `bin/infra deploy production` command is not implemented yet.
+- The current `bin/workspace infra` command set supports `doctor`, `configure`, `plan`, and `apply`.
+- A dedicated `bin/workspace infra deploy production` command is not implemented yet.
 - For now, treat `apply` as the launch/provision step, then use your App Platform deploy flow (auto-deploy from configured repo branch or `doctl apps update --update-sources`) as needed.
 
 ## Security guidance
