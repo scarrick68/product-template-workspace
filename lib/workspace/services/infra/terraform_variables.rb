@@ -26,7 +26,11 @@ module Workspace
             "postgres_size" => sizes.fetch("postgres", "db-s-1vcpu-1gb"),
             "opensearch_name" => "#{app_name}-opensearch",
             "opensearch_region" => do_region,
-            "opensearch_size" => sizes.fetch("opensearch")
+            "opensearch_size" => sizes.fetch("opensearch"),
+            "enable_spaces" => spaces_enabled?,
+            "spaces_provider" => blob_store_provider,
+            "spaces_region" => do_region,
+            "spaces_bucket_name" => default_spaces_bucket_name
           }
         end
 
@@ -54,6 +58,22 @@ module Workspace
           owner = github["owner"].to_s.strip
           repo = github["web_repo"].to_s.strip
           [owner, repo].reject(&:empty?).join("/")
+        end
+
+        def spaces_enabled?
+          components = configuration.fetch("components", {})
+          components.fetch("spaces", true)
+        end
+
+        def blob_store_provider
+          provider = configuration.fetch("blob_store_provider", "digitalocean_spaces").to_s.strip
+          provider.empty? ? "digitalocean_spaces" : provider
+        end
+
+        def default_spaces_bucket_name
+          sanitized = app_name.downcase.gsub(/[^a-z0-9-]/, "-").gsub(/-+/, "-").gsub(/\A-|-\z/, "")
+          normalized = sanitized.empty? ? "workspace" : sanitized
+          "#{normalized}-artifacts"
         end
       end
     end

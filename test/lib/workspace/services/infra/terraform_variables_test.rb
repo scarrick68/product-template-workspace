@@ -15,6 +15,10 @@ class TerraformVariablesTest < Minitest::Test
         "web_repo" => "my-product-web",
         "branch" => "main"
       },
+      "components" => {
+        "spaces" => true
+      },
+      "blob_store_provider" => "digitalocean_spaces",
       "sizes" => {
         "api" => "basic-xxs",
         "worker" => "basic-xs",
@@ -41,6 +45,10 @@ class TerraformVariablesTest < Minitest::Test
     assert_equal "my-product-opensearch", tfvars.fetch("opensearch_name")
     assert_equal "nyc3", tfvars.fetch("opensearch_region")
     assert_equal "db-s-1vcpu-2gb", tfvars.fetch("opensearch_size")
+    assert_equal true, tfvars.fetch("enable_spaces")
+    assert_equal "digitalocean_spaces", tfvars.fetch("spaces_provider")
+    assert_equal "nyc3", tfvars.fetch("spaces_region")
+    assert_equal "my-product-artifacts", tfvars.fetch("spaces_bucket_name")
   end
 
   def test_to_h_requires_opensearch_size
@@ -54,6 +62,10 @@ class TerraformVariablesTest < Minitest::Test
         "web_repo" => "my-product-web",
         "branch" => "main"
       },
+      "components" => {
+        "spaces" => true
+      },
+      "blob_store_provider" => "digitalocean_spaces",
       "sizes" => {
         "api" => "basic-xxs",
         "worker" => "basic-xxs",
