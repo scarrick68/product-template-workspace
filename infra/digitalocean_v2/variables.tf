@@ -37,6 +37,11 @@ variable "web_instance_size_slug" {
   default = "apps-s-1vcpu-1gb"
 }
 
+variable "web_http_port" {
+  type    = number
+  default = 3000
+}
+
 variable "worker_name" {
   type    = string
   default = "job"
@@ -101,6 +106,11 @@ variable "postgres_database_name" {
   default = "app_production"
 }
 
+variable "postgres_user_name" {
+  type    = string
+  default = "rails"
+}
+
 variable "postgres_region" {
   type    = string
   default = "nyc3"
@@ -163,4 +173,33 @@ variable "spaces_region" {
 variable "spaces_bucket_name" {
   type    = string
   default = ""
+}
+
+variable "manage_spaces_bucket" {
+  type    = bool
+  default = true
+}
+
+variable "spaces_provider_access_key_id" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "spaces_provider_secret_access_key" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "app_spaces_access_key_id" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "app_spaces_secret_access_key" {
+  type      = string
+  default   = null
+  sensitive = true
 }

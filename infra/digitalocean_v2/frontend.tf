@@ -9,6 +9,13 @@ resource "digitalocean_app" "frontend" {
       instance_size_slug = var.frontend_web_instance_size_slug
       http_port          = 80
 
+      env {
+        key   = "API_BASE_URL"
+        value = digitalocean_app.rails.live_url
+        scope = "BUILD_TIME"
+        type  = "GENERAL"
+      }
+
       image {
         registry_type = "DOCKER_HUB"
         registry      = "library"
