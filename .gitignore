@@ -43,3 +43,6 @@ tmp/test.log
 
 # Ignore creds files for base template
 config/workspace.credentials*
+
+
+*.code-workspace
