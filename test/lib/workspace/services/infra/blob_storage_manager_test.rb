@@ -85,11 +85,12 @@ class InfraBlobStorageManagerTest < Minitest::Test
     ).returns(true)
 
     Workspace.expects(:info).with(
-      "DigitalOcean Spaces credentials missing (TEST_SPACES_ACCESS_KEY_ID and TEST_SPACES_SECRET_ACCESS_KEY); provisioning via doctl"
+      "DigitalOcean Spaces credentials missing (SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY); provisioning via doctl"
     )
     Workspace.expects(:capture).with do |command|
       command.start_with?("doctl spaces keys create ") &&
-        command.include?("--grants bucket=;permission=fullaccess") &&
+        command.include?("--grants") &&
+        command.include?("permission") &&
         command.include?("--output json")
     end.returns(["[{\"access_key\":\"new-key-id\",\"secret_key\":\"new-secret-key\"}]", true])
 

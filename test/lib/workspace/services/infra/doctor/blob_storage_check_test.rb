@@ -115,7 +115,7 @@ class DoctorBlobStorageCheckTest < Minitest::Test
     )
 
     Workspace.expects(:fail).with(
-      "blob storage provider 'digitalocean_spaces': missing TEST_SPACES_ACCESS_KEY_ID and TEST_SPACES_SECRET_ACCESS_KEY in workspace credentials"
+      "blob storage provider 'digitalocean_spaces': missing SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY in workspace credentials"
     )
 
     assert_equal false, check.call

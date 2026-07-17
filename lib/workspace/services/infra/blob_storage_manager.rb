@@ -63,7 +63,8 @@ module Workspace
 
         def provision_spaces_credentials!(config)
           key_name = generated_spaces_key_name(config)
-          command = "doctl spaces keys create #{Shellwords.escape(key_name)} --grants bucket=;permission=fullaccess --output json"
+          grants = Shellwords.escape("permission=fullaccess")
+          command = "doctl spaces keys create #{Shellwords.escape(key_name)} --grants #{grants} --output json"
           output, success = Workspace.capture(command)
 
           unless success
