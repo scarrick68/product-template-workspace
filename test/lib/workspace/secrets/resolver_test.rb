@@ -8,13 +8,14 @@ require_relative "../../../../lib/workspace/secrets/resolver"
 
 class SecretsResolverTest < Minitest::Test
   class FakeWorkspaceAdapter
-    attr_reader :written
+    attr_reader :writes
 
-    def initialize(value = nil, available: true, writable: true)
-      @value = value
+    def initialize(values = {}, available: true, writable: true, write_success: true)
+      @values = values.dup
       @available = available
       @writable = writable
-      @written = nil
+      @write_success = write_success
+      @writes = []
     end
 
     def available?
@@ -25,13 +26,15 @@ class SecretsResolverTest < Minitest::Test
       @writable
     end
 
-    def read(_key)
-      @value
+    def read(key)
+      @values[key]
     end
 
     def write(key, value)
-      @written = [key, value]
-      @value = value
+      return false unless @write_success
+
+      @writes << [key, value]
+      @values[key] = value
       true
     end
 
@@ -47,157 +50,447 @@ class SecretsResolverTest < Minitest::Test
   end
 
   def test_returns_workspace_token_noninteractive
-    adapter = FakeWorkspaceAdapter.new("workspace-token")
-    prompt = mock("prompt")
-    prompt.expects(:yes?).never
-    prompt.expects(:select).never
-    prompt.expects(:mask).never
-    prompt.expects(:say).never
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: StringIO.new, workspace_adapter: adapter, prompt: prompt)
+    adapter = FakeWorkspaceAdapter.new(
+      { "DIGITALOCEAN_ACCESS_TOKEN" => "workspace-token" }
+    )
+    prompt = strict_prompt
 
-    assert_equal "workspace-token", resolver.digitalocean_token(interactive: false)
+    resolver = build_resolver(
+      adapter: adapter,
+      prompt: prompt,
+      stdin: StringIO.new
+    )
+
+    assert_equal(
+      "workspace-token",
+      resolver.digitalocean_token(interactive: false)
+    )
+    assert_empty adapter.writes
   end
 
   def test_returns_nil_noninteractive_when_workspace_token_missing
-    adapter = FakeWorkspaceAdapter.new(nil)
-    prompt = mock("prompt")
-    prompt.expects(:yes?).never
-    prompt.expects(:mask).never
-    prompt.expects(:say).never
+    adapter = FakeWorkspaceAdapter.new
+    prompt = strict_prompt
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: StringIO.new, workspace_adapter: adapter, prompt: prompt)
+    resolver = build_resolver(
+      adapter: adapter,
+      prompt: prompt,
+      stdin: StringIO.new
+    )
 
     assert_nil resolver.digitalocean_token(interactive: false)
+    assert_empty adapter.writes
+  end
+
+  def test_returns_existing_workspace_token_when_approved
+    adapter = FakeWorkspaceAdapter.new(
+      { "DIGITALOCEAN_ACCESS_TOKEN" => "workspace-token" }
+    )
+    prompt = mock("prompt")
+
+    prompt.expects(:yes?).with(
+      "Use existing DigitalOcean access token from workspace credentials?",
+      default: true
+    ).returns(true)
+
+    prompt.expects(:mask).never
+    prompt.expects(:ask).never
+    prompt.expects(:say).with(
+      "Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials."
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "workspace-token",
+      resolver.digitalocean_token(interactive: true)
+    )
+    assert_equal(
+      [
+        ["DIGITALOCEAN_ACCESS_TOKEN", "workspace-token"]
+      ],
+      adapter.writes
+    )
   end
 
   def test_existing_workspace_token_can_be_replaced
-    adapter = FakeWorkspaceAdapter.new("workspace-token")
+    adapter = FakeWorkspaceAdapter.new(
+      { "DIGITALOCEAN_ACCESS_TOKEN" => "workspace-token" }
+    )
     prompt = mock("prompt")
-    prompt.expects(:yes?).with("Use existing DigitalOcean access token from workspace credentials?", default: true).returns(false)
-    prompt.expects(:mask).with("DigitalOcean access token").returns("replacement-token")
-    prompt.expects(:say).with("Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials.")
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: TtyInput.new, workspace_adapter: adapter, prompt: prompt)
+    prompt.expects(:yes?).with(
+      "Use existing DigitalOcean access token from workspace credentials?",
+      default: true
+    ).returns(false)
 
-    token = resolver.digitalocean_token(interactive: true)
+    prompt.expects(:mask)
+      .with("DigitalOcean access token")
+      .returns("replacement-token")
 
-    assert_equal "replacement-token", token
-    assert_equal ["DIGITALOCEAN_ACCESS_TOKEN", "replacement-token"], adapter.written
+    prompt.expects(:say).with(
+      "Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials."
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "replacement-token",
+      resolver.digitalocean_token(interactive: true)
+    )
+
+    assert_equal(
+      [
+        ["DIGITALOCEAN_ACCESS_TOKEN", "replacement-token"]
+      ],
+      adapter.writes
+    )
   end
 
   def test_prompts_for_token_when_missing_and_saves
-    adapter = FakeWorkspaceAdapter.new(nil)
+    adapter = FakeWorkspaceAdapter.new
     prompt = mock("prompt")
+
     prompt.expects(:yes?).never
-    prompt.expects(:mask).with("DigitalOcean access token").returns("new-token")
-    prompt.expects(:say).with("Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials.")
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: TtyInput.new, workspace_adapter: adapter, prompt: prompt)
+    prompt.expects(:mask)
+      .with("DigitalOcean access token")
+      .returns("new-token")
 
-    token = resolver.digitalocean_token(interactive: true)
+    prompt.expects(:say).with(
+      "Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials."
+    )
 
-    assert_equal "new-token", token
-    assert_equal ["DIGITALOCEAN_ACCESS_TOKEN", "new-token"], adapter.written
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "new-token",
+      resolver.digitalocean_token(interactive: true)
+    )
+
+    assert_equal(
+      [
+        ["DIGITALOCEAN_ACCESS_TOKEN", "new-token"]
+      ],
+      adapter.writes
+    )
   end
 
   def test_returns_nil_when_prompted_token_is_blank
-    adapter = FakeWorkspaceAdapter.new(nil)
+    adapter = FakeWorkspaceAdapter.new
     prompt = mock("prompt")
+
     prompt.expects(:yes?).never
-    prompt.expects(:mask).with("DigitalOcean access token").returns("")
+
+    prompt.expects(:mask)
+      .with("DigitalOcean access token")
+      .returns("  ")
+
     prompt.expects(:say).never
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: TtyInput.new, workspace_adapter: adapter, prompt: prompt)
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
 
-    token = resolver.digitalocean_token(interactive: true)
-
-    assert_nil token
+    assert_nil resolver.digitalocean_token(interactive: true)
+    assert_empty adapter.writes
   end
 
-  def test_reports_when_workspace_credentials_cannot_be_written
-    adapter = FakeWorkspaceAdapter.new(nil, available: false)
+  def test_reports_when_workspace_credentials_are_unavailable
+    adapter = FakeWorkspaceAdapter.new(available: false)
     prompt = mock("prompt")
+
     prompt.expects(:yes?).never
-    prompt.expects(:mask).with("DigitalOcean access token").returns("new-token")
-    prompt.expects(:say).with("Unable to save token to workspace credentials. Run: bin/workspace credentials init")
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: TtyInput.new, workspace_adapter: adapter, prompt: prompt)
+    prompt.expects(:mask)
+      .with("DigitalOcean access token")
+      .returns("new-token")
 
-    token = resolver.digitalocean_token(interactive: true)
+    prompt.expects(:say).with(
+      "Unable to save DIGITALOCEAN_ACCESS_TOKEN to workspace credentials. " \
+      "Run: bin/workspace credentials init"
+    )
 
-    assert_equal "new-token", token
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "new-token",
+      resolver.digitalocean_token(interactive: true)
+    )
+    assert_empty adapter.writes
+  end
+
+  def test_reports_when_workspace_credentials_are_not_writable
+    adapter = FakeWorkspaceAdapter.new(writable: false)
+    prompt = mock("prompt")
+
+    prompt.expects(:mask)
+      .with("DigitalOcean Spaces secret access key")
+      .returns("spaces-secret")
+
+    prompt.expects(:say).with(
+      "Unable to save SPACES_SECRET_ACCESS_KEY to workspace credentials. " \
+      "Run: bin/workspace credentials init"
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "spaces-secret",
+      resolver.spaces_secret_access_key(interactive: true)
+    )
+    assert_empty adapter.writes
+  end
+
+  def test_reports_when_workspace_credentials_write_fails
+    adapter = FakeWorkspaceAdapter.new(write_success: false)
+    prompt = mock("prompt")
+
+    prompt.expects(:ask)
+      .with("DigitalOcean Spaces access key ID")
+      .returns("spaces-id")
+
+    prompt.expects(:say).with(
+      "Unable to save SPACES_ACCESS_KEY_ID to workspace credentials. " \
+      "Run: bin/workspace credentials init"
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "spaces-id",
+      resolver.spaces_access_key_id(interactive: true)
+    )
+    assert_empty adapter.writes
   end
 
   def test_spaces_access_key_id_prefers_workspace_value
-    adapter = FakeWorkspaceAdapter.new("spaces-id")
-    prompt = mock("prompt")
-    prompt.expects(:ask).never
-    prompt.expects(:mask).never
-    prompt.expects(:say).never
+    adapter = FakeWorkspaceAdapter.new(
+      { "SPACES_ACCESS_KEY_ID" => "spaces-id" }
+    )
+    prompt = strict_prompt
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: StringIO.new, workspace_adapter: adapter, prompt: prompt)
+    resolver = build_resolver(
+      adapter: adapter,
+      prompt: prompt,
+      stdin: StringIO.new
+    )
 
-    assert_equal "spaces-id", resolver.spaces_access_key_id(interactive: false)
+    assert_equal(
+      "spaces-id",
+      resolver.spaces_access_key_id(interactive: false)
+    )
+    assert_empty adapter.writes
   end
 
-  def test_spaces_secret_access_key_does_not_use_env_when_workspace_missing
-    adapter = FakeWorkspaceAdapter.new(nil)
+  def test_spaces_access_key_id_returns_nil_noninteractive_when_missing
+    adapter = FakeWorkspaceAdapter.new
+    prompt = strict_prompt
+
+    resolver = build_resolver(
+      adapter: adapter,
+      prompt: prompt,
+      stdin: StringIO.new
+    )
+
+    assert_nil resolver.spaces_access_key_id(interactive: false)
+    assert_empty adapter.writes
+  end
+
+  def test_spaces_access_key_id_prompts_and_persists_when_missing
+    adapter = FakeWorkspaceAdapter.new
     prompt = mock("prompt")
-    prompt.expects(:ask).never
-    prompt.expects(:mask).never
-    prompt.expects(:say).never
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: StringIO.new, workspace_adapter: adapter, prompt: prompt)
+    prompt.expects(:ask)
+      .with("DigitalOcean Spaces access key ID")
+      .returns("spaces-id")
 
-    begin
-      ENV["SPACES_SECRET_ACCESS_KEY"] = "env-spaces-secret"
-      assert_nil resolver.spaces_secret_access_key(interactive: false)
-    ensure
+    prompt.expects(:say).with(
+      "Saved SPACES_ACCESS_KEY_ID to workspace credentials."
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "spaces-id",
+      resolver.spaces_access_key_id(interactive: true)
+    )
+
+    assert_equal(
+      [
+        ["SPACES_ACCESS_KEY_ID", "spaces-id"]
+      ],
+      adapter.writes
+    )
+  end
+
+  def test_spaces_secret_access_key_prefers_workspace_value
+    adapter = FakeWorkspaceAdapter.new(
+      { "SPACES_SECRET_ACCESS_KEY" => "spaces-secret" }
+    )
+    prompt = strict_prompt
+
+    resolver = build_resolver(
+      adapter: adapter,
+      prompt: prompt,
+      stdin: StringIO.new
+    )
+
+    assert_equal(
+      "spaces-secret",
+      resolver.spaces_secret_access_key(interactive: false)
+    )
+    assert_empty adapter.writes
+  end
+
+  def test_spaces_secret_access_key_does_not_use_environment
+    adapter = FakeWorkspaceAdapter.new
+    prompt = strict_prompt
+
+    resolver = build_resolver(
+      adapter: adapter,
+      prompt: prompt,
+      stdin: StringIO.new
+    )
+
+    original_value = ENV["SPACES_SECRET_ACCESS_KEY"]
+    ENV["SPACES_SECRET_ACCESS_KEY"] = "environment-secret"
+
+    assert_nil resolver.spaces_secret_access_key(interactive: false)
+    assert_empty adapter.writes
+  ensure
+    if original_value
+      ENV["SPACES_SECRET_ACCESS_KEY"] = original_value
+    else
       ENV.delete("SPACES_SECRET_ACCESS_KEY")
     end
   end
 
   def test_spaces_secret_access_key_prompts_and_persists_when_missing
-    adapter = FakeWorkspaceAdapter.new(nil)
+    adapter = FakeWorkspaceAdapter.new
     prompt = mock("prompt")
-    prompt.expects(:mask).with("DigitalOcean Spaces secret access key").returns("spaces-secret")
-    prompt.expects(:say).with("Saved TEST_SPACES_SECRET_ACCESS_KEY to workspace credentials.")
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: TtyInput.new, workspace_adapter: adapter, prompt: prompt)
+    prompt.expects(:mask)
+      .with("DigitalOcean Spaces secret access key")
+      .returns("spaces-secret")
 
-    value = resolver.spaces_secret_access_key(interactive: true)
+    prompt.expects(:say).with(
+      "Saved SPACES_SECRET_ACCESS_KEY to workspace credentials."
+    )
 
-    assert_equal "spaces-secret", value
-    assert_equal ["TEST_SPACES_SECRET_ACCESS_KEY", "spaces-secret"], adapter.written
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert_equal(
+      "spaces-secret",
+      resolver.spaces_secret_access_key(interactive: true)
+    )
+
+    assert_equal(
+      [
+        ["SPACES_SECRET_ACCESS_KEY", "spaces-secret"]
+      ],
+      adapter.writes
+    )
   end
 
   def test_persist_spaces_credentials_writes_both_values
-    adapter = FakeWorkspaceAdapter.new(nil)
+    adapter = FakeWorkspaceAdapter.new
     prompt = mock("prompt")
-    prompt.expects(:say).with("Saved TEST_SPACES_ACCESS_KEY_ID to workspace credentials.")
-    prompt.expects(:say).with("Saved TEST_SPACES_SECRET_ACCESS_KEY to workspace credentials.")
 
-    resolver = Workspace::Secrets::Resolver.new(stdout: StringIO.new, stdin: TtyInput.new, workspace_adapter: adapter, prompt: prompt)
+    prompt.expects(:say).with(
+      "Saved SPACES_ACCESS_KEY_ID to workspace credentials."
+    )
 
-    assert_equal true, resolver.persist_spaces_credentials(access_key_id: "id", secret_access_key: "secret")
-    assert_equal ["TEST_SPACES_SECRET_ACCESS_KEY", "secret"], adapter.written
+    prompt.expects(:say).with(
+      "Saved SPACES_SECRET_ACCESS_KEY to workspace credentials."
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    assert resolver.persist_spaces_credentials(
+      access_key_id: "spaces-id",
+      secret_access_key: "spaces-secret"
+    )
+
+    assert_equal(
+      [
+        ["SPACES_ACCESS_KEY_ID", "spaces-id"],
+        ["SPACES_SECRET_ACCESS_KEY", "spaces-secret"]
+      ],
+      adapter.writes
+    )
+  end
+
+  def test_persist_spaces_credentials_returns_false_when_a_write_fails
+    adapter = FakeWorkspaceAdapter.new(write_success: false)
+    prompt = mock("prompt")
+
+    prompt.expects(:say).with(
+      "Unable to save SPACES_ACCESS_KEY_ID to workspace credentials. " \
+      "Run: bin/workspace credentials init"
+    )
+
+    prompt.expects(:say).with(
+      "Unable to save SPACES_SECRET_ACCESS_KEY to workspace credentials. " \
+      "Run: bin/workspace credentials init"
+    )
+
+    resolver = build_resolver(adapter: adapter, prompt: prompt)
+
+    refute resolver.persist_spaces_credentials(
+      access_key_id: "spaces-id",
+      secret_access_key: "spaces-secret"
+    )
+
+    assert_empty adapter.writes
   end
 
   def test_factory_returns_macos_adapter_on_darwin
-    adapter = Workspace::Secrets::Factory.keychain_adapter(platform: "darwin22")
+    adapter = Workspace::Secrets::Factory.keychain_adapter(
+      platform: "darwin22"
+    )
 
-    assert_instance_of Workspace::Secrets::Adapters::MacosKeychain, adapter
+    assert_instance_of(
+      Workspace::Secrets::Adapters::MacosKeychain,
+      adapter
+    )
   end
 
   def test_factory_returns_unsupported_adapter_elsewhere
-    adapter = Workspace::Secrets::Factory.keychain_adapter(platform: "linux-gnu")
+    adapter = Workspace::Secrets::Factory.keychain_adapter(
+      platform: "linux-gnu"
+    )
 
-    assert_instance_of Workspace::Secrets::Adapters::UnsupportedKeychain, adapter
+    assert_instance_of(
+      Workspace::Secrets::Adapters::UnsupportedKeychain,
+      adapter
+    )
   end
 
   def test_factory_returns_workspace_credentials_adapter
     adapter = Workspace::Secrets::Factory.workspace_credentials_adapter
 
-    assert_instance_of Workspace::Secrets::Adapters::WorkspaceCredentials, adapter
+    assert_instance_of(
+      Workspace::Secrets::Adapters::WorkspaceCredentials,
+      adapter
+    )
+  end
+
+  private
+
+  def build_resolver(adapter:, prompt:, stdin: TtyInput.new)
+    Workspace::Secrets::Resolver.new(
+      stdout: StringIO.new,
+      stdin: stdin,
+      workspace_adapter: adapter,
+      prompt: prompt
+    )
+  end
+
+  def strict_prompt
+    prompt = mock("prompt")
+    prompt.expects(:yes?).never
+    prompt.expects(:ask).never
+    prompt.expects(:mask).never
+    prompt.expects(:say).never
+    prompt
   end
 end

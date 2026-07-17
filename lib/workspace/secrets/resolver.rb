@@ -8,14 +8,23 @@ module Workspace
   module Secrets
     class Resolver
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
-      SPACES_ACCESS_KEY_ID_WORKSPACE_KEY = "TEST_SPACES_ACCESS_KEY_ID"
-      SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY = "TEST_SPACES_SECRET_ACCESS_KEY"
+      SPACES_ACCESS_KEY_ID_WORKSPACE_KEY = "SPACES_ACCESS_KEY_ID"
+      SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY = "SPACES_SECRET_ACCESS_KEY"
 
-      def initialize(stdout: $stdout, stdin: $stdin, workspace_adapter: nil, prompt: nil)
+      def initialize(
+        stdout: $stdout,
+        stdin: $stdin,
+        workspace_adapter: nil,
+        prompt: nil,
+        spaces_access_key_id_workspace_key: SPACES_ACCESS_KEY_ID_WORKSPACE_KEY,
+        spaces_secret_access_key_workspace_key: SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY
+      )
         @stdout = stdout
         @stdin = stdin
         @workspace_adapter = workspace_adapter || Factory.workspace_credentials_adapter
         @prompt = prompt || TTY::Prompt.new(input: @stdin, output: @stdout)
+        @spaces_access_key_id_workspace_key = spaces_access_key_id_workspace_key
+        @spaces_secret_access_key_workspace_key = spaces_secret_access_key_workspace_key
       end
 
       def digitalocean_token(interactive: true)
@@ -37,7 +46,7 @@ module Workspace
 
       def spaces_access_key_id(interactive: true)
         resolve_secret(
-          key: SPACES_ACCESS_KEY_ID_WORKSPACE_KEY,
+          key: spaces_access_key_id_workspace_key,
           interactive: interactive,
           prompt_label: "DigitalOcean Spaces access key ID",
           mask: false,
@@ -47,7 +56,7 @@ module Workspace
 
       def spaces_secret_access_key(interactive: true)
         resolve_secret(
-          key: SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY,
+          key: spaces_secret_access_key_workspace_key,
           interactive: interactive,
           prompt_label: "DigitalOcean Spaces secret access key",
           mask: true,
@@ -56,14 +65,15 @@ module Workspace
       end
 
       def persist_spaces_credentials(access_key_id:, secret_access_key:)
-        access_saved = persist_workspace_value(key: SPACES_ACCESS_KEY_ID_WORKSPACE_KEY, value: access_key_id)
-        secret_saved = persist_workspace_value(key: SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY, value: secret_access_key)
+        access_saved = persist_workspace_value(key: spaces_access_key_id_workspace_key, value: access_key_id)
+        secret_saved = persist_workspace_value(key: spaces_secret_access_key_workspace_key, value: secret_access_key)
         access_saved && secret_saved
       end
 
       private
 
-      attr_reader :stdin, :stdout, :workspace_adapter, :prompt
+      attr_reader :stdin, :stdout, :workspace_adapter, :prompt,
+          :spaces_access_key_id_workspace_key, :spaces_secret_access_key_workspace_key
 
       def resolve_existing_token(token:)
         use_existing = prompt.yes?("Use existing DigitalOcean access token from workspace credentials?", default: true)
@@ -84,7 +94,7 @@ module Workspace
         if workspace_adapter.available? && workspace_adapter.writable? && workspace_adapter.write(DIGITALOCEAN_TOKEN_KEY, token)
           prompt.say("Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials.")
         else
-          prompt.say("Unable to save token to workspace credentials. Run: bin/workspace credentials init")
+          prompt.say("Unable to save DIGITALOCEAN_ACCESS_TOKEN to workspace credentials. Run: bin/workspace credentials init")
         end
       end
 
