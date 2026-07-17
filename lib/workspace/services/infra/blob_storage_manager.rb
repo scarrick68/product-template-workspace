@@ -8,8 +8,18 @@ module Workspace
   module Services
     module Infra
       class BlobStorageManager
+        # Runtime env keys used by app processes and infra scripts.
         SPACES_ACCESS_KEY_ID_ENV_KEY = "SPACES_ACCESS_KEY_ID"
         SPACES_SECRET_ACCESS_KEY_ENV_KEY = "SPACES_SECRET_ACCESS_KEY"
+
+        # Terraform input env keys (TF_VAR_*) so secrets can be passed without
+        # writing them into terraform.tfvars.json.
+        TF_VAR_SPACES_PROVIDER_ACCESS_KEY_ID_ENV_KEY = "TF_VAR_spaces_provider_access_key_id"
+        TF_VAR_SPACES_PROVIDER_SECRET_ACCESS_KEY_ENV_KEY = "TF_VAR_spaces_provider_secret_access_key"
+        TF_VAR_APP_SPACES_ACCESS_KEY_ID_ENV_KEY = "TF_VAR_app_spaces_access_key_id"
+        TF_VAR_APP_SPACES_SECRET_ACCESS_KEY_ENV_KEY = "TF_VAR_app_spaces_secret_access_key"
+
+        # Workspace credential store keys used for persisted secrets.
         SPACES_ACCESS_KEY_ID_WORKSPACE_KEY = Workspace::Secrets::Resolver::SPACES_ACCESS_KEY_ID_WORKSPACE_KEY
         SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY = Workspace::Secrets::Resolver::SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY
 
@@ -118,6 +128,10 @@ module Workspace
         def export_spaces_credentials(access_key_id, secret_access_key)
           ENV[SPACES_ACCESS_KEY_ID_ENV_KEY] = access_key_id
           ENV[SPACES_SECRET_ACCESS_KEY_ENV_KEY] = secret_access_key
+          ENV[TF_VAR_SPACES_PROVIDER_ACCESS_KEY_ID_ENV_KEY] = access_key_id
+          ENV[TF_VAR_SPACES_PROVIDER_SECRET_ACCESS_KEY_ENV_KEY] = secret_access_key
+          ENV[TF_VAR_APP_SPACES_ACCESS_KEY_ID_ENV_KEY] = access_key_id
+          ENV[TF_VAR_APP_SPACES_SECRET_ACCESS_KEY_ENV_KEY] = secret_access_key
           true
         end
 

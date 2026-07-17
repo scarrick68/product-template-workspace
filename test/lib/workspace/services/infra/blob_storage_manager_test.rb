@@ -34,13 +34,25 @@ class InfraBlobStorageManagerTest < Minitest::Test
     begin
       ENV.delete("SPACES_ACCESS_KEY_ID")
       ENV.delete("SPACES_SECRET_ACCESS_KEY")
+      ENV.delete("TF_VAR_spaces_provider_access_key_id")
+      ENV.delete("TF_VAR_spaces_provider_secret_access_key")
+      ENV.delete("TF_VAR_app_spaces_access_key_id")
+      ENV.delete("TF_VAR_app_spaces_secret_access_key")
 
       assert_equal true, manager.ensure_spaces_credentials_for_provisioning(environment: "production", interactive: true)
       assert_equal "key-id", ENV["SPACES_ACCESS_KEY_ID"]
       assert_equal "secret-key", ENV["SPACES_SECRET_ACCESS_KEY"]
+      assert_equal "key-id", ENV["TF_VAR_spaces_provider_access_key_id"]
+      assert_equal "secret-key", ENV["TF_VAR_spaces_provider_secret_access_key"]
+      assert_equal "key-id", ENV["TF_VAR_app_spaces_access_key_id"]
+      assert_equal "secret-key", ENV["TF_VAR_app_spaces_secret_access_key"]
     ensure
       ENV.delete("SPACES_ACCESS_KEY_ID")
       ENV.delete("SPACES_SECRET_ACCESS_KEY")
+      ENV.delete("TF_VAR_spaces_provider_access_key_id")
+      ENV.delete("TF_VAR_spaces_provider_secret_access_key")
+      ENV.delete("TF_VAR_app_spaces_access_key_id")
+      ENV.delete("TF_VAR_app_spaces_secret_access_key")
     end
   end
 
@@ -103,13 +115,25 @@ class InfraBlobStorageManagerTest < Minitest::Test
     begin
       ENV.delete("SPACES_ACCESS_KEY_ID")
       ENV.delete("SPACES_SECRET_ACCESS_KEY")
+      ENV.delete("TF_VAR_spaces_provider_access_key_id")
+      ENV.delete("TF_VAR_spaces_provider_secret_access_key")
+      ENV.delete("TF_VAR_app_spaces_access_key_id")
+      ENV.delete("TF_VAR_app_spaces_secret_access_key")
 
       assert_equal true, manager.ensure_spaces_credentials_for_provisioning(environment: "production", interactive: true)
       assert_equal "new-key-id", ENV["SPACES_ACCESS_KEY_ID"]
       assert_equal "new-secret-key", ENV["SPACES_SECRET_ACCESS_KEY"]
+      assert_equal "new-key-id", ENV["TF_VAR_spaces_provider_access_key_id"]
+      assert_equal "new-secret-key", ENV["TF_VAR_spaces_provider_secret_access_key"]
+      assert_equal "new-key-id", ENV["TF_VAR_app_spaces_access_key_id"]
+      assert_equal "new-secret-key", ENV["TF_VAR_app_spaces_secret_access_key"]
     ensure
       ENV.delete("SPACES_ACCESS_KEY_ID")
       ENV.delete("SPACES_SECRET_ACCESS_KEY")
+      ENV.delete("TF_VAR_spaces_provider_access_key_id")
+      ENV.delete("TF_VAR_spaces_provider_secret_access_key")
+      ENV.delete("TF_VAR_app_spaces_access_key_id")
+      ENV.delete("TF_VAR_app_spaces_secret_access_key")
     end
   end
 end
