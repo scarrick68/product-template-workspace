@@ -99,7 +99,7 @@ module Workspace
       def check_docker_daemon
         return unless Workspace.command_exists?("docker")
 
-        _docker_out, docker_ok = Workspace.capture("docker info")
+        docker_ok = Workspace.docker_daemon_running?
         if docker_ok
           Workspace.ok("Docker daemon: running")
           return

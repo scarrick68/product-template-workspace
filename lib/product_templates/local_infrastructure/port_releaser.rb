@@ -9,6 +9,11 @@ module ProductTemplates
     class PortConflictResolver
       WAIT_ATTEMPTS = 20
       WAIT_INTERVAL = 0.3
+      CONTAINER_RELEASE_WAIT_ATTEMPTS = 5
+      CONTAINER_RELEASE_WAIT_INTERVAL = 0.2
+      DOCKER_PROCESS_MARKERS = %w[docker com.docker containerd vpnkit].freeze
+
+      class DockerDaemonUnavailable < StandardError; end
 
       Container = Data.define(:id, :name)
 
@@ -56,11 +61,16 @@ module ProductTemplates
         return declined(port, service_name) unless confirm_cleanup?(usage, service_name)
 
         stop_containers(usage.containers)
-        stop_processes(usage.process_ids)
+        wait_for_container_release(port)
+
+        remaining_usage = port_usage(port)
+        stop_processes(remaining_usage.process_ids)
 
         return true if wait_until_available(port)
 
         cleanup_failed(port, service_name)
+      rescue DockerDaemonUnavailable
+        docker_daemon_unavailable(service_name)
       end
 
       private
@@ -112,7 +122,7 @@ module ProductTemplates
         output, success = Workspace.capture(
           "docker ps --format '{{.ID}}|{{.Names}}' --filter publish=#{port}"
         )
-        return [] unless success
+        raise DockerDaemonUnavailable unless success
 
         output.lines.filter_map do |line|
           id, name = line.strip.split("|", 2)
@@ -125,6 +135,15 @@ module ProductTemplates
       def stop_containers(containers)
         containers.each do |container|
           stop_container(container)
+        end
+      end
+
+      def wait_for_container_release(port)
+        CONTAINER_RELEASE_WAIT_ATTEMPTS.times do
+          usage = port_usage(port)
+          return if usage.containers.empty?
+
+          sleep CONTAINER_RELEASE_WAIT_INTERVAL
         end
       end
 
@@ -143,8 +162,21 @@ module ProductTemplates
 
       def stop_processes(process_ids)
         process_ids.each do |process_id|
+          if docker_related_process?(process_id)
+            Workspace.info("Skipping Docker-managed process #{process_id} during port cleanup.")
+            next
+          end
+
           stop_process(process_id)
         end
+      end
+
+      def docker_related_process?(process_id)
+        output, success = Workspace.capture("ps -p #{process_id} -o comm=")
+        return false unless success
+
+        command = output.to_s.strip.downcase
+        DOCKER_PROCESS_MARKERS.any? { |marker| command.include?(marker) }
       end
 
       def stop_process(process_id)
@@ -189,6 +221,20 @@ module ProductTemplates
             "Inspect the port: lsof -nP -iTCP:#{port} -sTCP:LISTEN",
             "Inspect containers: docker ps --filter publish=#{port}",
             "Stop the remaining blocker and rerun the validation command."
+          ]
+        )
+
+        false
+      end
+
+      def docker_daemon_unavailable(service_name)
+        Workspace.fail_with_help(
+          "Could not inspect Docker container port usage for #{service_name}.",
+          details: "Docker daemon is unavailable while resolving port conflicts.",
+          fixes: [
+            "Ensure Docker Desktop is running and daemon is ready (docker info).",
+            "Retry once Docker daemon connectivity is restored.",
+            "If this persists, check Docker context and DOCKER_HOST environment settings."
           ]
         )
 
