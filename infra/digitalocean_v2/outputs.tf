@@ -53,3 +53,15 @@ output "opensearch_cluster_id" {
 output "opensearch_cluster_name" {
   value = digitalocean_database_cluster.opensearch.name
 }
+
+output "spaces_bucket_name" {
+  value = try(digitalocean_spaces_bucket.artifacts[0].name, null)
+}
+
+output "spaces_bucket_region" {
+  value = try(digitalocean_spaces_bucket.artifacts[0].region, null)
+}
+
+output "spaces_bucket_endpoint" {
+  value = try(digitalocean_spaces_bucket.artifacts[0].bucket_domain_name, null)
+}

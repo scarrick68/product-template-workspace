@@ -144,3 +144,23 @@ variable "opensearch_node_count" {
   type    = number
   default = 1
 }
+
+variable "enable_spaces" {
+  type    = bool
+  default = true
+}
+
+variable "spaces_provider" {
+  type    = string
+  default = "digitalocean_spaces"
+}
+
+variable "spaces_region" {
+  type    = string
+  default = "nyc3"
+}
+
+variable "spaces_bucket_name" {
+  type    = string
+  default = ""
+}
