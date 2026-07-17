@@ -157,4 +157,80 @@ class ConfigurationPromptTest < Minitest::Test
       defaults: {}
     )
   end
+
+  def test_call_uses_gh_cli_login_when_owner_default_is_placeholder
+    prompt = mock("tty-prompt")
+    output = StringIO.new
+
+    Workspace.stubs(:repositories).returns([
+      {
+        "purpose" => "backend-api",
+        "name" => "api-template",
+        "github" => "your-github-org/api-template"
+      },
+      {
+        "purpose" => "frontend-web-client",
+        "name" => "web-template",
+        "github" => "your-github-org/web-template"
+      }
+    ])
+
+    Workspace.stubs(:info)
+    Workspace.stubs(:command_exists?).with("gh").returns(true)
+    Workspace.stubs(:capture).with("gh api user -q .login").returns(["scarrick68\n", true])
+
+    prompt.expects(:ask).with("app_name", default: "product-template").returns("product-template")
+    prompt.expects(:ask).with("region", default: "nyc").returns("nyc")
+    prompt.expects(:ask).with("do_region", default: "nyc3").returns("nyc3")
+    prompt.expects(:ask).with("github.owner", default: "scarrick68").returns("scarrick68")
+    prompt.expects(:ask).with("github.api_repo", default: "api-template").returns("api-template")
+    prompt.expects(:ask).with("github.web_repo", default: "web-template").returns("web-template")
+    prompt.expects(:ask).with("github.branch", default: "main").returns("main")
+    prompt.expects(:yes?).with("components.postgres", default: true).returns(true)
+    prompt.expects(:yes?).with("components.opensearch", default: true).returns(true)
+    prompt.expects(:yes?).with("components.spaces", default: true).returns(true)
+    prompt.expects(:ask).with("blob_store_provider (digitalocean_spaces|aws_s3)", default: "digitalocean_spaces").returns("digitalocean_spaces")
+
+    config = Workspace::Services::Infra::ConfigurationPrompt.new(prompt: prompt, output: output).call(
+      environment: "production",
+      defaults: {}
+    )
+
+    assert_equal "scarrick68", config.fetch("github").fetch("owner")
+  end
+
+  def test_call_falls_back_to_placeholder_when_owner_unknown
+    prompt = mock("tty-prompt")
+    output = StringIO.new
+
+    Workspace.stubs(:repositories).returns([
+      {
+        "purpose" => "backend-api",
+        "name" => "api-template",
+        "github" => "your-github-org/api-template"
+      }
+    ])
+
+    Workspace.stubs(:info)
+    Workspace.stubs(:command_exists?).with("gh").returns(false)
+
+    prompt.expects(:ask).with("app_name", default: "product-template").returns("product-template")
+    prompt.expects(:ask).with("region", default: "nyc").returns("nyc")
+    prompt.expects(:ask).with("do_region", default: "nyc3").returns("nyc3")
+    prompt.expects(:ask).with("github.owner", default: "your-github-org").returns("your-github-org")
+    prompt.expects(:ask).with("github.api_repo", default: "api-template").returns("api-template")
+    prompt.expects(:ask).with("github.web_repo", default: "web-template").returns("web-template")
+    prompt.expects(:ask).with("github.branch", default: "main").returns("main")
+    prompt.expects(:yes?).with("components.postgres", default: true).returns(true)
+    prompt.expects(:yes?).with("components.opensearch", default: true).returns(true)
+    prompt.expects(:yes?).with("components.spaces", default: true).returns(true)
+    prompt.expects(:ask).with("blob_store_provider (digitalocean_spaces|aws_s3)", default: "digitalocean_spaces").returns("digitalocean_spaces")
+
+    config = Workspace::Services::Infra::ConfigurationPrompt.new(prompt: prompt, output: output).call(
+      environment: "production",
+      defaults: {}
+    )
+
+    assert_equal "your-github-org", config.fetch("github").fetch("owner")
+  end
 end

@@ -79,6 +79,27 @@ class ManifestConfigurationTest < Minitest::Test
     end
   end
 
+  def test_read_prefers_project_slug_when_template_app_name_placeholder_is_present
+    Dir.mktmpdir("manifest-config-test") do |root|
+      write_manifest(root, base_manifest.deep_merge(
+        "project" => {
+          "slug" => "my-super-app"
+        },
+        "environments" => {
+          "production" => {
+            "infrastructure" => {
+              "app_name" => "my-product"
+            }
+          }
+        }
+      ))
+
+      config = Workspace::Services::Infra::ManifestConfiguration.new(root: root).read(environment: "production")
+
+      assert_equal "my-super-app", config.fetch("app_name")
+    end
+  end
+
   def test_write_updates_manifest_infrastructure_and_opensearch_size
     Dir.mktmpdir("manifest-config-test") do |root|
       write_manifest(root, base_manifest)

@@ -8,6 +8,8 @@ module Workspace
       # Reads and writes environment infrastructure settings in config/project.yml.
       class ManifestConfiguration
         MANIFEST_PATH = File.join("config", "project.yml")
+        TEMPLATE_PROJECT_SLUG = "product-template-workspace"
+        TEMPLATE_APP_NAME = "my-product"
 
         def initialize(root: Workspace::ROOT)
           @root = root
@@ -18,9 +20,10 @@ module Workspace
           return {} if manifest.empty?
 
           infrastructure = dig_value(manifest, "environments", environment, "infrastructure") || {}
+          project_slug = dig_value(manifest, "project", "slug")
 
           {
-            "app_name" => infrastructure["app_name"] || dig_value(manifest, "project", "slug") || default_app_name,
+            "app_name" => resolved_app_name(infrastructure, project_slug),
             "environment" => environment,
             "region" => infrastructure["app_region"] || "nyc",
             "do_region" => infrastructure["region"] || infrastructure["do_region"] || "nyc3",
@@ -143,6 +146,24 @@ module Workspace
 
         def default_app_name
           File.basename(root).sub(/-workspace\z/, "")
+        end
+
+        def resolved_app_name(infrastructure, project_slug)
+          configured_name = infrastructure["app_name"].to_s.strip
+          slug_name = project_slug.to_s.strip
+
+          if template_placeholder_app_name?(configured_name, slug_name)
+            return slug_name
+          end
+
+          return configured_name unless configured_name.empty?
+          return slug_name unless slug_name.empty?
+
+          default_app_name
+        end
+
+        def template_placeholder_app_name?(configured_name, slug_name)
+          configured_name == TEMPLATE_APP_NAME && !slug_name.empty? && slug_name != TEMPLATE_PROJECT_SLUG
         end
 
         def dig_value(hash, *keys, fallback: nil)

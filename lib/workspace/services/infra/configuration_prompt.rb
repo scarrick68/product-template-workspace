@@ -6,6 +6,8 @@ module Workspace
       # Owns the interactive `bin/infra configure` questionnaire and returns
       # a normalized configuration hash for downstream manifest/tfvars writers.
       class ConfigurationPrompt
+        GITHUB_OWNER_PLACEHOLDER = "your-github-org"
+
         def initialize(prompt:, output:)
           @prompt = prompt
           @output = output
@@ -92,7 +94,7 @@ module Workspace
           {
             "owner" => prompt_value(
               "github.owner",
-              default: dig_value(defaults, "github", "owner") || default_github_owner,
+              default: preferred_github_owner(defaults),
               hint: "GitHub org/user that owns both API and web repositories."
             ),
             "api_repo" => prompt_value(
@@ -176,6 +178,32 @@ module Workspace
           return nil if owner.nil? || owner.empty?
 
           owner
+        end
+
+        def preferred_github_owner(defaults)
+          configured_owner = dig_value(defaults, "github", "owner").to_s.strip
+          return configured_owner unless github_owner_placeholder?(configured_owner)
+
+          inferred_owner = default_github_owner.to_s.strip
+          return inferred_owner unless github_owner_placeholder?(inferred_owner)
+
+          detected_owner = github_cli_owner
+          return detected_owner unless detected_owner.empty?
+
+          GITHUB_OWNER_PLACEHOLDER
+        end
+
+        def github_owner_placeholder?(owner)
+          owner.to_s.strip.empty? || owner.to_s.strip == GITHUB_OWNER_PLACEHOLDER
+        end
+
+        def github_cli_owner
+          return "" unless Workspace.command_exists?("gh")
+
+          output, success = Workspace.capture("gh api user -q .login")
+          return "" unless success
+
+          output.to_s.strip
         end
 
         def default_app_name

@@ -8,12 +8,18 @@ module Workspace
   module Secrets
     module Adapters
       class WorkspaceCredentials < Base
-        KEY_PATH = File.join(Workspace::ROOT, "config", "workspace_credentials.key")
-        ENCRYPTED_PATH = File.join(Workspace::ROOT, "config", "workspace_credentials.yml.enc")
+        DEFAULT_FILENAMES = {
+          key: "workspace.credentials.key",
+          encrypted: "workspace.credentials.yml.enc"
+        }.freeze
+        LEGACY_FILENAMES = {
+          key: "workspace_credentials.key",
+          encrypted: "workspace_credentials.yml.enc"
+        }.freeze
 
-        def initialize(key_path: KEY_PATH, encrypted_path: ENCRYPTED_PATH)
-          @key_path = key_path
-          @encrypted_path = encrypted_path
+        def initialize(key_path: nil, encrypted_path: nil)
+          @configured_key_path = key_path
+          @configured_encrypted_path = encrypted_path
         end
 
         def available?
@@ -60,7 +66,41 @@ module Workspace
 
         private
 
-        attr_reader :key_path, :encrypted_path
+        attr_reader :configured_key_path, :configured_encrypted_path
+
+        def key_path
+          configured_key_path || default_paths.fetch(:key)
+        end
+
+        def encrypted_path
+          configured_encrypted_path || default_paths.fetch(:encrypted)
+        end
+
+        def default_paths
+          @default_paths ||= begin
+            primary = build_paths(DEFAULT_FILENAMES)
+            legacy = build_paths(LEGACY_FILENAMES)
+
+            if file_pair_exists?(primary)
+              primary
+            elsif file_pair_exists?(legacy)
+              legacy
+            else
+              primary
+            end
+          end
+        end
+
+        def build_paths(filenames)
+          {
+            key: File.join(Workspace::ROOT, "config", filenames.fetch(:key)),
+            encrypted: File.join(Workspace::ROOT, "config", filenames.fetch(:encrypted))
+          }
+        end
+
+        def file_pair_exists?(paths)
+          File.exist?(paths.fetch(:key)) && File.exist?(paths.fetch(:encrypted))
+        end
 
         def encrypted_file
           @encrypted_file ||= ActiveSupport::EncryptedFile.new(

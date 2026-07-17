@@ -11,11 +11,11 @@ module Workspace
       SPACES_ACCESS_KEY_ID_WORKSPACE_KEY = "TEST_SPACES_ACCESS_KEY_ID"
       SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY = "TEST_SPACES_SECRET_ACCESS_KEY"
 
-      def initialize(stdout: $stdout, stdin: $stdin, workspace_adapter: nil, prompt: TTY::Prompt.new(input: @stdin, output: @stdout))
+      def initialize(stdout: $stdout, stdin: $stdin, workspace_adapter: nil, prompt: nil)
         @stdout = stdout
         @stdin = stdin
         @workspace_adapter = workspace_adapter || Factory.workspace_credentials_adapter
-        @prompt = prompt
+        @prompt = prompt || TTY::Prompt.new(input: @stdin, output: @stdout)
       end
 
       def digitalocean_token(interactive: true)

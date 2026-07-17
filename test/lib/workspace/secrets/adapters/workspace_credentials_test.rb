@@ -8,6 +8,11 @@ require_relative "../../../../test_helper"
 require_relative "../../../../../lib/workspace/secrets/adapters/workspace_credentials"
 
 class WorkspaceCredentialsAdapterTest < Minitest::Test
+  def test_defaults_use_dotted_workspace_credentials_file_names
+    assert_equal "workspace.credentials.key", Workspace::Secrets::Adapters::WorkspaceCredentials::DEFAULT_FILENAMES.fetch(:key)
+    assert_equal "workspace.credentials.yml.enc", Workspace::Secrets::Adapters::WorkspaceCredentials::DEFAULT_FILENAMES.fetch(:encrypted)
+  end
+
   def test_read_returns_flat_key_value
     with_adapter(payload: { "DIGITALOCEAN_ACCESS_TOKEN" => "flat-token" }) do |adapter, _|
       assert_equal "flat-token", adapter.read("DIGITALOCEAN_ACCESS_TOKEN")
