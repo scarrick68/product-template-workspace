@@ -95,7 +95,7 @@ resource "digitalocean_app" "rails" {
     }
 
     service {
-      name               = "web"
+      name               = "api"
       instance_count     = 1
       instance_size_slug = var.web_instance_size_slug
       source_dir         = var.rails_source_dir
