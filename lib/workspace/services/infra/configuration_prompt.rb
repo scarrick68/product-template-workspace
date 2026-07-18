@@ -16,6 +16,7 @@ module Workspace
         def call(environment:, defaults:)
           core_app_settings = collect_core_app_settings(defaults)
           git_repo_settings = collect_git_repo_settings(defaults)
+          domain_settings = collect_domain_name_settings(defaults)
           infra_components_toggles = collect_infra_component_toggles(defaults)
           blob_store_provider = collect_blob_store_provider(defaults, spaces_enabled: infra_components_toggles.fetch("spaces"))
 
@@ -29,8 +30,9 @@ module Workspace
               "api_repo" => git_repo_settings.fetch("api_repo"),
               "web_repo" => git_repo_settings.fetch("web_repo"),
               "branch" => git_repo_settings.fetch("branch"),
-              "auto_deploy" => true
+              "auto_deploy" => git_repo_settings.fetch("auto_deploy")
             },
+            "frontend_domain" => domain_settings.fetch("frontend_domain"),
             "components" => {
               "api" => true,
               "worker" => true,
@@ -111,6 +113,11 @@ module Workspace
               "github.branch",
               default: dig_value(defaults, "github", "branch") || "main",
               hint: "Branch App Platform should auto-deploy from."
+            ),
+            "auto_deploy" => prompt_bool(
+              "github.auto_deploy",
+              default: dig_value(defaults, "github", "auto_deploy", fallback: false),
+              hint: "Enable automatic deploys on push for backend and frontend apps."
             )
           }
         end
@@ -138,8 +145,21 @@ module Workspace
           }
         end
 
+        def collect_domain_name_settings(defaults)
+          Workspace.info("Step 3/5: Frontend domain (optional)")
+          Workspace.info("If provided, this domain should already be provisioned and routed to the frontend app.")
+
+          {
+            "frontend_domain" => prompt_value(
+              "frontend_domain",
+              default: dig_value(defaults, "frontend_domain") || "",
+              hint: "Optional custom frontend domain (for example: app.example.com). Leave blank to use DigitalOcean temporary ingress as a fallback."
+            ).to_s.strip
+          }
+        end
+
         def collect_blob_store_provider(defaults, spaces_enabled:)
-          Workspace.info("Step 4/4: Blob storage provider")
+          Workspace.info("Step 5/5: Blob storage provider")
           Workspace.info("Use digitalocean_spaces for managed provisioning, or aws_s3 for external bucket/credentials.")
 
           provider = prompt_value(

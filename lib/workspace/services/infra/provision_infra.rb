@@ -18,7 +18,9 @@ require_relative "../../../workspace/secrets/resolver"
 require_relative "./command_line_options"
 require_relative "./blob_storage_manager"
 require_relative "./configuration_prompt"
+require_relative "./cors_origin_synchronizer"
 require_relative "./credentials"
+require_relative "./digital_ocean/github_app_authorization"
 require_relative "./doctor/blob_storage_check"
 require_relative "./doctor/cli_availability_checks"
 require_relative "./doctor/provider_authentication_checks"
@@ -49,9 +51,19 @@ module Workspace
             secrets_resolver: @secrets_resolver,
             stdin: @stdin
           )
+          @github_app_authorization = Workspace::Services::Infra::Digitalocean::GithubAppAuthorization.new(
+            prompt: @prompt,
+            stdin: @stdin,
+            stdout: @stdout
+          )
           @terraform_workspace = Workspace::Services::Infra::TerraformWorkspace.new
           @terraform_runner = Workspace::Services::Infra::TerraformRunner.new(workspace: @terraform_workspace)
           @terraform_preflight = Workspace::Services::Infra::TerraformPreflight.new(workspace: @terraform_workspace)
+          @cors_origin_synchronizer = Workspace::Services::Infra::CorsOriginSynchronizer.new(
+            manifest_configuration: @manifest_configuration,
+            terraform_workspace: @terraform_workspace,
+            workspace: Workspace
+          )
         end
 
         def call
@@ -103,13 +115,48 @@ module Workspace
             output: stdout
           ).call(environment: environment, defaults: base_config)
 
+          return 1 unless run_github_authorization_step(config)
+
           manifest_configuration.write(environment: environment, configuration: config)
           write_terraform_var_file!(Workspace::Services::Infra::TerraformVariables.new(config).to_h)
 
           Workspace.ok("infra configure completed for #{environment}")
+          Workspace.ok("GitHub authorization step completed")
           Workspace.info("Generated: config/project.yml")
           Workspace.info("Generated: infra/digitalocean_v2/#{terraform_workspace.var_file_name}")
           0
+        end
+
+        def run_github_authorization_step(config)
+          repositories = github_source_repositories(config)
+          return true if repositories.empty?
+
+          authorized = github_app_authorization.call(repositories: repositories)
+          return true if authorized
+
+          Workspace.fail_with_help(
+            "GitHub authorization step not completed.",
+            details: "DigitalOcean needs repository access before Terraform can create App Platform components from GitHub sources.",
+            fixes: [
+              "Run: bin/infra configure production",
+              "Grant access to all listed repositories when the browser opens.",
+              "Stop at the DigitalOcean Create App screen and return to the terminal."
+            ]
+          )
+          false
+        end
+
+        def github_source_repositories(config)
+          github = config["github"] || {}
+          owner = github["owner"].to_s.strip
+          api_repo = github["api_repo"].to_s.strip
+          web_repo = github["web_repo"].to_s.strip
+          return [] if owner.empty?
+
+          repositories = []
+          repositories << "#{owner}/#{api_repo}" unless api_repo.empty?
+          repositories << "#{owner}/#{web_repo}" unless web_repo.empty?
+          repositories
         end
 
         def run_terraform_action(action, environment)
@@ -122,7 +169,7 @@ module Workspace
           when "plan"
             terraform_runner.plan
           when "apply"
-            terraform_runner.apply
+            apply_with_backend_cors_synchronization(environment: environment)
           when "safe_destroy"
             terraform_runner.safe_destroy
           when "total_destruction"
@@ -136,6 +183,17 @@ module Workspace
         def write_terraform_var_file!(tfvars)
           path = terraform_workspace.var_file_path
           File.write(path, JSON.pretty_generate(tfvars) + "\n")
+        end
+
+        def apply_with_backend_cors_synchronization(environment:)
+          cors_origin_synchronizer.ensure_backend_cors_origin_value_for_initial_apply!(environment: environment)
+          terraform_runner.apply
+
+          cors_updated = cors_origin_synchronizer.fill_backend_cors_origin_from_live_frontend_url_if_missing!
+          return unless cors_updated
+
+          Workspace.info("Applying again to push filled backend CORS origin into App Platform.")
+          terraform_runner.apply
         end
 
         def manifest_configuration
@@ -160,6 +218,14 @@ module Workspace
 
         def terraform_preflight
           @terraform_preflight
+        end
+
+        def github_app_authorization
+          @github_app_authorization
+        end
+
+        def cors_origin_synchronizer
+          @cors_origin_synchronizer
         end
 
         def secrets_resolver

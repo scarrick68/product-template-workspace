@@ -54,10 +54,15 @@ class InfraCommandTest < Minitest::Test
       includes("\"project_name\": \"my-product\"")
     )
 
-    input = StringIO.new("my-product\nnyc\nnyc3\nexample-org\nmy-product-api\nmy-product-web\nmain\ny\nn\ny\naws_s3\n")
+    input = StringIO.new("my-product\nnyc\nnyc3\nexample-org\nmy-product-api\nmy-product-web\nmain\nn\n\ny\nn\ny\naws_s3\n")
     output = StringIO.new
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: input, stdout: output).call
+    command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: input, stdout: output)
+    github_auth = mock("github_app_authorization")
+    github_auth.expects(:call).with(repositories: ["example-org/my-product-api", "example-org/my-product-web"]).returns(true)
+    command.instance_variable_set(:@github_app_authorization, github_auth)
+
+    result = command.call
 
     assert_equal 0, result
   end
