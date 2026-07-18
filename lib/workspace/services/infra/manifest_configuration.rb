@@ -21,12 +21,21 @@ module Workspace
 
           infrastructure = dig_value(manifest, "environments", environment, "infrastructure") || {}
           project_slug = dig_value(manifest, "project", "slug")
+          default_environment = dig_value(manifest, "project", "default_environment") || "production"
+          inferred_app_name = inferred_app_name_from_repositories(manifest)
 
           {
-            "app_name" => resolved_app_name(infrastructure, project_slug),
+            "app_name" => resolved_app_name(
+              infrastructure,
+              project_slug,
+              inferred_app_name,
+              environment,
+              default_environment
+            ),
             "environment" => environment,
             "region" => infrastructure["app_region"] || "nyc",
             "do_region" => infrastructure["region"] || infrastructure["do_region"] || "nyc3",
+            "frontend_domain" => infrastructure["frontend_domain"].to_s.strip,
             "github" => {
               "owner" => dig_value(infrastructure, "github", "owner") || default_github_owner(manifest),
               "api_repo" => repository_name_from_manifest(manifest, "api", "api-template"),
@@ -69,6 +78,7 @@ module Workspace
             "app_name" => configuration.fetch("app_name"),
             "region" => configuration.fetch("do_region"),
             "app_region" => configuration.fetch("region"),
+            "frontend_domain" => configuration.fetch("frontend_domain", "").to_s.strip,
             "github" => {
               "owner" => dig_value(configuration, "github", "owner").to_s
             },
@@ -148,22 +158,51 @@ module Workspace
           File.basename(root).sub(/-workspace\z/, "")
         end
 
-        def resolved_app_name(infrastructure, project_slug)
+        def resolved_app_name(infrastructure, project_slug, inferred_app_name, environment, default_environment)
           configured_name = infrastructure["app_name"].to_s.strip
           slug_name = project_slug.to_s.strip
+          inferred_name = inferred_app_name.to_s.strip
+          derived_name = derive_app_name(slug_name: slug_name, environment: environment, default_environment: default_environment)
 
-          if template_placeholder_app_name?(configured_name, slug_name)
-            return slug_name
+          if placeholder_app_name?(configured_name)
+            if slug_name == TEMPLATE_PROJECT_SLUG && !inferred_name.empty?
+              return inferred_name
+            end
+
+            return derived_name unless derived_name.empty?
+            return inferred_name
           end
 
           return configured_name unless configured_name.empty?
+          return derived_name unless derived_name.empty?
           return slug_name unless slug_name.empty?
+          return inferred_name unless inferred_name.empty?
 
           default_app_name
         end
 
-        def template_placeholder_app_name?(configured_name, slug_name)
-          configured_name == TEMPLATE_APP_NAME && !slug_name.empty? && slug_name != TEMPLATE_PROJECT_SLUG
+        def derive_app_name(slug_name:, environment:, default_environment:)
+          return "" if slug_name.to_s.strip.empty?
+
+          env_name = environment.to_s.strip
+          default_env_name = default_environment.to_s.strip
+          return slug_name if env_name.empty? || default_env_name.empty? || env_name == default_env_name
+
+          "#{slug_name}-#{env_name}"
+        end
+
+        def inferred_app_name_from_repositories(manifest)
+          api_repo_name = repository_name_from_manifest(manifest, "api", "").to_s.strip
+          web_repo_name = repository_name_from_manifest(manifest, "web", "").to_s.strip
+
+          api_candidate = api_repo_name.sub(/-api\z/, "") if api_repo_name.end_with?("-api")
+          web_candidate = web_repo_name.sub(/-web\z/, "") if web_repo_name.end_with?("-web")
+
+          [api_candidate, web_candidate].find { |value| !value.to_s.strip.empty? }.to_s
+        end
+
+        def placeholder_app_name?(configured_name)
+          [TEMPLATE_APP_NAME, TEMPLATE_PROJECT_SLUG].include?(configured_name)
         end
 
         def dig_value(hash, *keys, fallback: nil)

@@ -1,96 +1,62 @@
+---
 project:
-  # Global project metadata used throughout the workspace.
   name: Product Template Workspace
   slug: product-template-workspace
-
-  # Default environment used when one is not explicitly specified.
   default_environment: production
-
 repositories:
-  # Source code repositories managed by the workspace.
   api:
     purpose: backend-api
     name: api-template
     path: repos/api-template
     github: scarrick68/api-template
-
   web:
     purpose: frontend-web-client
     name: web-template
     path: repos/web-template
     github: scarrick68/web-template
-
 services:
-  # Local runnable services. Application services reference the
-  # repository they are built from.
   api:
     repository: api
     port: 5001
-
   web:
     repository: web
     port: 3000
-
-  # Infrastructure services used during local development.
   postgres:
     port: 5432
-
   opensearch:
     port: 9200
-
 environments:
   production:
     infrastructure:
-      # Cloud provider and deployment region.
       provider: digitalocean
-      app_name: my-product
+      app_name: product-template-workspace
       region: nyc3
-
+      frontend_domain: ''
       github:
-        # GitHub organization/user that owns deployed repositories.
-        owner: your-github-org
-
+        owner: scarrick68
       deployment:
-        # Default deployment settings.
         branch: main
         auto_deploy: true
-
       components:
-        # Deployable infrastructure resources.
-        #
-        # App Platform components reference a local service, which in turn
-        # references the repository they are built from.
-        #
-        # component -> service -> repository
-        #
-        # Infrastructure resources like Postgres, OpenSearch, and Spaces
-        # are managed directly and therefore do not reference repositories.
-
         api:
           enabled: true
           service: api
           size: basic-xxs
-
         worker:
-          # Uses the same Rails service/repository as the API but runs a
-          # different startup command.
           enabled: true
           service: api
           size: basic-xxs
-
         web:
           enabled: true
           service: web
           size: basic-xxs
-
         postgres:
           enabled: true
           size: db-s-1vcpu-1gb
-
         opensearch:
           enabled: true
           size: db-s-1vcpu-2gb
-
         spaces:
           enabled: true
           provider: digitalocean_spaces
+      app_region: nyc

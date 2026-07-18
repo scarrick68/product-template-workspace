@@ -58,6 +58,7 @@ class ProductTemplatesRenamerTest < Minitest::Test
             production:
               infrastructure:
                 provider: digitalocean
+                app_name: my-product
         YAML
       )
 
@@ -103,8 +104,10 @@ class ProductTemplatesRenamerTest < Minitest::Test
       assert_equal "example-org/my-super-app-web", frontend["github"]
 
       updated_manifest = YAML.safe_load(File.read(project_manifest_path), permitted_classes: [], aliases: false)
+      assert_equal "my-super-app", updated_manifest.fetch("project").fetch("slug")
       backend_manifest = updated_manifest.fetch("repositories").fetch("api")
       frontend_manifest = updated_manifest.fetch("repositories").fetch("web")
+      production_infra = updated_manifest.fetch("environments").fetch("production").fetch("infrastructure")
 
       assert_equal "my-super-app-api", backend_manifest["name"]
       assert_equal "repos/my-super-app-api", backend_manifest["path"]
@@ -113,6 +116,7 @@ class ProductTemplatesRenamerTest < Minitest::Test
       assert_equal "my-super-app-web", frontend_manifest["name"]
       assert_equal "repos/my-super-app-web", frontend_manifest["path"]
       assert_equal "example-org/my-super-app-web", frontend_manifest["github"]
+      assert_equal "my-super-app", production_infra["app_name"]
     end
   end
 end

@@ -18,6 +18,7 @@ class ManifestConfigurationTest < Minitest::Test
               "app_name" => "my-product",
               "region" => "sfo3",
               "app_region" => "sfo",
+              "frontend_domain" => "app.acme.test",
               "github" => { "owner" => "acme" },
               "deployment" => { "branch" => "release", "auto_deploy" => false },
               "components" => {
@@ -35,9 +36,10 @@ class ManifestConfigurationTest < Minitest::Test
 
       config = Workspace::Services::Infra::ManifestConfiguration.new(root: root).read(environment: "production")
 
-      assert_equal "my-product", config.fetch("app_name")
+      assert_equal "product-template-workspace", config.fetch("app_name")
       assert_equal "sfo", config.fetch("region")
       assert_equal "sfo3", config.fetch("do_region")
+      assert_equal "app.acme.test", config.fetch("frontend_domain")
       assert_equal "acme", config.fetch("github").fetch("owner")
       assert_equal "api-template", config.fetch("github").fetch("api_repo")
       assert_equal "web-template", config.fetch("github").fetch("web_repo")
@@ -72,6 +74,7 @@ class ManifestConfigurationTest < Minitest::Test
       assert_equal "fallback-slug", config.fetch("app_name")
       assert_equal "nyc", config.fetch("region")
       assert_equal "nyc3", config.fetch("do_region")
+      assert_equal "", config.fetch("frontend_domain")
       assert_equal "owner-from-github", config.fetch("github").fetch("owner")
       assert_equal "main", config.fetch("github").fetch("branch")
       assert_equal true, config.fetch("components").fetch("spaces")
@@ -100,6 +103,57 @@ class ManifestConfigurationTest < Minitest::Test
     end
   end
 
+  def test_read_uses_slug_with_environment_suffix_for_non_default_environment
+    Dir.mktmpdir("manifest-config-test") do |root|
+      write_manifest(root, base_manifest.deep_merge(
+        "project" => {
+          "slug" => "my-super-app",
+          "default_environment" => "production"
+        },
+        "environments" => {
+          "staging" => {
+            "infrastructure" => {
+              "app_name" => "product-template-workspace"
+            }
+          }
+        }
+      ))
+
+      config = Workspace::Services::Infra::ManifestConfiguration.new(root: root).read(environment: "staging")
+
+      assert_equal "my-super-app-staging", config.fetch("app_name")
+    end
+  end
+
+  def test_read_infers_app_name_from_repo_names_when_slug_is_template_and_app_name_is_placeholder
+    Dir.mktmpdir("manifest-config-test") do |root|
+      write_manifest(root, base_manifest.deep_merge(
+        "project" => {
+          "slug" => "product-template-workspace"
+        },
+        "repositories" => {
+          "api" => {
+            "name" => "my-super-app-api"
+          },
+          "web" => {
+            "name" => "my-super-app-web"
+          }
+        },
+        "environments" => {
+          "production" => {
+            "infrastructure" => {
+              "app_name" => "my-product"
+            }
+          }
+        }
+      ))
+
+      config = Workspace::Services::Infra::ManifestConfiguration.new(root: root).read(environment: "production")
+
+      assert_equal "my-super-app", config.fetch("app_name")
+    end
+  end
+
   def test_write_updates_manifest_infrastructure_and_opensearch_size
     Dir.mktmpdir("manifest-config-test") do |root|
       write_manifest(root, base_manifest)
@@ -108,6 +162,7 @@ class ManifestConfigurationTest < Minitest::Test
         "app_name" => "new-product",
         "region" => "nyc",
         "do_region" => "nyc3",
+        "frontend_domain" => "app.example.com",
         "github" => {
           "owner" => "example-org",
           "branch" => "main"
@@ -139,6 +194,7 @@ class ManifestConfigurationTest < Minitest::Test
       assert_equal "new-product", infra.fetch("app_name")
       assert_equal "nyc3", infra.fetch("region")
       assert_equal "nyc", infra.fetch("app_region")
+      assert_equal "app.example.com", infra.fetch("frontend_domain")
       assert_equal "example-org", infra.fetch("github").fetch("owner")
       assert_equal "main", infra.fetch("deployment").fetch("branch")
       assert_equal "digitalocean_spaces", infra.fetch("components").fetch("spaces").fetch("provider")
