@@ -10,6 +10,10 @@ output "rails_app_id" {
   value = digitalocean_app.rails.id
 }
 
+output "rails_app_url" {
+  value = digitalocean_app.rails.live_url
+}
+
 output "rails_app_urn" {
   value = digitalocean_app.rails.urn
 }

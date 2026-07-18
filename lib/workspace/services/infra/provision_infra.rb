@@ -20,6 +20,7 @@ require_relative "./blob_storage_manager"
 require_relative "./configuration_prompt"
 require_relative "./cors_origin_synchronizer"
 require_relative "./credentials"
+require_relative "./digital_ocean/admin_bootstrap"
 require_relative "./digital_ocean/github_app_authorization"
 require_relative "./doctor/blob_storage_check"
 require_relative "./doctor/cli_availability_checks"
@@ -63,6 +64,11 @@ module Workspace
             manifest_configuration: @manifest_configuration,
             terraform_workspace: @terraform_workspace,
             workspace: Workspace
+          )
+          @admin_bootstrap = Workspace::Services::Infra::Digitalocean::AdminBootstrap.new(
+            terraform_workspace: @terraform_workspace,
+            stdin: @stdin,
+            stdout: @stdout
           )
         end
 
@@ -170,6 +176,7 @@ module Workspace
             terraform_runner.plan
           when "apply"
             apply_with_backend_cors_synchronization(environment: environment)
+            admin_bootstrap.call(environment: environment)
           when "safe_destroy"
             terraform_runner.safe_destroy
           when "total_destruction"
@@ -226,6 +233,10 @@ module Workspace
 
         def cors_origin_synchronizer
           @cors_origin_synchronizer
+        end
+
+        def admin_bootstrap
+          @admin_bootstrap
         end
 
         def secrets_resolver
