@@ -12,8 +12,3 @@ resource "digitalocean_database_db" "rails" {
   cluster_id = digitalocean_database_cluster.postgres.id
   name       = var.postgres_database_name
 }
-
-resource "digitalocean_database_user" "rails" {
-  cluster_id = digitalocean_database_cluster.postgres.id
-  name       = var.postgres_user_name
-}

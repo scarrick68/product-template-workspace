@@ -15,11 +15,20 @@ module Workspace
             "project_name" => app_name,
             "rails_app_name" => github.fetch("api_repo", "#{app_name}-api"),
             "app_region" => configuration.fetch("region"),
+            "rails_github_repo" => rails_repo,
+            "rails_github_branch" => github.fetch("branch", "main"),
+            "rails_deploy_on_push" => github.fetch("auto_deploy", false),
+            "rails_source_dir" => "/",
+            "rails_web_run_command" => "bundle exec puma -C config/puma.rb",
+            "rails_worker_run_command" => "bundle exec good_job start",
+            "rails_cors_allowed_origins" => backend_cors_allowed_origins,
             "web_instance_size_slug" => sizes.fetch("api", "basic-xxs"),
             "worker_instance_size_slug" => sizes.fetch("worker", "basic-xxs"),
             "frontend_app_name" => github.fetch("web_repo", "#{app_name}-web"),
-            "frontend_repo" => frontend_repo,
-            "frontend_branch" => github.fetch("branch", "main"),
+            "frontend_github_repo" => frontend_repo,
+            "frontend_github_branch" => github.fetch("branch", "main"),
+            "frontend_deploy_on_push" => github.fetch("auto_deploy", false),
+            "frontend_source_dir" => "/",
             "frontend_web_instance_size_slug" => sizes.fetch("web", "basic-xxs"),
             "postgres_name" => "#{app_name}-postgres",
             "postgres_region" => do_region,
@@ -58,6 +67,26 @@ module Workspace
           owner = github["owner"].to_s.strip
           repo = github["web_repo"].to_s.strip
           [owner, repo].reject(&:empty?).join("/")
+        end
+
+        def rails_repo
+          owner = github["owner"].to_s.strip
+          repo = github["api_repo"].to_s.strip
+          [owner, repo].reject(&:empty?).join("/")
+        end
+
+        def backend_cors_allowed_origins
+          normalized = normalize_origin(configuration.fetch("frontend_domain", ""))
+          normalized
+        end
+
+        def normalize_origin(value)
+          candidate = value.to_s.strip
+          return "" if candidate.empty?
+
+          return candidate if candidate.start_with?("http://", "https://")
+
+          "https://#{candidate}"
         end
 
         def spaces_enabled?

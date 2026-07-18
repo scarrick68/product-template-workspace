@@ -6,6 +6,17 @@ resource "digitalocean_project" "project" {
   environment = "Production"
 }
 
+locals {
+  rails_database_url = format(
+    "postgresql://%s:%s@%s:%d/%s?sslmode=require",
+    digitalocean_database_cluster.postgres.user,
+    urlencode(digitalocean_database_cluster.postgres.password),
+    digitalocean_database_cluster.postgres.host,
+    digitalocean_database_cluster.postgres.port,
+    digitalocean_database_db.rails.name
+  )
+}
+
 resource "digitalocean_app" "rails" {
   spec {
     name   = var.rails_app_name
@@ -17,7 +28,6 @@ resource "digitalocean_app" "rails" {
       production   = true
       cluster_name = digitalocean_database_cluster.postgres.name
       db_name      = digitalocean_database_db.rails.name
-      db_user      = digitalocean_database_user.rails.name
     }
 
     database {
@@ -29,7 +39,7 @@ resource "digitalocean_app" "rails" {
 
     env {
       key   = "DATABASE_URL"
-      value = "$${postgres.DATABASE_URL}"
+      value = local.rails_database_url
       scope = "RUN_TIME"
       type  = "SECRET"
     }
@@ -39,6 +49,13 @@ resource "digitalocean_app" "rails" {
       value = "$${opensearch.DATABASE_URL}"
       scope = "RUN_TIME"
       type  = "SECRET"
+    }
+
+    env {
+      key   = "CORS_ALLOWED_ORIGINS"
+      value = var.rails_cors_allowed_origins
+      scope = "RUN_AND_BUILD_TIME"
+      type  = "GENERAL"
     }
 
     dynamic "env" {
@@ -61,17 +78,44 @@ resource "digitalocean_app" "rails" {
       }
     }
 
+    job {
+      name               = "migrate"
+      kind               = "PRE_DEPLOY"
+      instance_count     = 1
+      instance_size_slug = var.worker_instance_size_slug
+      source_dir         = var.rails_source_dir
+      environment_slug   = "ruby-on-rails"
+      run_command        = "bin/rails db:prepare"
+
+      github {
+        repo           = var.rails_github_repo
+        branch         = var.rails_github_branch
+        deploy_on_push = false
+      }
+    }
+
     service {
       name               = "web"
       instance_count     = 1
       instance_size_slug = var.web_instance_size_slug
+      source_dir         = var.rails_source_dir
+      environment_slug   = "ruby-on-rails"
       http_port          = var.web_http_port
+      run_command        = var.rails_web_run_command
 
-      image {
-        registry_type = "DOCKER_HUB"
-        registry      = var.app_image_registry
-        repository    = var.app_image_repository
-        tag           = var.app_image_tag
+      github {
+        repo           = var.rails_github_repo
+        branch         = var.rails_github_branch
+        deploy_on_push = var.rails_deploy_on_push
+      }
+
+      health_check {
+        http_path             = "/up"
+        initial_delay_seconds = 10
+        period_seconds        = 10
+        timeout_seconds       = 5
+        success_threshold     = 1
+        failure_threshold     = 3
       }
     }
 
@@ -79,15 +123,16 @@ resource "digitalocean_app" "rails" {
       name               = var.worker_name
       instance_count     = 1
       instance_size_slug = var.worker_instance_size_slug
+      source_dir         = var.rails_source_dir
+      environment_slug   = "ruby-on-rails"
 
-      image {
-        registry_type = "DOCKER_HUB"
-        registry      = var.app_image_registry
-        repository    = var.app_image_repository
-        tag           = var.app_image_tag
+      github {
+        repo           = var.rails_github_repo
+        branch         = var.rails_github_branch
+        deploy_on_push = var.rails_deploy_on_push
       }
 
-      run_command = var.worker_run_command
+      run_command = var.rails_worker_run_command
     }
   }
 }
