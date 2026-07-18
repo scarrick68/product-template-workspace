@@ -48,8 +48,8 @@ class WorkspaceCredentialsAdapterTest < Minitest::Test
 
   def with_adapter(payload:)
     Dir.mktmpdir("workspace-credentials-adapter-test") do |dir|
-      key_path = File.join(dir, "workspace_credentials.key")
-      encrypted_path = File.join(dir, "workspace_credentials.yml.enc")
+      key_path = File.join(dir, "workspace.credentials.key")
+      encrypted_path = File.join(dir, "workspace.credentials.yml.enc")
 
       File.write(key_path, ActiveSupport::EncryptedFile.generate_key)
 

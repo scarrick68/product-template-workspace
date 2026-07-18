@@ -12,10 +12,6 @@ module Workspace
           key: "workspace.credentials.key",
           encrypted: "workspace.credentials.yml.enc"
         }.freeze
-        LEGACY_FILENAMES = {
-          key: "workspace_credentials.key",
-          encrypted: "workspace_credentials.yml.enc"
-        }.freeze
 
         def initialize(key_path: nil, encrypted_path: nil)
           @configured_key_path = key_path
@@ -77,18 +73,7 @@ module Workspace
         end
 
         def default_paths
-          @default_paths ||= begin
-            primary = build_paths(DEFAULT_FILENAMES)
-            legacy = build_paths(LEGACY_FILENAMES)
-
-            if file_pair_exists?(primary)
-              primary
-            elsif file_pair_exists?(legacy)
-              legacy
-            else
-              primary
-            end
-          end
+          @default_paths ||= build_paths(DEFAULT_FILENAMES)
         end
 
         def build_paths(filenames)
@@ -96,10 +81,6 @@ module Workspace
             key: File.join(Workspace::ROOT, "config", filenames.fetch(:key)),
             encrypted: File.join(Workspace::ROOT, "config", filenames.fetch(:encrypted))
           }
-        end
-
-        def file_pair_exists?(paths)
-          File.exist?(paths.fetch(:key)) && File.exist?(paths.fetch(:encrypted))
         end
 
         def encrypted_file
