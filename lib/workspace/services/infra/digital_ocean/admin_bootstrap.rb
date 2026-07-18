@@ -2,9 +2,11 @@
 
 require "json"
 require "open3"
+require "pty"
 require "securerandom"
 require "shellwords"
 require "tty-prompt"
+require "English"
 require_relative "../../../../workspace"
 require_relative "../../../../workspace/secrets/workspace_credentials_store"
 
@@ -16,7 +18,7 @@ module Workspace
         class AdminBootstrap
           class Error < StandardError; end
 
-          COMPONENT_NAME = "web"
+          COMPONENT_NAME = "api"
           ADMIN_PATH = "/admin/tools"
           RESULT_PREFIX = "ADMIN_BOOTSTRAP_RESULT="
 
@@ -72,7 +74,7 @@ module Workspace
 
             admin = {
               "email" => prompt_admin_email,
-              "password" => SecureRandom.base58(30)
+              "password" => generate_password
             }
 
             credentials_store.write_hash!(
@@ -117,21 +119,65 @@ module Workspace
               "apps",
               "console",
               app_id,
-              COMPONENT_NAME,
-              "--interactive=false"
+              COMPONENT_NAME
             ]
 
             script = <<~SH
-              ADMIN_EMAIL=#{Shellwords.escape(email)} \
-              ADMIN_PASSWORD=#{Shellwords.escape(password)} \
-              bin/rails app:bootstrap_admin
+              export ADMIN_EMAIL=#{Shellwords.escape(email)}
+              export ADMIN_PASSWORD=#{Shellwords.escape(password)}
+
+              for dir in "$PWD" /workspace /app /rails /home/rails; do
+                if [ -x "$dir/bin/rails" ]; then
+                  cd "$dir"
+                  break
+                fi
+              done
+
+              if [ ! -x bin/rails ]; then
+                echo "bootstrap_error: bin/rails not found in expected directories"
+                exit 127
+              fi
+
+              if bin/rails app:bootstrap_admin; then
+                true
+              elif bin/rails runner 'exit(1) unless defined?(Admins::Bootstrap); result = Admins::Bootstrap.call(email: ENV.fetch("ADMIN_EMAIL"), password: ENV.fetch("ADMIN_PASSWORD")); puts "#{RESULT_PREFIX}" + JSON.generate(result)'; then
+                true
+              else
+                bin/rails runner 'email = ENV.fetch("ADMIN_EMAIL"); password = ENV.fetch("ADMIN_PASSWORD"); existing = Admin.first; if existing.nil?; admin = Admin.new(email: email, password: password, password_confirmation: password); admin.save!; puts "#{RESULT_PREFIX}" + JSON.generate({"status" => "created"}); elsif existing.email == email; puts "#{RESULT_PREFIX}" + JSON.generate({"status" => "already_exists"}); else; abort("An administrator already exists with a different email. This command only bootstraps the first admin."); end'
+              fi
               exit
             SH
 
-            output, status = Open3.capture2e(*command, stdin_data: script, chdir: Workspace::ROOT)
-            raise Error, "The remote admin bootstrap command failed:\n#{tail(output)}" unless status.success?
+            output = run_in_pty(command, input: script, secrets: [email, password])
 
             parse_result(output)
+          end
+
+          def run_in_pty(command, input:, secrets:)
+            output = +""
+            status = nil
+
+            PTY.spawn(*command, chdir: Workspace::ROOT) do |reader, writer, process_id|
+              writer.write(input)
+              writer.close
+
+              begin
+                loop do
+                  output << reader.readpartial(4096)
+                end
+              rescue EOFError, Errno::EIO
+                # Normal PTY shutdown.
+              ensure
+                Process.wait(process_id)
+                status = $CHILD_STATUS
+              end
+            end
+
+            return output if status&.success?
+
+            raise Error, "The remote admin bootstrap command failed:\n#{tail(redact(output, secrets: secrets))}"
+          rescue PTY::ChildExited
+            raise Error, "The remote admin bootstrap command failed:\n#{tail(redact(output, secrets: secrets))}"
           end
 
           def parse_result(output)
@@ -171,6 +217,18 @@ module Workspace
 
           def tail(output, lines: 8)
             output.to_s.lines.last(lines).join.strip
+          end
+
+          def redact(output, secrets:)
+            secrets.reduce(output.to_s) do |text, secret|
+              next text if secret.to_s.empty?
+
+              text.gsub(secret.to_s, "[REDACTED]")
+            end
+          end
+
+          def generate_password
+            SecureRandom.urlsafe_base64(24, false)
           end
         end
       end
