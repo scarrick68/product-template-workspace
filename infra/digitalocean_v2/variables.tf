@@ -2,6 +2,20 @@ variable "project_name" {
   type = string
 }
 
+variable "project_slug" {
+  type = string
+}
+
+variable "installation_id" {
+  description = "Stable identifier generated when this project workspace was created."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-f0-9]{6}$", var.installation_id))
+    error_message = "installation_id must be six lowercase hexadecimal characters."
+  }
+}
+
 variable "project_description" {
   type    = string
   default = "Managed by Terraform"

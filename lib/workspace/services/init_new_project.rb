@@ -2,6 +2,8 @@
 # frozen_string_literal: true
 # Guides first-time project setup by orchestrating checks, rename, validation, and optional dev services launch.
 
+require "securerandom"
+require "yaml"
 require_relative "../../workspace"
 require_relative "../context"
 require_relative "bootstrap"
@@ -25,6 +27,9 @@ module Workspace
         "docs/scripting.md",
         "docs/openapi-workflow.md"
       ].freeze
+      TEMPLATE_INSTALLATION_ID = "000000"
+      INSTALLATION_ID_HEX_BYTES = 3
+      INSTALLATION_ID_PATTERN = /\A[a-f0-9]{6}\z/
 
       def initialize(argv, stdin: $stdin, stdout: $stdout, context: Workspace::Context.new(root: Workspace::ROOT))
         @argv = argv.dup
@@ -47,6 +52,7 @@ module Workspace
         end
 
         product_slug = options.product_slug
+        assign_installation_id_if_needed
 
         Workspace.section("Init: New Project Setup")
         Workspace.ok("Initializing new project: #{product_slug}")
@@ -115,6 +121,27 @@ module Workspace
 
       def repository_by_purpose(purpose)
         Workspace.repositories(context: context).find { |repo| repo["purpose"].to_s == purpose }
+      end
+
+      def assign_installation_id_if_needed
+        path = context.path("config", "project.yml")
+        return unless File.exist?(path)
+
+        manifest = YAML.safe_load_file(path, permitted_classes: [], aliases: false) || {}
+        project = manifest["project"]
+        return unless project.is_a?(Hash)
+
+        existing = project["installation_id"].to_s.strip
+        return if existing.match?(INSTALLATION_ID_PATTERN) && existing != TEMPLATE_INSTALLATION_ID
+
+        installation_id = generate_installation_id
+        project["installation_id"] = installation_id
+        File.write(path, YAML.dump(manifest))
+        Workspace.info("Assigned project installation_id: #{installation_id}")
+      end
+
+      def generate_installation_id
+        SecureRandom.hex(INSTALLATION_ID_HEX_BYTES)
       end
     end
   end

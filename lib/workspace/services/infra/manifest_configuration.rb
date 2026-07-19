@@ -32,6 +32,8 @@ module Workspace
               environment,
               default_environment
             ),
+            "project_slug" => project_slug,
+            "installation_id" => dig_value(manifest, "project", "installation_id"),
             "environment" => environment,
             "region" => infrastructure["app_region"] || "nyc",
             "do_region" => infrastructure["region"] || infrastructure["do_region"] || "nyc3",

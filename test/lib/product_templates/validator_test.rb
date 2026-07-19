@@ -61,6 +61,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -185,6 +186,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -294,6 +296,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -387,6 +390,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -489,6 +493,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:

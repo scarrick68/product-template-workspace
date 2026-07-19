@@ -37,6 +37,8 @@ class ManifestConfigurationTest < Minitest::Test
       config = Workspace::Services::Infra::ManifestConfiguration.new(root: root).read(environment: "production")
 
       assert_equal "product-template-workspace", config.fetch("app_name")
+      assert_equal "product-template-workspace", config.fetch("project_slug")
+      assert_equal "a91d7c", config.fetch("installation_id")
       assert_equal "sfo", config.fetch("region")
       assert_equal "sfo3", config.fetch("do_region")
       assert_equal "app.acme.test", config.fetch("frontend_domain")
@@ -72,6 +74,8 @@ class ManifestConfigurationTest < Minitest::Test
       config = Workspace::Services::Infra::ManifestConfiguration.new(root: root).read(environment: "production")
 
       assert_equal "fallback-slug", config.fetch("app_name")
+      assert_equal "fallback-slug", config.fetch("project_slug")
+      assert_equal "a91d7c", config.fetch("installation_id")
       assert_equal "nyc", config.fetch("region")
       assert_equal "nyc3", config.fetch("do_region")
       assert_equal "", config.fetch("frontend_domain")
@@ -215,6 +219,7 @@ class ManifestConfigurationTest < Minitest::Test
       "project" => {
         "name" => "Product Template Workspace",
         "slug" => "product-template-workspace",
+        "installation_id" => "a91d7c",
         "default_environment" => "production"
       },
       "repositories" => {

@@ -7,6 +7,8 @@ class TerraformVariablesTest < Minitest::Test
   def test_to_h_builds_expected_tfvars
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-super-app",
+      "installation_id" => "a91d7c",
       "region" => "nyc",
       "do_region" => "nyc3",
       "frontend_domain" => "app.example.com",
@@ -33,6 +35,8 @@ class TerraformVariablesTest < Minitest::Test
     tfvars = Workspace::Services::Infra::TerraformVariables.new(config).to_h
 
     assert_equal "my-product", tfvars.fetch("project_name")
+    assert_equal "my-super-app", tfvars.fetch("project_slug")
+    assert_equal "a91d7c", tfvars.fetch("installation_id")
     assert_equal "my-product-api", tfvars.fetch("rails_app_name")
     assert_equal "nyc", tfvars.fetch("app_region")
     assert_equal "example-org/my-product-api", tfvars.fetch("rails_github_repo")
@@ -59,12 +63,14 @@ class TerraformVariablesTest < Minitest::Test
     assert_equal true, tfvars.fetch("enable_spaces")
     assert_equal "digitalocean_spaces", tfvars.fetch("spaces_provider")
     assert_equal "nyc3", tfvars.fetch("spaces_region")
-    assert_equal "my-product-artifacts", tfvars.fetch("spaces_bucket_name")
+    assert_equal "my-super-app-artifacts-a91d7c", tfvars.fetch("spaces_bucket_name")
   end
 
   def test_to_h_requires_opensearch_size
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-super-app",
+      "installation_id" => "a91d7c",
       "region" => "nyc",
       "do_region" => "nyc3",
       "frontend_domain" => "",
@@ -95,6 +101,8 @@ class TerraformVariablesTest < Minitest::Test
   def test_to_h_leaves_cors_origin_empty_when_frontend_domain_missing
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-super-app",
+      "installation_id" => "a91d7c",
       "region" => "nyc",
       "do_region" => "nyc3",
       "frontend_domain" => "",

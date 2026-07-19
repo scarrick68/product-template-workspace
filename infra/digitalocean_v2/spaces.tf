@@ -9,10 +9,16 @@ locals {
     var.manage_spaces_bucket
   )
 
+  default_spaces_bucket_name = join("-", [
+    var.project_slug,
+    "artifacts",
+    var.installation_id
+  ])
+
   normalized_spaces_bucket_name = (
     trimspace(var.spaces_bucket_name) != ""
     ? trimspace(var.spaces_bucket_name)
-    : "${var.project_name}-artifacts"
+    : local.default_spaces_bucket_name
   )
 
   effective_spaces_bucket_name = (

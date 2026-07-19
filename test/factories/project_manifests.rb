@@ -7,6 +7,7 @@ FactoryBot.define do
     transient do
       project_name { "Product Template Workspace" }
       slug { "product-template-workspace" }
+      installation_id { "a91d7c" }
       default_environment { "production" }
       api_port { 5001 }
       web_port { 3000 }
@@ -17,6 +18,7 @@ FactoryBot.define do
         "project" => {
           "name" => project_name,
           "slug" => slug,
+          "installation_id" => installation_id,
           "default_environment" => default_environment
         },
         "repositories" => {

@@ -13,6 +13,8 @@ module Workspace
         def to_h
           {
             "project_name" => app_name,
+            "project_slug" => project_slug,
+            "installation_id" => installation_id,
             "rails_app_name" => github.fetch("api_repo", "#{app_name}-api"),
             "app_region" => configuration.fetch("region"),
             "rails_github_repo" => rails_repo,
@@ -53,6 +55,14 @@ module Workspace
 
         def do_region
           configuration.fetch("do_region")
+        end
+
+        def project_slug
+          configuration.fetch("project_slug")
+        end
+
+        def installation_id
+          configuration.fetch("installation_id")
         end
 
         def github
@@ -100,9 +110,9 @@ module Workspace
         end
 
         def default_spaces_bucket_name
-          sanitized = app_name.downcase.gsub(/[^a-z0-9-]/, "-").gsub(/-+/, "-").gsub(/\A-|-\z/, "")
+          sanitized = project_slug.downcase.gsub(/[^a-z0-9-]/, "-").gsub(/-+/, "-").gsub(/\A-|-\z/, "")
           normalized = sanitized.empty? ? "workspace" : sanitized
-          "#{normalized}-artifacts"
+          "#{normalized}-artifacts-#{installation_id}"
         end
       end
     end

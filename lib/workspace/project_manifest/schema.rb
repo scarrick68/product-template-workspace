@@ -6,6 +6,7 @@ module Workspace
     # precise field-level paths when the manifest shape or values are invalid.
     class Schema
       class ValidationError < ArgumentError; end
+      INSTALLATION_ID_PATTERN = /\A[a-f0-9]{6}\z/
 
       REQUIRED_TOP_LEVEL_KEYS = %w[
         project
@@ -63,6 +64,21 @@ module Workspace
           %w[name slug default_environment],
           path: "config/project.yml: project"
         )
+
+        validate_installation_id!(project)
+      end
+
+      def validate_installation_id!(project)
+        installation_id = project["installation_id"].to_s.strip
+        if installation_id.empty?
+          raise ValidationError,
+                "config/project.yml: project.installation_id must be a non-empty string"
+        end
+
+        return if installation_id.match?(INSTALLATION_ID_PATTERN)
+
+        raise ValidationError,
+              "config/project.yml: project.installation_id must be six lowercase hexadecimal characters"
       end
 
       def validate_repositories!(repositories)

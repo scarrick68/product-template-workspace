@@ -2,6 +2,7 @@
 project:
   name: Product Template Workspace
   slug: product-template-workspace
+  installation_id: "000000"
   default_environment: production
 repositories:
   api:
