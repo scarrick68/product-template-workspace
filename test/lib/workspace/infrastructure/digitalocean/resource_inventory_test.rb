@@ -48,4 +48,80 @@ class DigitalOceanResourceInventoryTest < Minitest::Test
     matching_databases = inventory.fetch(:matching_resources).fetch(:databases)
     assert_equal ["my-super-app-postgres"], matching_databases.map(&:name)
   end
+
+  def test_account_inventory_normalizes_hash_account_payload
+    client = mock("client")
+
+    client.expects(:json).with("account", "get").returns(
+      { "email" => "ops@example.com", "status" => "active" }
+    )
+    client.expects(:json).with("apps", "list").returns([])
+    client.expects(:json).with("databases", "list").returns([])
+
+    inventory = Workspace::Infrastructure::DigitalOcean::ResourceInventory.new(
+      client: client,
+      project_name: "my-super-app",
+      expected_names: ["my-super-app-api"],
+      spaces_bucket_name: "my-super-app-artifacts"
+    ).account_inventory
+
+    assert_equal "ops@example.com", inventory.fetch(:account).fetch("email")
+    assert_equal [], inventory.fetch(:matching_resources).fetch(:apps)
+    assert_equal [], inventory.fetch(:matching_resources).fetch(:databases)
+  end
+
+  def test_call_raises_when_project_not_found
+    client = mock("client")
+
+    client.expects(:json).with("account", "get").returns([{ "email" => "ops@example.com" }])
+    client.expects(:json).with("projects", "list").returns([])
+
+    error = assert_raises(Workspace::Infrastructure::DigitalOcean::Error) do
+      Workspace::Infrastructure::DigitalOcean::ResourceInventory.new(
+        client: client,
+        project_name: "missing-project",
+        expected_names: ["my-super-app-api"],
+        spaces_bucket_name: "my-super-app-artifacts"
+      ).call
+    end
+
+    assert_equal "DigitalOcean project not found: missing-project", error.message
+  end
+
+  def test_call_raises_when_multiple_projects_share_same_name
+    client = mock("client")
+
+    client.expects(:json).with("account", "get").returns([{ "email" => "ops@example.com" }])
+    client.expects(:json).with("projects", "list").returns([
+      { "id" => "proj-1", "name" => "my-super-app" },
+      { "id" => "proj-2", "name" => "my-super-app" }
+    ])
+
+    error = assert_raises(Workspace::Infrastructure::DigitalOcean::Error) do
+      Workspace::Infrastructure::DigitalOcean::ResourceInventory.new(
+        client: client,
+        project_name: "my-super-app",
+        expected_names: ["my-super-app-api"],
+        spaces_bucket_name: "my-super-app-artifacts"
+      ).call
+    end
+
+    assert_equal "Multiple DigitalOcean projects found: my-super-app", error.message
+  end
+
+  def test_call_raises_when_account_payload_shape_is_unexpected
+    client = mock("client")
+    client.expects(:json).with("account", "get").returns("invalid-payload")
+
+    error = assert_raises(Workspace::Infrastructure::DigitalOcean::Error) do
+      Workspace::Infrastructure::DigitalOcean::ResourceInventory.new(
+        client: client,
+        project_name: "my-super-app",
+        expected_names: ["my-super-app-api"],
+        spaces_bucket_name: "my-super-app-artifacts"
+      ).account_inventory
+    end
+
+    assert_equal "Unexpected account payload returned by doctl.", error.message
+  end
 end
