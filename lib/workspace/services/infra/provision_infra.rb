@@ -11,6 +11,7 @@
 # - Resolve var file via INFRA_VAR_FILE (default: terraform.tfvars.json).
 
 require "json"
+require "securerandom"
 require "yaml"
 require "tty-prompt"
 require_relative "../../../workspace"
@@ -24,6 +25,7 @@ require_relative "./digital_ocean/admin_bootstrap"
 require_relative "./digital_ocean/github_app_authorization"
 require_relative "./doctor/blob_storage_check"
 require_relative "./doctor/cli_availability_checks"
+require_relative "./doctor/installation_id_check"
 require_relative "./doctor/provider_authentication_checks"
 require_relative "./doctor/repository_check"
 require_relative "./doctor/runner"
@@ -38,6 +40,9 @@ module Workspace
     module Infra
       class ProvisionInfra
         PROJECT_MANIFEST_FILE = File.join(Workspace::ROOT, "config", "project.yml")
+        TEMPLATE_INSTALLATION_ID = "000000"
+        INSTALLATION_ID_PATTERN = /\A[a-f0-9]{6}\z/
+        INSTALLATION_ID_HEX_BYTES = 3
 
         def initialize(argv, stdin: $stdin, stdout: $stdout)
           @argv = argv.dup
@@ -101,6 +106,10 @@ module Workspace
             *cli_checks,
             *provider_checks,
             Workspace::Services::Infra::Doctor::RepositoryCheck.new,
+            Workspace::Services::Infra::Doctor::InstallationIdCheck.new(
+              manifest_configuration: manifest_configuration,
+              environment: environment
+            ),
             Workspace::Services::Infra::Doctor::BlobStorageCheck.new(
               manifest_configuration: manifest_configuration,
               environment: environment,
@@ -112,7 +121,13 @@ module Workspace
         end
 
         def run_configure(environment)
+          installation_id = ensure_manifest_installation_id!
+          return 1 if installation_id.empty?
+
           base_config = manifest_configuration.read(environment: environment)
+          installation_id = base_config["installation_id"].to_s.strip if base_config["installation_id"].to_s.strip != ""
+          project_slug = base_config["project_slug"].to_s.strip
+
           credentials.export_terraform_environment!(interactive: true)
           Workspace.info("Starting guided infra configure flow for #{environment}.")
           Workspace.info("Press Enter to accept defaults shown in [brackets].")
@@ -120,6 +135,9 @@ module Workspace
             prompt: prompt,
             output: stdout
           ).call(environment: environment, defaults: base_config)
+
+          config["project_slug"] = project_slug
+          config["installation_id"] = installation_id
 
           return 1 unless run_github_authorization_step(config)
 
@@ -190,6 +208,31 @@ module Workspace
         def write_terraform_var_file!(tfvars)
           path = terraform_workspace.var_file_path
           File.write(path, JSON.pretty_generate(tfvars) + "\n")
+        end
+
+        def ensure_manifest_installation_id!
+          manifest = YAML.safe_load_file(PROJECT_MANIFEST_FILE, permitted_classes: [], aliases: false) || {}
+          project = manifest["project"]
+          project = manifest["project"] = {} unless project.is_a?(Hash)
+
+          existing = project["installation_id"].to_s.strip
+          return existing if existing.match?(INSTALLATION_ID_PATTERN) && existing != TEMPLATE_INSTALLATION_ID
+
+          installation_id = SecureRandom.hex(INSTALLATION_ID_HEX_BYTES)
+          project["installation_id"] = installation_id
+          File.write(PROJECT_MANIFEST_FILE, YAML.dump(manifest))
+          Workspace.info("Assigned project installation_id: #{installation_id}")
+          installation_id
+        rescue Errno::ENOENT
+          Workspace.fail_with_help(
+            "Missing project manifest.",
+            details: "Expected file: #{PROJECT_MANIFEST_FILE}",
+            fixes: [
+              "Ensure you are running this command from the workspace root.",
+              "Restore config/project.yml and re-run infra configure."
+            ]
+          )
+          ""
         end
 
         def apply_with_backend_cors_synchronization(environment:)

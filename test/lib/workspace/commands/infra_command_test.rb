@@ -46,7 +46,7 @@ class InfraCommandTest < Minitest::Test
     Workspace.stubs(:ok)
     Workspace.stubs(:info)
     File.stubs(:exist?).returns(false)
-    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(true)
 
     File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, includes("infrastructure:"))
     File.expects(:write).with(
@@ -58,6 +58,7 @@ class InfraCommandTest < Minitest::Test
     output = StringIO.new
 
     command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: input, stdout: output)
+    command.stubs(:ensure_manifest_installation_id!).returns("a91d7c")
     github_auth = mock("github_app_authorization")
     github_auth.expects(:call).with(repositories: ["example-org/my-product-api", "example-org/my-product-web"]).returns(true)
     command.instance_variable_set(:@github_app_authorization, github_auth)
@@ -206,6 +207,8 @@ class InfraCommandTest < Minitest::Test
 
     command = Workspace::Services::Infra::ProvisionInfra.new(["doctor"], stdin: StringIO.new, stdout: StringIO.new)
     resolver = mock("secrets_resolver")
+    resolver.stubs(:spaces_access_key_id).with(interactive: false).returns("spaces-key")
+    resolver.stubs(:spaces_secret_access_key).with(interactive: false).returns("spaces-secret")
     command.instance_variable_set(:@secrets_resolver, resolver)
     credentials = mock("credentials")
     credentials.expects(:digitalocean_token_env_key).returns("DIGITALOCEAN_ACCESS_TOKEN")
@@ -219,7 +222,7 @@ class InfraCommandTest < Minitest::Test
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/api-template")).returns(true)
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/web-template")).returns(true)
 
-    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(true)
 
     assert_equal 0, command.call
   end
@@ -227,6 +230,8 @@ class InfraCommandTest < Minitest::Test
   def test_generated_tfvars_are_declared_by_root_module
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-product",
+      "installation_id" => "a91d7c",
       "environment" => "production",
       "region" => "nyc",
       "do_region" => "nyc3",
@@ -255,6 +260,8 @@ class InfraCommandTest < Minitest::Test
   def test_tfvars_do_not_contain_credentials
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-product",
+      "installation_id" => "a91d7c",
       "environment" => "production",
       "region" => "nyc",
       "do_region" => "nyc3",
@@ -273,6 +280,49 @@ class InfraCommandTest < Minitest::Test
     sensitive_keys = %w[digitalocean_access_token spaces_access_key_id spaces_secret_access_key aws_access_key_id aws_secret_access_key]
 
     assert_empty generated_keys & sensitive_keys
+  end
+
+  def test_ensure_manifest_installation_id_assigns_when_missing
+    command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: StringIO.new, stdout: StringIO.new)
+
+    manifest = {
+      "project" => {
+        "name" => "my-product",
+        "slug" => "my-product"
+      }
+    }
+
+    YAML.expects(:safe_load_file)
+      .with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, permitted_classes: [], aliases: false)
+      .returns(manifest)
+    SecureRandom.expects(:hex).with(3).returns("b1c2d3")
+    File.expects(:write).with(
+      Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE,
+      includes("installation_id: b1c2d3")
+    )
+    Workspace.expects(:info).with("Assigned project installation_id: b1c2d3")
+
+    assert_equal "b1c2d3", command.send(:ensure_manifest_installation_id!)
+  end
+
+  def test_ensure_manifest_installation_id_preserves_existing_valid_id
+    command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: StringIO.new, stdout: StringIO.new)
+
+    manifest = {
+      "project" => {
+        "name" => "my-product",
+        "slug" => "my-product",
+        "installation_id" => "a91d7c"
+      }
+    }
+
+    YAML.expects(:safe_load_file)
+      .with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, permitted_classes: [], aliases: false)
+      .returns(manifest)
+    SecureRandom.expects(:hex).never
+    File.expects(:write).never
+
+    assert_equal "a91d7c", command.send(:ensure_manifest_installation_id!)
   end
 
   private
