@@ -6,6 +6,7 @@ require_relative "commands/new_project"
 require_relative "commands/credentials"
 require_relative "commands/repository"
 require_relative "commands/infra"
+require_relative "commands/prod_local"
 
 module Workspace
   module CLI
@@ -14,7 +15,8 @@ module Workspace
         "new-project" => Workspace::Commands::NewProject,
         "credentials" => Workspace::Commands::Credentials,
         "repository" => Workspace::Commands::Repository,
-        "infra" => Workspace::Commands::Infra
+        "infra" => Workspace::Commands::Infra,
+        "prod-local" => Workspace::Commands::ProdLocal
       }.freeze
 
       def initialize(argv, stdin: $stdin, stdout: $stdout, stderr: $stderr)
@@ -48,7 +50,7 @@ module Workspace
         end
 
         stderr.puts("Usage: bin/workspace <command> [options]")
-        stderr.puts("Commands: new-project, credentials, repository, infra")
+        stderr.puts("Commands: new-project, credentials, repository, infra, prod-local")
         1
       end
 
