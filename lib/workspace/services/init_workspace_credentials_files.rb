@@ -125,7 +125,7 @@ module Workspace
         @key_path ||= File.join(
           Workspace::ROOT,
           "config",
-          "workspace_credentials.key"
+          "workspace.credentials.key"
         )
       end
 
@@ -133,7 +133,7 @@ module Workspace
         @encrypted_path ||= File.join(
           Workspace::ROOT,
           "config",
-          "workspace_credentials.yml.enc"
+          "workspace.credentials.yml.enc"
         )
       end
     end

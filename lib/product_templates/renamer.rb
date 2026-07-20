@@ -9,6 +9,9 @@ require_relative "./project_paths"
 
 module ProductTemplates
   class Renamer
+    TEMPLATE_APP_NAME = "my-product"
+    TEMPLATE_PROJECT_SLUG = "product-template-workspace"
+
     attr_reader :product_slug, :workspace_root, :repositories
 
     def initialize(product_slug, workspace_root: Workspace::ROOT, repositories: Workspace.repositories)
@@ -152,8 +155,16 @@ module ProductTemplates
       return unless File.exist?(manifest_path)
 
       manifest = YAML.safe_load(File.read(manifest_path), permitted_classes: [], aliases: false) || {}
+      update_project_metadata(manifest)
+      update_environment_infrastructure_app_names(manifest)
+
       repositories_section = manifest["repositories"]
-      return unless repositories_section
+
+      unless repositories_section
+        File.write(manifest_path, YAML.dump(manifest))
+        Workspace.ok("updated config/project.yml with project slug and infrastructure app name")
+        return
+      end
 
       case repositories_section
       when Hash
@@ -163,7 +174,31 @@ module ProductTemplates
       end
 
       File.write(manifest_path, YAML.dump(manifest))
-      Workspace.ok("updated config/project.yml with renamed repository paths")
+      Workspace.ok("updated config/project.yml with renamed repository paths and infra app defaults")
+    end
+
+    def update_project_metadata(manifest)
+      project = manifest["project"]
+      return unless project.is_a?(Hash)
+
+      project["slug"] = product_slug
+    end
+
+    def update_environment_infrastructure_app_names(manifest)
+      environments = manifest["environments"]
+      return unless environments.is_a?(Hash)
+
+      environments.each_value do |environment|
+        next unless environment.is_a?(Hash)
+
+        infrastructure = environment["infrastructure"]
+        next unless infrastructure.is_a?(Hash)
+
+        existing_app_name = infrastructure["app_name"].to_s.strip
+        if existing_app_name.empty? || [TEMPLATE_APP_NAME, TEMPLATE_PROJECT_SLUG].include?(existing_app_name)
+          infrastructure["app_name"] = product_slug
+        end
+      end
     end
 
     def update_workspace_repo_config

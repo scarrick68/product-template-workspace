@@ -10,6 +10,10 @@ output "rails_app_id" {
   value = digitalocean_app.rails.id
 }
 
+output "rails_app_url" {
+  value = digitalocean_app.rails.live_url
+}
+
 output "rails_app_urn" {
   value = digitalocean_app.rails.urn
 }
@@ -52,4 +56,16 @@ output "opensearch_cluster_id" {
 
 output "opensearch_cluster_name" {
   value = digitalocean_database_cluster.opensearch.name
+}
+
+output "spaces_bucket_name" {
+  value = try(digitalocean_spaces_bucket.artifacts[0].name, null)
+}
+
+output "spaces_bucket_region" {
+  value = try(digitalocean_spaces_bucket.artifacts[0].region, null)
+}
+
+output "spaces_bucket_endpoint" {
+  value = try(digitalocean_spaces_bucket.artifacts[0].bucket_domain_name, null)
 }

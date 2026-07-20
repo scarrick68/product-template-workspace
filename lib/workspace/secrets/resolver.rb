@@ -3,71 +3,86 @@
 require "io/console"
 require "tty-prompt"
 require_relative "factory"
-require_relative "store"
 
 module Workspace
   module Secrets
     class Resolver
       DIGITALOCEAN_TOKEN_KEY = "DIGITALOCEAN_ACCESS_TOKEN"
+      SPACES_ACCESS_KEY_ID_WORKSPACE_KEY = "SPACES_ACCESS_KEY_ID"
+      SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY = "SPACES_SECRET_ACCESS_KEY"
 
-      def initialize(io: $stdout, input: $stdin, store: nil, prompt: TTY::Prompt.new(input: @input, output: @io))
-        @io = io
-        @input = input
-        @store = store || Store.new(
-          env_adapter: Factory.env_adapter,
-          keychain_adapter: Factory.keychain_adapter
-        )
-        @prompt = prompt
+      def initialize(
+        stdout: $stdout,
+        stdin: $stdin,
+        workspace_adapter: nil,
+        prompt: nil,
+        spaces_access_key_id_workspace_key: SPACES_ACCESS_KEY_ID_WORKSPACE_KEY,
+        spaces_secret_access_key_workspace_key: SPACES_SECRET_ACCESS_KEY_WORKSPACE_KEY
+      )
+        @stdout = stdout
+        @stdin = stdin
+        @workspace_adapter = workspace_adapter || Factory.workspace_credentials_adapter
+        @prompt = prompt || TTY::Prompt.new(input: @stdin, output: @stdout)
+        @spaces_access_key_id_workspace_key = spaces_access_key_id_workspace_key
+        @spaces_secret_access_key_workspace_key = spaces_secret_access_key_workspace_key
       end
 
       def digitalocean_token(interactive: true)
-        result = store.read(DIGITALOCEAN_TOKEN_KEY)
-        return result.value if present?(result.value)
+        workspace_token = workspace_adapter.read(DIGITALOCEAN_TOKEN_KEY).to_s.strip if workspace_adapter.available?
+        if present?(workspace_token)
+          return workspace_token unless interactive && interactive_input?
+
+          return resolve_existing_token(token: workspace_token)
+        end
 
         return nil unless interactive && interactive_input?
 
-        warn_if_unsupported
-        prompt_for_token
+        token = prompt_token
+        return nil unless present?(token)
+
+        persist_workspace_token(token)
+        token
+      end
+
+      def spaces_access_key_id(interactive: true)
+        resolve_secret(
+          key: spaces_access_key_id_workspace_key,
+          interactive: interactive,
+          prompt_label: "DigitalOcean Spaces access key ID",
+          mask: false,
+          include_env: false
+        )
+      end
+
+      def spaces_secret_access_key(interactive: true)
+        resolve_secret(
+          key: spaces_secret_access_key_workspace_key,
+          interactive: interactive,
+          prompt_label: "DigitalOcean Spaces secret access key",
+          mask: true,
+          include_env: false
+        )
+      end
+
+      def persist_spaces_credentials(access_key_id:, secret_access_key:)
+        access_saved = persist_workspace_value(key: spaces_access_key_id_workspace_key, value: access_key_id)
+        secret_saved = persist_workspace_value(key: spaces_secret_access_key_workspace_key, value: secret_access_key)
+        access_saved && secret_saved
       end
 
       private
 
-      attr_reader :io, :input, :store, :prompt
+      attr_reader :stdin, :stdout, :workspace_adapter, :prompt,
+          :spaces_access_key_id_workspace_key, :spaces_secret_access_key_workspace_key
 
-      def prompt_for_token
-        io.puts("DigitalOcean access token not found.")
-        io.puts("Choose how to continue:")
-        io.puts("1. Use token for this run only")
-        io.puts("2. Print env var instructions")
-        io.puts("3. Store token in #{store.keychain_adapter.name}") if store.keychain_adapter.writable?
+      def resolve_existing_token(token:)
+        use_existing = prompt.yes?("Use existing DigitalOcean access token from workspace credentials?", default: true)
+        selected_token = use_existing ? token : prompt_token
 
-        allowed_choices = store.keychain_adapter.writable? ? %w[1 2 3] : %w[1 2]
-        choice = prompt.ask("Selection", default: "1") do |q|
-          q.in(allowed_choices)
-        end
+        return nil unless present?(selected_token)
 
-        case choice
-        when "2"
-          print_env_instructions
-          nil
-        when "3"
-          if store.keychain_adapter.writable?
-            token = prompt_token
-            return nil unless present?(token)
-
-            if store.write(DIGITALOCEAN_TOKEN_KEY, token)
-              io.puts("Saved DIGITALOCEAN_ACCESS_TOKEN to #{store.keychain_adapter.name}.")
-            else
-              io.puts("Unable to save token to #{store.keychain_adapter.name}; using token for this run only.")
-            end
-
-            token
-          else
-            prompt_token
-          end
-        else
-          prompt_token
-        end
+        persist_workspace_token(selected_token)
+        selected_token
       end
 
       def prompt_token
@@ -75,16 +90,44 @@ module Workspace
         token.empty? ? nil : token
       end
 
-      def print_env_instructions
-        io.puts("Run:")
-        io.puts("export DIGITALOCEAN_ACCESS_TOKEN=your_token_here")
+      def persist_workspace_token(token)
+        if workspace_adapter.available? && workspace_adapter.writable? && workspace_adapter.write(DIGITALOCEAN_TOKEN_KEY, token)
+          prompt.say("Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials.")
+        else
+          prompt.say("Unable to save DIGITALOCEAN_ACCESS_TOKEN to workspace credentials. Run: bin/workspace credentials init")
+        end
       end
 
-      def warn_if_unsupported
-        adapter = store.keychain_adapter
-        return unless adapter.respond_to?(:warning)
+      def resolve_secret(key:, interactive:, prompt_label:, mask:, include_env:)
+        workspace_value = workspace_adapter.read(key).to_s.strip if workspace_adapter.available?
+        return workspace_value if present?(workspace_value)
 
-        io.puts(adapter.warning)
+        if include_env
+          env_value = ENV.fetch(key, "").to_s.strip
+          return env_value if present?(env_value)
+        end
+
+        return nil unless interactive && interactive_input?
+
+        value = if mask
+                  prompt.mask(prompt_label).to_s.strip
+                else
+                  prompt.ask(prompt_label).to_s.strip
+                end
+        return nil unless present?(value)
+
+        persist_workspace_value(key: key, value: value)
+        value
+      end
+
+      def persist_workspace_value(key:, value:)
+        if workspace_adapter.available? && workspace_adapter.writable? && workspace_adapter.write(key, value)
+          prompt.say("Saved #{key} to workspace credentials.")
+          true
+        else
+          prompt.say("Unable to save #{key} to workspace credentials. Run: bin/workspace credentials init")
+          false
+        end
       end
 
       def present?(value)
@@ -92,7 +135,7 @@ module Workspace
       end
 
       def interactive_input?
-        input.respond_to?(:tty?) && input.tty?
+        stdin.respond_to?(:tty?) && stdin.tty?
       end
     end
   end

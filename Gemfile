@@ -13,3 +13,5 @@ group :test do
 end
 
 gem "tty-prompt", "~> 0.23.1"
+
+gem "aws-sdk-s3", "~> 1.228"

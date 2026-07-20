@@ -67,6 +67,21 @@ class ProjectManifestLoaderTest < Minitest::Test
     end
   end
 
+  def test_load_rejects_installation_id_placeholder
+    Dir.mktmpdir do |root|
+      manifest = build(:project_manifest_hash)
+      manifest["project"]["installation_id"] = "__INSTALLATION_ID__"
+
+      write_project_yaml(root, manifest)
+
+      error = assert_raises(Workspace::ProjectManifest::InvalidManifest) do
+        Workspace::ProjectManifest::Loader.new(root: root).load
+      end
+
+      assert_includes error.message, "project.installation_id must be six lowercase hexadecimal characters"
+    end
+  end
+
   private
 
   def write_project_yaml(root, data)

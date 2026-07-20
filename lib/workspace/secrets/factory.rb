@@ -3,6 +3,7 @@
 require_relative "adapters/env"
 require_relative "adapters/macos_keychain"
 require_relative "adapters/unsupported_keychain"
+require_relative "adapters/workspace_credentials"
 
 module Workspace
   module Secrets
@@ -17,6 +18,10 @@ module Workspace
         else
           Adapters::UnsupportedKeychain.new
         end
+      end
+
+      def self.workspace_credentials_adapter
+        Adapters::WorkspaceCredentials.new
       end
     end
   end

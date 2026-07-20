@@ -58,7 +58,9 @@ flowchart TD
 
 - Blob storage support is enabled by default (`enable_spaces = true`).
 - `spaces_provider = "digitalocean_spaces"` provisions a Spaces bucket and Spaces access key by default.
-- For managed Spaces provisioning, provide Spaces API creds via either Terraform vars (`spaces_access_key_id`, `spaces_secret_access_key`) or env vars (`SPACES_ACCESS_KEY_ID`, `SPACES_SECRET_ACCESS_KEY`).
+- Provide application Spaces creds with Terraform vars `app_spaces_access_key_id` and `app_spaces_secret_access_key`.
+- When Terraform manages a Spaces bucket (`manage_spaces_bucket = true`), also provide provider creds with `spaces_provider_access_key_id` and `spaces_provider_secret_access_key`.
+- If you prefer environment variables instead of tfvars files, use Terraform variable env names: `TF_VAR_app_spaces_access_key_id`, `TF_VAR_app_spaces_secret_access_key`, `TF_VAR_spaces_provider_access_key_id`, and `TF_VAR_spaces_provider_secret_access_key`.
 - `spaces_provider = "aws_s3"` skips provisioning and uses provided values:
 	- `data_artifact_bucket`
 	- `aws_access_key_id`

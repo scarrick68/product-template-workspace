@@ -32,6 +32,7 @@ class WorkspaceContextTest < Minitest::Test
       project:
         name: Product Template Workspace
         slug: product-template-workspace
+        installation_id: a91d7c
         default_environment: production
 
       repositories:

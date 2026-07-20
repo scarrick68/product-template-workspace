@@ -130,6 +130,7 @@ module Workspace
         install_ruby_dependencies(name, path)
         install_node_dependencies(name, path)
         prepare_database(name, path)
+        install_default_blazer_content(name, path)
       end
 
       def install_ruby_dependencies(name, path)
@@ -200,6 +201,31 @@ module Workspace
           ]
         )
         failures << "#{name}:db" unless ok
+      end
+
+      def install_default_blazer_content(name, path)
+        return unless File.executable?(File.join(path, "bin", "rails"))
+        return unless File.exist?(File.join(path, "lib", "tasks", "blazer_default_queries.rake"))
+        return unless File.exist?(File.join(path, "lib", "tasks", "blazer_dashboards.rake"))
+
+        Workspace.info("installing default Blazer content in #{name}")
+        ok = Workspace.run(
+          "bundle exec rails blazer:default_queries:install blazer:install_dashboards",
+          chdir: path,
+          allow_failure: true,
+          summary: "Default Blazer content installation failed for #{name}.",
+          details: "Rails could not install default Blazer queries/dashboards in #{path}.",
+          assumptions: [
+            "Blazer and its default query/dashboard tasks are present and loadable in this repository.",
+            "Database migrations and datasource configuration are already valid after db:prepare."
+          ],
+          fixes: [
+            "Run bundle exec rails blazer:default_queries:install manually in #{path} to inspect errors.",
+            "Run bundle exec rails blazer:install_dashboards manually in #{path} after fixing query install issues.",
+            "Verify Blazer database configuration and task definitions in lib/tasks."
+          ]
+        )
+        failures << "#{name}:blazer" unless ok
       end
 
       def finalize

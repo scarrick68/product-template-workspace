@@ -227,13 +227,13 @@ module Workspace
       def configure_docker_daemon
         return unless command_available?("docker")
 
-        _out, running = Workspace.capture("docker info")
+        running = Workspace.docker_daemon_running?
         return Workspace.ok("Docker daemon: running") if running
 
         default = preferences.dig("configure", "docker_start")
         should_start = prompt_yes_no(
           "Docker is installed but daemon is not running. Start Docker Desktop now?",
-          default: default.nil? ? false : default
+          default: default.nil? ? true : default
         )
         preferences["configure"]["docker_start"] = should_start
         return unless should_start

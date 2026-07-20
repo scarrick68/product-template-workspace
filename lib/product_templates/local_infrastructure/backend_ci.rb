@@ -87,7 +87,8 @@ module ProductTemplates
           recovered = Workspace.ensure_docker_daemon_running(
             wait_attempts: DOCKER_DAEMON_WAIT_ATTEMPTS,
             wait_interval: DOCKER_DAEMON_WAIT_INTERVAL,
-            launch_message: "Docker daemon became unavailable while preparing OpenSearch. Attempting to start Docker Desktop in background.",
+            launch_if_not_running: false,
+            launch_message: "Docker daemon became unavailable while preparing OpenSearch. Waiting for Docker daemon recovery.",
             summary: "Could not start Docker Desktop.",
             details: "The command 'open -g -a Docker' failed.",
             fixes: [
@@ -134,8 +135,7 @@ module ProductTemplates
       end
 
       def docker_daemon_available?
-        _out, running = Workspace.capture("docker info")
-        running
+        Workspace.docker_daemon_running?
       end
 
       def port_releaser

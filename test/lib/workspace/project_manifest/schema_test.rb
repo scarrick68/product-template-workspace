@@ -54,6 +54,39 @@ class ProjectManifestSchemaTest < Minitest::Test
     assert_includes error.message, "config/project.yml: environments.production.infrastructure"
   end
 
+  def test_validate_raises_when_installation_id_missing
+    manifest = build(:project_manifest_hash)
+    manifest["project"].delete("installation_id")
+
+    error = assert_raises(Workspace::ProjectManifest::Schema::ValidationError) do
+      Workspace::ProjectManifest::Schema.new(manifest: manifest).validate!
+    end
+
+    assert_includes error.message, "project.installation_id must be a non-empty string"
+  end
+
+  def test_validate_raises_when_installation_id_invalid
+    manifest = build(:project_manifest_hash)
+    manifest["project"]["installation_id"] = "ABC123"
+
+    error = assert_raises(Workspace::ProjectManifest::Schema::ValidationError) do
+      Workspace::ProjectManifest::Schema.new(manifest: manifest).validate!
+    end
+
+    assert_includes error.message, "project.installation_id must be six lowercase hexadecimal characters"
+  end
+
+  def test_validate_raises_when_installation_id_placeholder_is_used
+    manifest = build(:project_manifest_hash)
+    manifest["project"]["installation_id"] = "__INSTALLATION_ID__"
+
+    error = assert_raises(Workspace::ProjectManifest::Schema::ValidationError) do
+      Workspace::ProjectManifest::Schema.new(manifest: manifest).validate!
+    end
+
+    assert_includes error.message, "project.installation_id must be six lowercase hexadecimal characters"
+  end
+
   def test_valid_returns_true_for_valid_manifest
     manifest = build(:project_manifest_hash)
 

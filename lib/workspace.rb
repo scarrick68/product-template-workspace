@@ -9,6 +9,7 @@ require "rubygems"
 require "pastel"
 require_relative "workspace/project_manifest/loader"
 require_relative "workspace/context"
+require_relative "workspace/services/docker/daemon_manager"
 
 module Workspace
   ROOT = File.expand_path("..", __dir__)
@@ -128,52 +129,42 @@ module Workspace
   end
 
   def docker_daemon_running?
-    _out, running = capture("docker info")
-    running
+    docker_daemon_manager.docker_daemon_running?
   end
 
   def ensure_docker_daemon_running(
     wait_attempts: 30,
     wait_interval: 1,
     launch_message: nil,
+    launch_if_not_running: true,
     summary: "Could not start Docker Desktop.",
     details: "The command 'open -g -a Docker' failed.",
     fixes: []
   )
-    return true if docker_daemon_running?
-    return false unless command_exists?("open")
-
-    return wait_for_docker_daemon(wait_attempts: wait_attempts, wait_interval: wait_interval) if docker_desktop_app_running?
-
-    info(launch_message) if launch_message
-
-    started = run(
-      "open -g -a Docker",
-      allow_failure: true,
+    docker_daemon_manager.ensure_docker_daemon_running(
+      wait_attempts: wait_attempts,
+      wait_interval: wait_interval,
+      launch_message: launch_message,
+      launch_if_not_running: launch_if_not_running,
       summary: summary,
       details: details,
       fixes: fixes
     )
-    return false unless started
-
-    wait_for_docker_daemon(wait_attempts: wait_attempts, wait_interval: wait_interval)
   end
 
   def wait_for_docker_daemon(wait_attempts:, wait_interval:)
-    wait_attempts.times do
-      return true if docker_daemon_running?
-
-      sleep wait_interval
-    end
-
-    false
+    docker_daemon_manager.wait_for_docker_daemon(
+      wait_attempts: wait_attempts,
+      wait_interval: wait_interval
+    )
   end
 
   def docker_desktop_app_running?
-    return false unless RUBY_PLATFORM.include?("darwin")
+    docker_daemon_manager.docker_desktop_app_running?
+  end
 
-    _out, running = capture("pgrep -x Docker")
-    running
+  def docker_daemon_manager
+    @docker_daemon_manager ||= Workspace::Services::Docker::DaemonManager.new(workspace: self)
   end
 
   def ok(message)

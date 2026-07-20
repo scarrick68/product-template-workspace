@@ -95,16 +95,14 @@ class InstallLocalDevToolsCommandTest < Minitest::Test
     assert_equal 0, command.call
   end
 
-  def test_does_not_start_docker_desktop_without_explicit_confirmation
+  def test_starts_docker_desktop_when_prompt_uses_default_yes
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:ruby_compatible?).returns(true)
     Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
-
-    Workspace.stubs(:capture).with("docker info").returns(["", false])
-    Workspace.stubs(:capture).with("gh auth status").returns(["", true])
-    Workspace.stubs(:capture).with("doctl auth list").returns(["", true])
-
-    Workspace.expects(:run).with("open -g -a Docker", has_entry(allow_failure: true)).never
+    Workspace.stubs(:docker_daemon_running?).returns(false)
+    Workspace.expects(:ensure_docker_daemon_running).with(
+      has_entries(wait_attempts: 30, wait_interval: 1)
+    ).returns(true)
 
     command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("\n"), stdout: StringIO.new)
 

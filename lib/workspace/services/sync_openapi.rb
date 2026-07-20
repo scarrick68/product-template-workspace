@@ -9,6 +9,8 @@ require_relative "../../workspace"
 module Workspace
   module Services
     class SyncOpenapi
+      WEB_TYPE_GENERATION_SCRIPT = "gen:api"
+
       def call
         return 1 unless source_openapi_exists?
 
@@ -61,21 +63,22 @@ module Workspace
 
         package = JSON.parse(File.read(web_package_json))
         scripts = package.fetch("scripts", {})
-        return skip_web_type_generation unless scripts.key?("generate:types")
+        return skip_web_type_generation unless scripts.key?(WEB_TYPE_GENERATION_SCRIPT)
 
-        Workspace.warn("regenerating web types via npm run generate:types")
-        ok = Workspace.run("npm run generate:types", chdir: web_repo, allow_failure: true)
+        command = "npm run #{WEB_TYPE_GENERATION_SCRIPT}"
+        Workspace.info("regenerating web types via #{command}")
+        ok = Workspace.run(command, chdir: web_repo, allow_failure: true)
         return 0 if ok
 
         Workspace.fail_with_help(
           "Web type generation failed after OpenAPI sync.",
-          details: "The script npm run generate:types failed in #{relative_path(web_repo)}.",
+          details: "The script #{command} failed in #{relative_path(web_repo)}.",
           assumptions: [
-            "The frontend web repo has a valid generate:types script and required tooling dependencies.",
+            "The frontend web repo has a valid OpenAPI type generation script and required tooling dependencies.",
             "The synced OpenAPI document is compatible with the configured type generator."
           ],
           fixes: [
-            "Run npm run generate:types manually in #{relative_path(web_repo)} for full error details.",
+            "Run #{command} manually in #{relative_path(web_repo)} for full error details.",
             "Install missing web dependencies with npm install if needed.",
             "Fix generator or schema issues, then rerun bin/sync-openapi."
           ]
@@ -84,7 +87,7 @@ module Workspace
       end
 
       def skip_web_type_generation
-        Workspace.warn("#{relative_path(web_repo)} has no generate:types script; skipping type generation")
+        Workspace.warn("#{relative_path(web_repo)} has no #{WEB_TYPE_GENERATION_SCRIPT} script; skipping type generation")
         0
       end
 

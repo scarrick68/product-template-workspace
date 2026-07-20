@@ -4,11 +4,13 @@ require "stringio"
 
 require_relative "../../../test_helper"
 require_relative "../../../../lib/workspace/services/infra/provision_infra"
+require_relative "../../../../lib/workspace/services/infra/terraform_workspace"
+require_relative "../../../../lib/workspace/services/infra/terraform_variables"
 
 class InfraCommandTest < Minitest::Test
   def test_returns_usage_when_action_missing
-    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply] [environment]")
-    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production")
+    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply|safe_destroy|total_destruction] [environment]")
+    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production | bin/infra safe_destroy production")
 
     result = Workspace::Services::Infra::ProvisionInfra.new([]).call
 
@@ -17,11 +19,11 @@ class InfraCommandTest < Minitest::Test
 
   def test_returns_one_when_action_is_unsupported
     Workspace.expects(:fail_with_help).with(
-      "Unsupported infra action 'destroy'.",
-      has_entry(details: "Supported actions: doctor, configure, plan, apply")
+      "Unsupported infra action 'nuke'.",
+      has_entry(details: "Supported actions: doctor, configure, plan, apply, safe_destroy, total_destruction")
     )
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["destroy"]).call
+    result = Workspace::Services::Infra::ProvisionInfra.new(["nuke"]).call
 
     assert_equal 1, result
   end
@@ -43,18 +45,25 @@ class InfraCommandTest < Minitest::Test
     ])
     Workspace.stubs(:ok)
     Workspace.stubs(:info)
-    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
+    File.stubs(:exist?).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(true)
 
     File.expects(:write).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, includes("infrastructure:"))
     File.expects(:write).with(
-      File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "terraform.tfvars.json"),
+      File.join(Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY, "terraform.tfvars.json"),
       includes("\"project_name\": \"my-product\"")
     )
 
-    input = StringIO.new("my-product\nnyc\nnyc3\nexample-org\nmy-product-api\nmy-product-web\nmain\ny\nn\ny\naws_s3\n")
+    input = StringIO.new("my-product\nnyc\nnyc3\nexample-org\nmy-product-api\nmy-product-web\nmain\nn\n\ny\nn\ny\naws_s3\n")
     output = StringIO.new
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: input, stdout: output).call
+    command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: input, stdout: output)
+    command.stubs(:ensure_manifest_installation_id!).returns("a91d7c")
+    github_auth = mock("github_app_authorization")
+    github_auth.expects(:call).with(repositories: ["example-org/my-product-api", "example-org/my-product-web"]).returns(true)
+    command.instance_variable_set(:@github_app_authorization, github_auth)
+
+    result = command.call
 
     assert_equal 0, result
   end
@@ -69,7 +78,7 @@ class InfraCommandTest < Minitest::Test
 
     Workspace.expects(:abort_with_help).with(
       "Missing Terraform var-file.",
-      has_entry(details: "Expected file: #{File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, 'terraform.tfvars.json')}")
+      has_entry(details: "Expected file: #{File.join(Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY, 'terraform.tfvars.json')}")
     ).raises(SystemExit.new(1))
 
     assert_raises(SystemExit) do
@@ -86,7 +95,7 @@ class InfraCommandTest < Minitest::Test
     File.stubs(:exist?).returns(true)
 
     sequence = sequence("infra-plan-sequence")
-    terraform_dir = Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR
+    terraform_dir = Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY
 
     Workspace.expects(:run).with(
       "terraform -chdir=#{terraform_dir} init",
@@ -98,7 +107,83 @@ class InfraCommandTest < Minitest::Test
       chdir: Workspace::ROOT
     ).in_sequence(sequence).returns(true)
 
-    result = Workspace::Services::Infra::ProvisionInfra.new(["plan"], stdin: StringIO.new, stdout: StringIO.new).call
+    command = Workspace::Services::Infra::ProvisionInfra.new(["plan"], stdin: StringIO.new, stdout: StringIO.new)
+    blob_storage_manager = mock("blob_storage_manager")
+    blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
+    command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+    credentials = mock("credentials")
+    credentials.expects(:export_terraform_environment!).with(interactive: true).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
+
+    result = command.call
+
+    assert_equal 0, result
+  end
+
+  def test_safe_destroy_runs_init_then_targeted_destroy
+    Workspace.stubs(:info)
+    Workspace.stubs(:ok)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("tofu").returns(false)
+    Dir.stubs(:exist?).returns(true)
+    File.stubs(:exist?).returns(true)
+
+    sequence = sequence("infra-safe-destroy-sequence")
+    terraform_dir = Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} init",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} destroy -var-file=terraform.tfvars.json -target=digitalocean_app.rails -target=digitalocean_app.frontend",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    command = Workspace::Services::Infra::ProvisionInfra.new(["safe_destroy"], stdin: StringIO.new, stdout: StringIO.new)
+    blob_storage_manager = mock("blob_storage_manager")
+    blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
+    command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+    credentials = mock("credentials")
+    credentials.expects(:export_terraform_environment!).with(interactive: true).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
+
+    result = command.call
+
+    assert_equal 0, result
+  end
+
+  def test_total_destruction_runs_init_then_full_destroy
+    Workspace.stubs(:info)
+    Workspace.stubs(:ok)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("tofu").returns(false)
+    Dir.stubs(:exist?).returns(true)
+    File.stubs(:exist?).returns(true)
+
+    sequence = sequence("infra-total-destruction-sequence")
+    terraform_dir = Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} init",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    Workspace.expects(:run).with(
+      "terraform -chdir=#{terraform_dir} destroy -var-file=terraform.tfvars.json",
+      chdir: Workspace::ROOT
+    ).in_sequence(sequence).returns(true)
+
+    command = Workspace::Services::Infra::ProvisionInfra.new(["total_destruction"], stdin: StringIO.new, stdout: StringIO.new)
+    blob_storage_manager = mock("blob_storage_manager")
+    blob_storage_manager.expects(:ensure_spaces_credentials_for_provisioning).with(environment: "production", interactive: true).returns(true)
+    command.instance_variable_set(:@blob_storage_manager, blob_storage_manager)
+    credentials = mock("credentials")
+    credentials.expects(:export_terraform_environment!).with(interactive: true).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
+
+    result = command.call
 
     assert_equal 0, result
   end
@@ -122,8 +207,14 @@ class InfraCommandTest < Minitest::Test
 
     command = Workspace::Services::Infra::ProvisionInfra.new(["doctor"], stdin: StringIO.new, stdout: StringIO.new)
     resolver = mock("secrets_resolver")
-    resolver.expects(:digitalocean_token).with(interactive: false).returns("token")
+    resolver.stubs(:spaces_access_key_id).with(interactive: false).returns("spaces-key")
+    resolver.stubs(:spaces_secret_access_key).with(interactive: false).returns("spaces-secret")
     command.instance_variable_set(:@secrets_resolver, resolver)
+    credentials = mock("credentials")
+    credentials.expects(:digitalocean_token_env_key).returns("DIGITALOCEAN_ACCESS_TOKEN")
+    credentials.expects(:digitalocean_token_available?).returns(true)
+    credentials.expects(:export_terraform_environment!).with(interactive: false).returns(true)
+    command.instance_variable_set(:@credentials, credentials)
 
     Workspace.stubs(:capture).with("doctl account get").returns(["", true])
     Workspace.stubs(:capture).with("gh auth status").returns(["", true])
@@ -131,16 +222,16 @@ class InfraCommandTest < Minitest::Test
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/api-template")).returns(true)
     Dir.stubs(:exist?).with(File.join(Workspace::ROOT, "repos/web-template")).returns(true)
 
-    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(false)
+    File.stubs(:exist?).with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE).returns(true)
 
     assert_equal 0, command.call
   end
 
   def test_generated_tfvars_are_declared_by_root_module
-    command = Workspace::Services::Infra::ProvisionInfra.new([], stdin: StringIO.new, stdout: StringIO.new)
-
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-product",
+      "installation_id" => "a91d7c",
       "environment" => "production",
       "region" => "nyc",
       "do_region" => "nyc3",
@@ -159,7 +250,7 @@ class InfraCommandTest < Minitest::Test
       }
     }
 
-    generated_keys = command.send(:terraform_variables_for, config).keys.sort
+    generated_keys = Workspace::Services::Infra::TerraformVariables.new(config).to_h.keys.sort
     declared_keys = terraform_declared_variable_names
     undeclared = generated_keys - declared_keys
 
@@ -167,10 +258,10 @@ class InfraCommandTest < Minitest::Test
   end
 
   def test_tfvars_do_not_contain_credentials
-    command = Workspace::Services::Infra::ProvisionInfra.new([], stdin: StringIO.new, stdout: StringIO.new)
-
     config = {
       "app_name" => "my-product",
+      "project_slug" => "my-product",
+      "installation_id" => "a91d7c",
       "environment" => "production",
       "region" => "nyc",
       "do_region" => "nyc3",
@@ -180,19 +271,64 @@ class InfraCommandTest < Minitest::Test
         "web_repo" => "my-product-web",
         "branch" => "main"
       },
-      "sizes" => {}
+      "sizes" => {
+        "opensearch" => "db-s-1vcpu-2gb"
+      }
     }
 
-    generated_keys = command.send(:terraform_variables_for, config).keys
+    generated_keys = Workspace::Services::Infra::TerraformVariables.new(config).to_h.keys
     sensitive_keys = %w[digitalocean_access_token spaces_access_key_id spaces_secret_access_key aws_access_key_id aws_secret_access_key]
 
     assert_empty generated_keys & sensitive_keys
   end
 
+  def test_ensure_manifest_installation_id_assigns_when_missing
+    command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: StringIO.new, stdout: StringIO.new)
+
+    manifest = {
+      "project" => {
+        "name" => "my-product",
+        "slug" => "my-product"
+      }
+    }
+
+    YAML.expects(:safe_load_file)
+      .with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, permitted_classes: [], aliases: false)
+      .returns(manifest)
+    SecureRandom.expects(:hex).with(3).returns("b1c2d3")
+    File.expects(:write).with(
+      Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE,
+      includes("installation_id: b1c2d3")
+    )
+    Workspace.expects(:info).with("Assigned project installation_id: b1c2d3")
+
+    assert_equal "b1c2d3", command.send(:ensure_manifest_installation_id!)
+  end
+
+  def test_ensure_manifest_installation_id_preserves_existing_valid_id
+    command = Workspace::Services::Infra::ProvisionInfra.new(["configure", "production"], stdin: StringIO.new, stdout: StringIO.new)
+
+    manifest = {
+      "project" => {
+        "name" => "my-product",
+        "slug" => "my-product",
+        "installation_id" => "a91d7c"
+      }
+    }
+
+    YAML.expects(:safe_load_file)
+      .with(Workspace::Services::Infra::ProvisionInfra::PROJECT_MANIFEST_FILE, permitted_classes: [], aliases: false)
+      .returns(manifest)
+    SecureRandom.expects(:hex).never
+    File.expects(:write).never
+
+    assert_equal "a91d7c", command.send(:ensure_manifest_installation_id!)
+  end
+
   private
 
   def terraform_declared_variable_names
-    variables_path = File.join(Workspace::Services::Infra::ProvisionInfra::TERRAFORM_DIR, "variables.tf")
+    variables_path = File.join(Workspace::Services::Infra::TerraformWorkspace::DEFAULT_DIRECTORY, "variables.tf")
     File.read(variables_path).scan(/^variable\s+"([^"]+)"/).flatten.sort
   end
 end

@@ -62,6 +62,8 @@ Infrastructure provisioning is intentionally a separate phase:
 3. `bin/workspace infra plan [environment]`
 4. `bin/workspace infra apply [environment]`
 
+Use `bin/workspace infra apply [environment] --first-deploy-setup` only for initial live-environment bootstrap when you want to run first-deploy tasks (for example admin and default Blazer bootstrapping).
+
 ## Current Tooling Gems
 
 - `pastel`

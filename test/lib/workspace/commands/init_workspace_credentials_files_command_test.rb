@@ -17,13 +17,13 @@ class InitWorkspaceCredentialsFilesCommandTest < Minitest::Test
     @key_path = File.join(
       @root,
       "config",
-      "workspace_credentials.key"
+      "workspace.credentials.key"
     )
 
     @encrypted_path = File.join(
       @root,
       "config",
-      "workspace_credentials.yml.enc"
+      "workspace.credentials.yml.enc"
     )
 
     @backup_dir = File.join(

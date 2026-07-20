@@ -61,6 +61,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -185,6 +186,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -294,6 +296,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -351,22 +354,14 @@ class ProductTemplatesValidatorTest < Minitest::Test
                .returns(["Cannot connect to the Docker daemon", false])
       Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
       Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("pgrep -x Docker").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:run)
-               .with(
-                 "open -g -a Docker",
-                 has_entries(
-                   allow_failure: true,
-                   summary: "Could not start Docker Desktop."
-                 )
-               )
-               .in_sequence(sequence)
-               .returns(true)
       Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
       Workspace.expects(:capture)
                .with("docker compose up -d opensearch", chdir: api_dir)
                .in_sequence(sequence)
                .returns(["", true])
+      Workspace.expects(:run)
+               .with("open -g -a Docker", has_entry(allow_failure: true))
+               .never
 
       Workspace.expects(:run).with("bin/ci", chdir: api_dir, allow_failure: true).in_sequence(sequence).returns(true)
       Workspace.expects(:run).with("npm run lint", chdir: web_dir, allow_failure: true).in_sequence(sequence).returns(true)
@@ -380,7 +375,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
     end
   end
 
-  def test_relaunches_docker_desktop_when_daemon_is_still_not_running
+  def test_waits_for_daemon_recovery_without_relaunching_docker_desktop
     Dir.mktmpdir do |tmpdir|
       api_dir = File.join(tmpdir, "repos", "my-super-app-api")
       web_dir = File.join(tmpdir, "repos", "my-super-app-web")
@@ -395,6 +390,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:
@@ -464,17 +460,6 @@ class ProductTemplatesValidatorTest < Minitest::Test
                .returns(["Cannot connect to the Docker daemon", false])
       Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
       Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("pgrep -x Docker").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:run)
-               .with(
-                 "open -g -a Docker",
-                 has_entries(
-                   allow_failure: true,
-                   summary: "Could not start Docker Desktop."
-                 )
-               )
-               .in_sequence(sequence)
-               .returns(true)
       Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
       Workspace.expects(:capture)
                .with("docker compose up -d opensearch", chdir: api_dir)
@@ -508,6 +493,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
           project:
             name: Product Template Workspace
             slug: product-template-workspace
+            installation_id: a91d7c
             default_environment: production
 
           repositories:

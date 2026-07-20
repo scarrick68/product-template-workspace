@@ -70,7 +70,7 @@ module Workspace
       def should_create_remotes?(options)
         return options.create_remotes? if options.create_remotes_explicit?
 
-        prompt.yes?("Would you like this script to create backend/frontend remotes automatically?", default: false)
+        prompt.yes?("Would you like this script to create backend/frontend remotes automatically?", default: true)
       end
 
       def resolved_visibility(options)
