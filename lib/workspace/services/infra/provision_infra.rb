@@ -22,6 +22,7 @@ require_relative "./configuration_prompt"
 require_relative "./cors_origin_synchronizer"
 require_relative "./credentials"
 require_relative "./digital_ocean/admin_bootstrap"
+require_relative "./digital_ocean/blazer_bootstrap"
 require_relative "./digital_ocean/github_app_authorization"
 require_relative "./doctor/blob_storage_check"
 require_relative "./doctor/cli_availability_checks"
@@ -75,6 +76,11 @@ module Workspace
             stdin: @stdin,
             stdout: @stdout
           )
+          @blazer_bootstrap = Workspace::Services::Infra::Digitalocean::BlazerBootstrap.new(
+            terraform_workspace: @terraform_workspace,
+            stdin: @stdin,
+            stdout: @stdout
+          )
         end
 
         def call
@@ -87,7 +93,7 @@ module Workspace
           when "configure"
             run_configure(options.environment)
           else
-            run_terraform_action(options.action, options.environment)
+            run_terraform_action(options.action, options.environment, first_deploy_setup: options.first_deploy_setup)
           end
         end
 
@@ -183,7 +189,7 @@ module Workspace
           repositories
         end
 
-        def run_terraform_action(action, environment)
+        def run_terraform_action(action, environment, first_deploy_setup: false)
           terraform_preflight.check!
           credentials.export_terraform_environment!(interactive: true)
           blob_storage_manager.ensure_spaces_credentials_for_provisioning(environment: environment, interactive: true)
@@ -194,7 +200,13 @@ module Workspace
             terraform_runner.plan
           when "apply"
             apply_with_backend_cors_synchronization(environment: environment)
-            admin_bootstrap.call(environment: environment)
+            if first_deploy_setup
+              return 1 unless blazer_bootstrap.call(environment: environment)
+              return 1 unless admin_bootstrap.call(environment: environment)
+            else
+              Workspace.info("Skipping first-deploy setup steps (Blazer and admin bootstrap).")
+              Workspace.info("Run 'bin/workspace infra apply #{environment} --first-deploy-setup' when performing initial production bootstrap.")
+            end
           when "safe_destroy"
             terraform_runner.safe_destroy
           when "total_destruction"
@@ -280,6 +292,10 @@ module Workspace
 
         def admin_bootstrap
           @admin_bootstrap
+        end
+
+        def blazer_bootstrap
+          @blazer_bootstrap
         end
 
         def secrets_resolver
