@@ -9,8 +9,9 @@ require_relative "../../../../lib/workspace/services/infra/terraform_variables"
 
 class InfraCommandTest < Minitest::Test
   def test_returns_usage_when_action_missing
-    Workspace.expects(:info).with("Usage: bin/infra [doctor|configure|plan|apply|safe_destroy|total_destruction] [environment]")
-    Workspace.expects(:info).with("Examples: bin/infra doctor | bin/infra configure production | bin/infra plan production | bin/infra safe_destroy production")
+    Workspace.expects(:info).with("Usage: bin/workspace infra [doctor|configure|plan|apply|safe_destroy|total_destruction] [environment] [--first-deploy-setup]")
+    Workspace.expects(:info).with("Examples: bin/workspace infra doctor | bin/workspace infra configure production | bin/workspace infra plan production")
+    Workspace.expects(:info).with("          bin/workspace infra apply production | bin/workspace infra apply production --first-deploy-setup")
 
     result = Workspace::Services::Infra::ProvisionInfra.new([]).call
 
