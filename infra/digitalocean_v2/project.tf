@@ -45,6 +45,13 @@ resource "digitalocean_app" "rails" {
     }
 
     env {
+      key   = "BLAZER_DATABASE_URL"
+      value = local.rails_database_url
+      scope = "RUN_TIME"
+      type  = "SECRET"
+    }
+
+    env {
       key   = "OPENSEARCH_URL"
       value = "$${opensearch.DATABASE_URL}"
       scope = "RUN_TIME"
