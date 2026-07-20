@@ -6,6 +6,7 @@ require "pty"
 require "securerandom"
 require "shellwords"
 require "tty-prompt"
+require "uri"
 require "English"
 require_relative "../../../../workspace"
 require_relative "../../../../workspace/secrets/workspace_credentials_store"
@@ -89,13 +90,27 @@ module Workspace
           end
 
           def valid_admin_credentials?(value)
-            value.is_a?(Hash) && value["email"].to_s.strip != "" && value["password"].to_s.strip != ""
+            return false unless value.is_a?(Hash)
+
+            email = value["email"].to_s.strip
+            password = value["password"].to_s.strip
+
+            email != "" && password != "" && valid_email_format?(email)
           end
 
           def prompt_admin_email
             raise Error, "An admin email is required when running non-interactively." unless interactive_input?
 
-            prompt.ask("Initial admin email", required: true).to_s.strip
+            loop do
+              email = prompt.ask("Initial admin email", required: true).to_s.strip
+              return email if valid_email_format?(email)
+
+              workspace.error("Invalid admin email format: #{email.inspect}. Please enter a valid email address.")
+            end
+          end
+
+          def valid_email_format?(email)
+            URI::MailTo::EMAIL_REGEXP.match?(email)
           end
 
           def terraform_output!(name)
