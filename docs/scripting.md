@@ -29,7 +29,7 @@ The workspace CLI now follows a layered structure so user-facing command contrac
 
 - `bin/`: Shell-visible entrypoints.
 - `bin/workspace`: canonical executable for all user-facing commands.
-- `lib/workspace/cli.rb`: top-level command router (`new-project`, `credentials`, `repository`, `infra`).
+- `lib/workspace/cli.rb`: top-level command router (`new-project`, `credentials`, `repository`, `infra`, `prod-local`).
 - `lib/workspace/commands/`: CLI command and subcommand dispatchers. This is the public command layer.
 - `lib/workspace/commands/<group>/`: grouped subcommands (for example infra, repository, credentials actions).
 - `lib/workspace/services/`: internal application services used by commands; not intended as shell contracts.
@@ -63,6 +63,26 @@ Infrastructure provisioning is intentionally a separate phase:
 4. `bin/workspace infra apply [environment]`
 
 Use `bin/workspace infra apply [environment] --first-deploy-setup` only for initial live-environment bootstrap when you want to run first-deploy tasks (for example admin and default Blazer bootstrapping).
+
+Local production-debug boot is available for the API template:
+
+1. `bin/workspace prod-local`
+
+`prod-local` is intentionally owned by `repos/api-template/bin/prod-local`.
+The workspace command only delegates to that repo-local script.
+
+`bin/prod-local` now calls `bundle exec rails local_prod:setup_env` so setup runs inside full Rails/ActiveRecord context.
+Use `bundle exec rails local_prod:list_databases` to inspect configured and discovered PostgreSQL database names.
+
+Keep local production setup explicit and manual:
+
+On first run, `repos/api-template/bin/prod-local` auto-creates `repos/api-template/.env.production.local` with known defaults and an inferred local production database URL based on the app's `config/database.yml` development settings.
+
+1. `cd repos/api-template`
+2. `docker compose up -d opensearch`
+3. `bin/prod-local` (first run auto-creates `.env.production.local`)
+4. `RAILS_ENV=production bundle exec rails db:prepare`
+5. `bin/prod-local`
 
 ## Current Tooling Gems
 
