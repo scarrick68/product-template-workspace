@@ -29,11 +29,7 @@ module Workspace
 
       def digitalocean_token(interactive: true)
         workspace_token = workspace_adapter.read(DIGITALOCEAN_TOKEN_KEY).to_s.strip if workspace_adapter.available?
-        if present?(workspace_token)
-          return workspace_token unless interactive && interactive_input?
-
-          return resolve_existing_token(token: workspace_token)
-        end
+        return workspace_token if present?(workspace_token)
 
         return nil unless interactive && interactive_input?
 
@@ -74,16 +70,6 @@ module Workspace
 
       attr_reader :stdin, :stdout, :workspace_adapter, :prompt,
           :spaces_access_key_id_workspace_key, :spaces_secret_access_key_workspace_key
-
-      def resolve_existing_token(token:)
-        use_existing = prompt.yes?("Use existing DigitalOcean access token from workspace credentials?", default: true)
-        selected_token = use_existing ? token : prompt_token
-
-        return nil unless present?(selected_token)
-
-        persist_workspace_token(selected_token)
-        selected_token
-      end
 
       def prompt_token
         token = prompt.mask("DigitalOcean access token").to_s.strip
