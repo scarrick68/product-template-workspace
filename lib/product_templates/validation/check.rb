@@ -2,6 +2,6 @@
 
 module ProductTemplates
   module Validation
-    Check = Data.define(:name, :command, :directory, :directory_label)
+    Check = Data.define(:name, :command, :directory, :directory_label, :callable)
   end
 end

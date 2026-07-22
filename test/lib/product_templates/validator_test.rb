@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 require_relative "../../test_helper"
 require_relative "../../../lib/product_templates/validator"
 
@@ -43,6 +45,162 @@ class ProductTemplatesValidatorTest < Minitest::Test
       validator = ProductTemplates::Validator.new("my-super-app", workspace_root: tmpdir)
 
       assert_equal 0, validator.call
+    end
+  end
+
+  def test_runs_content_check_when_keystatic_cms_is_enabled
+    Dir.mktmpdir do |tmpdir|
+      api_dir = File.join(tmpdir, "repos", "my-super-app-api")
+      web_dir = File.join(tmpdir, "repos", "my-super-app-web")
+      FileUtils.mkdir_p(api_dir)
+      FileUtils.mkdir_p(web_dir)
+      FileUtils.mkdir_p(File.join(tmpdir, "config"))
+      FileUtils.mkdir_p(File.join(web_dir, "bin"))
+      FileUtils.mkdir_p(File.join(web_dir, "packages", "keystatic-admin"))
+
+      File.write(File.join(tmpdir, "config", "project.yml"), <<~YAML)
+        project:
+          name: Product Template Workspace
+          slug: product-template-workspace
+          installation_id: a91d7c
+          default_environment: production
+
+        repositories:
+          api:
+            purpose: backend-api
+            name: my-super-app-api
+            path: repos/my-super-app-api
+          web:
+            purpose: frontend-web-client
+            name: my-super-app-web
+            path: repos/my-super-app-web
+
+        features:
+          cms:
+            enabled: true
+            provider: keystatic
+      YAML
+
+      File.write(File.join(web_dir, "package.json"), JSON.dump({
+        "workspaces" => ["packages/*"],
+        "scripts" => {
+          "dev" => "vike dev",
+          "content" => "npm run --workspace=@workspace/keystatic-admin dev",
+          "dev:content" => "concurrently --kill-others-on-fail --names vike,content \"npm run dev\" \"npm run content\"",
+          "content:check" => "tsx src/content/validate-content.ts"
+        }
+      }))
+      File.write(File.join(web_dir, "bin", "content"), "#!/usr/bin/env bash\n")
+      File.write(File.join(web_dir, "bin", "content-check"), "#!/usr/bin/env bash\n")
+      File.write(File.join(web_dir, "packages", "keystatic-admin", "package.json"), "{}\n")
+
+      fake_repos = [
+        {
+          "purpose" => "backend-api",
+          "name" => "my-super-app-api",
+          "path" => "repos/my-super-app-api"
+        },
+        {
+          "purpose" => "frontend-web-client",
+          "name" => "my-super-app-web",
+          "path" => "repos/my-super-app-web"
+        }
+      ]
+
+      Workspace.stubs(:repositories).returns(fake_repos)
+      Workspace.stubs(:ok)
+      Workspace.stubs(:warn)
+
+      Workspace.expects(:run).with("bin/ci", chdir: api_dir, allow_failure: true).returns(true)
+      Workspace.expects(:run).with("npm run lint", chdir: web_dir, allow_failure: true).returns(true)
+      Workspace.expects(:run).with("npm run test", chdir: web_dir, allow_failure: true).returns(true)
+      Workspace.expects(:run).with("npm run build", chdir: web_dir, allow_failure: true).returns(true)
+      Workspace.expects(:run).with("npm run content:check", chdir: web_dir, allow_failure: true).returns(true)
+
+      vike_check = mock("vike-check")
+      vike_check.expects(:call).returns(true)
+      keystatic_check = mock("keystatic-check")
+      keystatic_check.expects(:call).returns(true)
+
+      ProductTemplates::Validation::ContentReachability.expects(:new).with(
+        root: web_dir,
+        target: :vike,
+        stdout: instance_of(IO)
+      ).returns(vike_check)
+      ProductTemplates::Validation::ContentReachability.expects(:new).with(
+        root: web_dir,
+        target: :keystatic,
+        stdout: instance_of(IO)
+      ).returns(keystatic_check)
+
+      Workspace.expects(:run).with("bin/status", chdir: tmpdir, allow_failure: true).returns(true)
+
+      validator = ProductTemplates::Validator.new("my-super-app", workspace_root: tmpdir)
+
+      assert_equal 0, validator.call
+    end
+  end
+
+  def test_fails_fast_when_keystatic_cms_wiring_is_incomplete
+    Dir.mktmpdir do |tmpdir|
+      api_dir = File.join(tmpdir, "repos", "my-super-app-api")
+      web_dir = File.join(tmpdir, "repos", "my-super-app-web")
+      FileUtils.mkdir_p(api_dir)
+      FileUtils.mkdir_p(web_dir)
+      FileUtils.mkdir_p(File.join(tmpdir, "config"))
+
+      File.write(File.join(tmpdir, "config", "project.yml"), <<~YAML)
+        project:
+          name: Product Template Workspace
+          slug: product-template-workspace
+          installation_id: a91d7c
+          default_environment: production
+
+        repositories:
+          api:
+            purpose: backend-api
+            name: my-super-app-api
+            path: repos/my-super-app-api
+          web:
+            purpose: frontend-web-client
+            name: my-super-app-web
+            path: repos/my-super-app-web
+
+        features:
+          cms:
+            enabled: true
+            provider: keystatic
+      YAML
+
+      File.write(File.join(web_dir, "package.json"), JSON.dump({
+        "scripts" => {
+          "dev" => "vike dev"
+        }
+      }))
+
+      fake_repos = [
+        {
+          "purpose" => "backend-api",
+          "name" => "my-super-app-api",
+          "path" => "repos/my-super-app-api"
+        },
+        {
+          "purpose" => "frontend-web-client",
+          "name" => "my-super-app-web",
+          "path" => "repos/my-super-app-web"
+        }
+      ]
+
+      Workspace.stubs(:repositories).returns(fake_repos)
+      Workspace.expects(:run).never
+      Workspace.expects(:fail_with_help).with do |summary, options|
+        summary == "CMS local dev subsystem is not wired correctly." &&
+          options[:details].include?("scripts.content")
+      end
+
+      validator = ProductTemplates::Validator.new("my-super-app", workspace_root: tmpdir)
+
+      assert_equal 1, validator.call
     end
   end
 
