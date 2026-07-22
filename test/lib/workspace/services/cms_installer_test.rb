@@ -68,16 +68,26 @@ class CmsInstallerTest < Minitest::Test
       assert_equal "git", cms.fetch("publishing")
 
       package = JSON.parse(File.read(File.join(root, "repos", "web-template", "package.json")))
-      assert_equal "^5.0.0", package.fetch("dependencies").fetch("@keystatic/core")
+      assert_equal true, package.fetch("private")
+      assert_includes package.fetch("workspaces"), "packages/*"
+      assert_equal "^0.6.0", package.fetch("dependencies").fetch("@keystatic/core")
+      assert_equal "npm run --workspace=@workspace/keystatic-admin dev", package.fetch("scripts").fetch("content")
+      assert_equal "npm run --workspace=@workspace/keystatic-admin build", package.fetch("scripts").fetch("content:build")
+      assert_equal "concurrently --kill-others-on-fail --names vike,content \"npm run dev\" \"npm run content\"", package.fetch("scripts").fetch("dev:content")
       assert_equal "tsx src/content/validate-content.ts", package.fetch("scripts").fetch("content:check")
 
       assert File.exist?(File.join(root, "repos", "web-template", "keystatic.config.ts"))
       assert File.exist?(File.join(root, "repos", "web-template", "src", "content", "validate-content.ts"))
       assert File.exist?(File.join(root, "repos", "web-template", "bin", "content"))
       assert File.exist?(File.join(root, "repos", "web-template", "bin", "content-check"))
+      assert File.exist?(File.join(root, "repos", "web-template", "packages", "keystatic-admin", "package.json"))
+      assert File.exist?(File.join(root, "repos", "web-template", "packages", "keystatic-admin", "astro.config.mjs"))
+      assert File.exist?(File.join(root, "repos", "web-template", "packages", "keystatic-admin", "keystatic.config.ts"))
+      assert File.exist?(File.join(root, "repos", "web-template", "packages", "keystatic-admin", "src", "pages", "index.astro"))
       assert File.exist?(File.join(root, "repos", "web-template", "content", "articles", "hello-world", "index.yaml"))
       assert File.exist?(File.join(root, "repos", "web-template", "content", "articles", "hello-world", "body.mdoc"))
       assert File.exist?(File.join(root, "docs", "content-authoring.md"))
+      assert File.exist?(File.join(root, "docs", "local-cms-subsystem.md"))
     end
   end
 
@@ -246,9 +256,14 @@ class CmsInstallerTest < Minitest::Test
       assert_equal 0, installer.call(provider: "keystatic")
 
       package = JSON.parse(File.read(File.join(root, "repos", "web-template", "package.json")))
-      assert_equal "^5.0.0", package.fetch("dependencies").fetch("@keystatic/core")
+      assert_equal true, package.fetch("private")
+      assert_includes package.fetch("workspaces"), "packages/*"
+      assert_equal "^0.6.0", package.fetch("dependencies").fetch("@keystatic/core")
+      assert_equal "^9.2.1", package.fetch("devDependencies").fetch("concurrently")
       assert_equal "^4.20.5", package.fetch("devDependencies").fetch("tsx")
-      assert_equal "vike dev", package.fetch("scripts").fetch("content")
+      assert_equal "npm run --workspace=@workspace/keystatic-admin dev", package.fetch("scripts").fetch("content")
+      assert_equal "npm run --workspace=@workspace/keystatic-admin build", package.fetch("scripts").fetch("content:build")
+      assert_equal "concurrently --kill-others-on-fail --names vike,content \"npm run dev\" \"npm run content\"", package.fetch("scripts").fetch("dev:content")
       assert_equal "tsx src/content/validate-content.ts", package.fetch("scripts").fetch("content:check")
     end
   end

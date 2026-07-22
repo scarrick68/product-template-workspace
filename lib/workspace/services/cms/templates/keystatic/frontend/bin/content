@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Editor:  http://localhost:3000/keystatic"
-echo "Preview: http://localhost:3000/articles"
+echo "Keystatic: http://127.0.0.1:4322/keystatic"
+echo "Site:      http://localhost:3000 (run npm run dev in another terminal)"
 npm run content

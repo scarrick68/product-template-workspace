@@ -7,10 +7,57 @@ Command and path references below assume you are already in the frontend reposit
 ## Workflow
 
 1. Run `bin/content` from the frontend app repo.
-2. Open the local editor at `http://localhost:3000/keystatic`.
-3. Preview routes under `http://localhost:3000/articles`.
+2. Open the local editor at `http://127.0.0.1:4322/keystatic`.
+3. Preview public article routes at `http://localhost:3000/articles`.
 4. Run `bin/content-check` from the frontend app repo.
 5. Commit content changes and open a pull request. The local CMS writes to the frontend repo file system. A status flag, a pull request and a FE deployment are the publishing gate mechanisms for content changes to be deployed to production.
+
+`bin/content` starts both servers for convenience:
+
+- Keystatic admin: `http://127.0.0.1:4322/keystatic`
+
+For full-stack authoring sessions, run `npm run dev:content`.
+
+Keystatic is hosted by a nested local Astro app workspace under `packages/keystatic-admin`. This keeps CMS admin routing out of Vike route configuration while still writing content directly into the frontend repository.
+
+## Local CMS Subsystem Structure
+
+Frontend root keeps the public site and content validator:
+
+- `keystatic.config.ts`
+- `src/content/validate-content.ts`
+- `content/articles/*/index.yaml`
+- `content/articles/*/body.mdoc`
+
+Nested admin workspace hosts only the local CMS UI and routes:
+
+- `packages/keystatic-admin/package.json`
+- `packages/keystatic-admin/astro.config.mjs`
+- `packages/keystatic-admin/keystatic.config.ts`
+- `packages/keystatic-admin/src/pages/index.astro`
+
+Root `package.json` scripts are the operational interface:
+
+- `npm run dev` -> Vike only
+- `npm run content` -> Keystatic admin only
+- `npm run dev:content` -> Vike + Keystatic in one command
+- `npm run content:check` -> content validation only
+
+## Local CMS Operations
+
+Recommended daily operation:
+
+1. Start Vike app: `npm run dev`
+2. Start Keystatic admin in a second terminal: `npm run content`
+3. Edit content in Keystatic and validate with `npm run content:check`
+
+Optional one-terminal workflow:
+
+1. Run `npm run dev:content`
+2. Open Vike at `http://localhost:3000`
+3. Open Keystatic at `http://127.0.0.1:4322/keystatic`
+
+`bin/workspace repository verify <product-slug>` runs a workspace-level reachability check when CMS is enabled, which confirms both dev URLs are reachable.
 
 Keystatic stores each article in a directory, with structured fields in `index.yaml` and body content in `body.mdoc`:
 
