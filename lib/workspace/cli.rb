@@ -3,6 +3,7 @@
 require_relative "../workspace"
 require_relative "context"
 require_relative "commands/new_project"
+require_relative "commands/cms"
 require_relative "commands/credentials"
 require_relative "commands/repository"
 require_relative "commands/infra"
@@ -13,6 +14,7 @@ module Workspace
     class Runner
       COMMANDS = {
         "new-project" => Workspace::Commands::NewProject,
+        "cms" => Workspace::Commands::Cms,
         "credentials" => Workspace::Commands::Credentials,
         "repository" => Workspace::Commands::Repository,
         "infra" => Workspace::Commands::Infra,
@@ -50,7 +52,7 @@ module Workspace
         end
 
         stderr.puts("Usage: bin/workspace <command> [options]")
-        stderr.puts("Commands: new-project, credentials, repository, infra, prod-local")
+        stderr.puts("Commands: new-project, cms, credentials, repository, infra, prod-local")
         1
       end
 

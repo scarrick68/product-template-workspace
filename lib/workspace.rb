@@ -97,6 +97,24 @@ module Workspace
     File.join(root, repo.fetch("path"))
   end
 
+  def repository_for_purpose(purpose, context: nil)
+    repositories(context: context).find { |repo| repo["purpose"].to_s == purpose.to_s }
+  end
+
+  def repo_root_for_purpose(purpose, context: nil)
+    repo = repository_for_purpose(purpose, context: context)
+    return nil if repo.nil?
+
+    repo_path(repo, context: context)
+  end
+
+  def repo_root_for_purpose!(purpose, context: nil)
+    root = repo_root_for_purpose(purpose, context: context)
+    return root unless root.nil?
+
+    raise ArgumentError, "Could not locate repository (purpose: #{purpose}) in config/project.yml"
+  end
+
   def existing_repositories(context: nil)
     repositories(context: context).select { |repo| Dir.exist?(repo_path(repo, context: context)) }
   end
