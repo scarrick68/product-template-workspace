@@ -59,6 +59,19 @@ class WorkspaceCliTest < Minitest::Test
     assert_equal 0, exit_code
   end
 
+  def test_dispatches_to_cms_command_group
+    command = mock("cms_command")
+    Workspace::Commands::Cms.expects(:new).with(
+      ["add"],
+      has_entries(stderr: kind_of(IO), stdout: kind_of(IO), stdin: kind_of(IO))
+    ).returns(command)
+    command.expects(:call).returns(0)
+
+    exit_code = Workspace::CLI::Runner.new(["cms", "add"]).call
+
+    assert_equal 0, exit_code
+  end
+
   def test_dispatches_to_prod_local_command
     command = mock("prod_local_command")
     Workspace::Commands::ProdLocal.expects(:new).with(

@@ -17,7 +17,11 @@ module ProductTemplates
           return Result.new(name: check.name, passed: false, note: "missing #{check.directory_label}")
         end
 
-        passed = Workspace.run(check.command, chdir: check.directory, allow_failure: true)
+        passed = if check.callable
+                   check.callable.call
+                 else
+                   Workspace.run(check.command, chdir: check.directory, allow_failure: true)
+                 end
         Result.new(name: check.name, passed: passed, note: passed ? "passed" : "failed")
       end
     end

@@ -4,12 +4,18 @@
 require "optparse"
 require_relative "../../workspace"
 require_relative "../context"
+require_relative "cms/options"
 require_relative "template_workspace_generator"
 require_relative "init_new_project"
 
 module Workspace
   module Services
     class NewProject
+      PROVIDER_USAGE = Workspace::Services::Cms::Options::SUPPORTED_PROVIDERS.join("|")
+      FLAGS_USAGE = "[--cms=#{PROVIDER_USAGE}] [--with-cms]".freeze
+      ENABLE_OPTION_DESCRIPTION = "Enable optional local CMS provider (#{PROVIDER_USAGE})".freeze
+      WITH_CMS_OPTION_DESCRIPTION = "Alias for --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER}".freeze
+
       def initialize(argv, stdin: $stdin, stdout: $stdout)
         @argv = argv.dup
         @stdin = stdin
@@ -60,6 +66,7 @@ module Workspace
       def parse_options
         options = {
           destination: nil,
+          cms_provider: nil,
           forwarded_args: []
         }
 
@@ -68,6 +75,14 @@ module Workspace
         parser = OptionParser.new do |opts|
           opts.on("--destination PATH", "--dest PATH", "Path for generated workspace copy") do |path|
             options[:destination] = path
+          end
+
+          opts.on("--cms=PROVIDER", ENABLE_OPTION_DESCRIPTION) do |provider|
+            options[:cms_provider] = provider.to_s.strip.downcase
+          end
+
+          opts.on("--with-cms", WITH_CMS_OPTION_DESCRIPTION) do
+            options[:cms_provider] = Workspace::Services::Cms::Options::WITH_CMS_PROVIDER
           end
 
           opts.on("-h", "--help", "Show usage") do
@@ -80,14 +95,23 @@ module Workspace
         options[:product_slug] = args.shift
         options[:forwarded_args] = args
 
+        if options[:cms_provider]
+          unless Workspace::Services::Cms::Options.supported_provider?(options[:cms_provider])
+            raise OptionParser::InvalidArgument,
+                  "Unsupported CMS provider '#{options[:cms_provider]}'. Use one of: #{Workspace::Services::Cms::Options::SUPPORTED_PROVIDERS.join(', ')}"
+          end
+
+          options[:forwarded_args] = ["--cms=#{options[:cms_provider]}"] + options[:forwarded_args]
+        end
+
         options
       rescue OptionParser::ParseError => e
         Workspace.fail_with_help(
           "Invalid new_project options.",
           details: e.message,
           fixes: [
-            "Usage: bin/new_project [--destination PATH] <product-slug> -- [init_new_project flags...]",
-            "Example: bin/new_project --destination ~/Code/my-super-app my-super-app -- --no-dev"
+            "Usage: bin/new_project [--destination PATH] #{FLAGS_USAGE} <product-slug> -- [init_new_project flags...]",
+            "Example: bin/new_project --destination ~/Code/my-super-app --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER} my-super-app -- --no-dev"
           ]
         )
         nil
@@ -142,11 +166,12 @@ module Workspace
       def usage
         Workspace.fail_with_help(
           "Missing or invalid product slug.",
-          details: "Usage: bin/new_project [--destination PATH] <product-slug> -- [init_new_project flags...]",
+          details: "Usage: bin/new_project [--destination PATH] #{FLAGS_USAGE} <product-slug> -- [init_new_project flags...]",
           fixes: [
             "Use kebab-case product slug (example: my-super-app).",
             "Run: bin/new_project my-super-app",
             "Optionally set destination: bin/new_project --destination ~/Code/my-super-app my-super-app",
+            "Enable local CMS at setup time with --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER} (or --with-cms).",
             "Forward flags to init_new_project after --, for example: -- --no-dev"
           ]
         )

@@ -2,11 +2,16 @@
 # frozen_string_literal: true
 
 require "optparse"
+require_relative "cms/options"
 
 module Workspace
   module Services
     class InitNewProjectOptions
-      USAGE_TEXT = "bin/init_new_project <product-slug> [--no-dev] [--skip-setup-tools] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push]".freeze
+      PROVIDER_USAGE = Workspace::Services::Cms::Options::SUPPORTED_PROVIDERS.join("|")
+      FLAGS_USAGE = "[--cms=#{PROVIDER_USAGE}] [--with-cms]".freeze
+      ENABLE_OPTION_DESCRIPTION = "Enable optional local CMS provider (#{PROVIDER_USAGE})".freeze
+      WITH_CMS_OPTION_DESCRIPTION = "Alias for --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER}".freeze
+      USAGE_TEXT = "bin/init_new_project <product-slug> [--no-dev] [--skip-setup-tools] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push] #{FLAGS_USAGE}".freeze
 
       attr_reader :product_slug, :visibility, :failure_summary, :failure_details, :failure_fixes
 
@@ -28,6 +33,8 @@ module Workspace
         @visibility = nil
         @push_after_setup = true
         @push_explicit = false
+        @cms_provider = Workspace::Services::Cms::Options::DEFAULT_PROVIDER
+        @cms_provider_explicit = false
         @help_requested = false
 
         # Internal parse markers used to detect mutually exclusive flag combinations.
@@ -101,6 +108,18 @@ module Workspace
         @push_explicit
       end
 
+      def cms_provider
+        @cms_provider
+      end
+
+      def cms_provider_explicit?
+        @cms_provider_explicit
+      end
+
+      def cms_enabled?
+        cms_provider != Workspace::Services::Cms::Options::DEFAULT_PROVIDER
+      end
+
       private
 
       attr_reader :argv, :stdout
@@ -142,6 +161,16 @@ module Workspace
             @saw_push = true
             @push_after_setup = true
             @push_explicit = true
+          end
+
+          opts.on("--cms=PROVIDER", ENABLE_OPTION_DESCRIPTION) do |provider|
+            @cms_provider = provider.to_s.strip.downcase
+            @cms_provider_explicit = true
+          end
+
+          opts.on("--with-cms", WITH_CMS_OPTION_DESCRIPTION) do
+            @cms_provider = Workspace::Services::Cms::Options::WITH_CMS_PROVIDER
+            @cms_provider_explicit = true
           end
 
           opts.on("-h", "--help", "Show help") do
@@ -189,6 +218,19 @@ module Workspace
             "Conflicting push flags.",
             details: "Use either --push or --no-push, not both.",
             fixes: ["Choose one push option and rerun the command."]
+          )
+          return false
+        end
+
+        unless Workspace::Services::Cms::Options.supported_provider?(@cms_provider)
+          set_failure(
+            "Unsupported CMS provider.",
+            details: "Supported CMS providers: #{Workspace::Services::Cms::Options::SUPPORTED_PROVIDERS.join(', ')}",
+            fixes: [
+              "Use --cms=#{Workspace::Services::Cms::Options::DEFAULT_PROVIDER} for the default no-CMS project setup.",
+              "Use --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER} to install the local CMS feature pack.",
+              "Use --with-cms as a shortcut for --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER}."
+            ]
           )
           return false
         end

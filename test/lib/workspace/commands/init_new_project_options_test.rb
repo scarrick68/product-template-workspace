@@ -16,6 +16,32 @@ class InitNewProjectOptionsTest < Minitest::Test
     assert_equal false, options.assume_repos_ready?
     assert_equal false, options.create_remotes?
     assert_equal true, options.push_after_setup?
+    assert_equal "none", options.cms_provider
+    assert_equal false, options.cms_enabled?
+  end
+
+  def test_parses_keystatic_cms_provider
+    options = Workspace::Services::InitNewProjectOptions.parse(["my-super-app", "--cms=keystatic"], stdout: StringIO.new)
+
+    assert options.valid?
+    assert_equal "keystatic", options.cms_provider
+    assert_equal true, options.cms_enabled?
+    assert_equal true, options.cms_provider_explicit?
+  end
+
+  def test_parses_with_cms_alias
+    options = Workspace::Services::InitNewProjectOptions.parse(["my-super-app", "--with-cms"], stdout: StringIO.new)
+
+    assert options.valid?
+    assert_equal "keystatic", options.cms_provider
+    assert_equal true, options.cms_enabled?
+  end
+
+  def test_reports_invalid_for_unsupported_cms_provider
+    options = Workspace::Services::InitNewProjectOptions.parse(["my-super-app", "--cms=sanity"], stdout: StringIO.new)
+
+    assert_equal false, options.valid?
+    assert_equal "Unsupported CMS provider.", options.failure_summary
   end
 
   def test_reports_invalid_when_slug_missing

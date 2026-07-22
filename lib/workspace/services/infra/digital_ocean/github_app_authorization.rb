@@ -29,6 +29,7 @@ module Workspace
 
             stdout.puts
             stdout.puts("Press Enter after granting repository access.")
+            stdout.puts("If it says 'Configure' next to the GitHub account you would like to connect to DigitalOcean, that account is likely already connected. You may continue with this setup flow.")
             stdin.gets
 
             prompt.yes?("Did you grant DigitalOcean access to all listed repositories?", default: true)

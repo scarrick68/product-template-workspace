@@ -7,6 +7,7 @@ require "yaml"
 require_relative "../../workspace"
 require_relative "../context"
 require_relative "bootstrap"
+require_relative "cms/installer"
 require_relative "doctor"
 require_relative "github_repository_setup"
 require_relative "init_new_project_options"
@@ -70,6 +71,7 @@ module Workspace
         return 1 unless remote_setup.success?
 
         return 1 unless step_runner.ruby("Rename templates for new project") { Workspace::Services::RenameProductCommand.new([product_slug], context: context).call }
+        return 1 unless install_optional_cms_if_enabled(options)
         return 1 unless step_runner.ruby("Post-rename validation (tests/build checks)") { Workspace::Services::ValidateProduct.new([product_slug], context: context, stdin: stdin, stdout: stdout).call }
         return 1 unless repository_remote_setup.call(remote_setup)
 
@@ -138,6 +140,18 @@ module Workspace
         project["installation_id"] = installation_id
         File.write(path, YAML.dump(manifest))
         Workspace.info("Assigned project installation_id: #{installation_id}")
+      end
+
+      def install_optional_cms_if_enabled(options)
+        return true unless options.cms_enabled?
+
+        step_runner.ruby("Install optional CMS feature (#{options.cms_provider})") do
+          cms_installer.call(provider: options.cms_provider)
+        end
+      end
+
+      def cms_installer
+        @cms_installer ||= Workspace::Services::Cms::Installer.new(context: context, stdin: stdin, stdout: stdout)
       end
 
       def generate_installation_id

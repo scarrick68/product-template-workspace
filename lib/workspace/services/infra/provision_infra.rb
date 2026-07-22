@@ -49,38 +49,6 @@ module Workspace
           @argv = argv.dup
           @stdin = stdin
           @stdout = stdout
-          @prompt = TTY::Prompt.new(input: @stdin, output: @stdout)
-          @secrets_resolver = Workspace::Secrets::Resolver.new(stdout: @stdout, stdin: @stdin)
-          @credentials = Workspace::Services::Infra::Credentials.new(secrets_resolver: @secrets_resolver)
-          @manifest_configuration = Workspace::Services::Infra::ManifestConfiguration.new(root: Workspace::ROOT)
-          @blob_storage_manager = Workspace::Services::Infra::BlobStorageManager.new(
-            manifest_configuration: @manifest_configuration,
-            secrets_resolver: @secrets_resolver,
-            stdin: @stdin
-          )
-          @github_app_authorization = Workspace::Services::Infra::Digitalocean::GithubAppAuthorization.new(
-            prompt: @prompt,
-            stdin: @stdin,
-            stdout: @stdout
-          )
-          @terraform_workspace = Workspace::Services::Infra::TerraformWorkspace.new
-          @terraform_runner = Workspace::Services::Infra::TerraformRunner.new(workspace: @terraform_workspace)
-          @terraform_preflight = Workspace::Services::Infra::TerraformPreflight.new(workspace: @terraform_workspace)
-          @cors_origin_synchronizer = Workspace::Services::Infra::CorsOriginSynchronizer.new(
-            manifest_configuration: @manifest_configuration,
-            terraform_workspace: @terraform_workspace,
-            workspace: Workspace
-          )
-          @admin_bootstrap = Workspace::Services::Infra::Digitalocean::AdminBootstrap.new(
-            terraform_workspace: @terraform_workspace,
-            stdin: @stdin,
-            stdout: @stdout
-          )
-          @blazer_bootstrap = Workspace::Services::Infra::Digitalocean::BlazerBootstrap.new(
-            terraform_workspace: @terraform_workspace,
-            stdin: @stdin,
-            stdout: @stdout
-          )
         end
 
         def call
@@ -99,7 +67,7 @@ module Workspace
 
         private
 
-        attr_reader :argv, :stdin, :stdout, :prompt
+        attr_reader :argv, :stdin, :stdout
 
         def run_doctor(environment)
           cli_checks = Workspace::Services::Infra::Doctor::CliAvailabilityChecks.new.to_a
@@ -259,47 +227,71 @@ module Workspace
         end
 
         def manifest_configuration
-          @manifest_configuration
+          @manifest_configuration ||= Workspace::Services::Infra::ManifestConfiguration.new(root: Workspace::ROOT)
         end
 
         def credentials
-          @credentials
+          @credentials ||= Workspace::Services::Infra::Credentials.new(secrets_resolver: secrets_resolver)
         end
 
         def blob_storage_manager
-          @blob_storage_manager
+          @blob_storage_manager ||= Workspace::Services::Infra::BlobStorageManager.new(
+            manifest_configuration: manifest_configuration,
+            secrets_resolver: secrets_resolver,
+            stdin: stdin
+          )
         end
 
         def terraform_workspace
-          @terraform_workspace
+          @terraform_workspace ||= Workspace::Services::Infra::TerraformWorkspace.new
         end
 
         def terraform_runner
-          @terraform_runner
+          @terraform_runner ||= Workspace::Services::Infra::TerraformRunner.new(workspace: terraform_workspace)
         end
 
         def terraform_preflight
-          @terraform_preflight
+          @terraform_preflight ||= Workspace::Services::Infra::TerraformPreflight.new(workspace: terraform_workspace)
         end
 
         def github_app_authorization
-          @github_app_authorization
+          @github_app_authorization ||= Workspace::Services::Infra::Digitalocean::GithubAppAuthorization.new(
+            prompt: prompt,
+            stdin: stdin,
+            stdout: stdout
+          )
         end
 
         def cors_origin_synchronizer
-          @cors_origin_synchronizer
+          @cors_origin_synchronizer ||= Workspace::Services::Infra::CorsOriginSynchronizer.new(
+            manifest_configuration: manifest_configuration,
+            terraform_workspace: terraform_workspace,
+            workspace: Workspace
+          )
         end
 
         def admin_bootstrap
-          @admin_bootstrap
+          @admin_bootstrap ||= Workspace::Services::Infra::Digitalocean::AdminBootstrap.new(
+            terraform_workspace: terraform_workspace,
+            stdin: stdin,
+            stdout: stdout
+          )
         end
 
         def blazer_bootstrap
-          @blazer_bootstrap
+          @blazer_bootstrap ||= Workspace::Services::Infra::Digitalocean::BlazerBootstrap.new(
+            terraform_workspace: terraform_workspace,
+            stdin: stdin,
+            stdout: stdout
+          )
         end
 
         def secrets_resolver
-          @secrets_resolver
+          @secrets_resolver ||= Workspace::Secrets::Resolver.new(stdout: stdout, stdin: stdin)
+        end
+
+        def prompt
+          @prompt ||= TTY::Prompt.new(input: stdin, output: stdout)
         end
       end
     end

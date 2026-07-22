@@ -41,6 +41,33 @@ class InitNewProjectTest < Minitest::Test
     end
   end
 
+  def test_skips_optional_cms_install_when_disabled
+    options = Struct.new(:cms_enabled?, :cms_provider).new(false, "none")
+    service = Workspace::Services::InitNewProject.new(["my-super-app"])
+
+    step_runner = mock("step_runner")
+    step_runner.expects(:ruby).never
+    service.stubs(:step_runner).returns(step_runner)
+
+    assert_equal true, service.send(:install_optional_cms_if_enabled, options)
+  end
+
+  def test_runs_optional_cms_install_step_when_enabled
+    options = Struct.new(:cms_enabled?, :cms_provider).new(true, "keystatic")
+    service = Workspace::Services::InitNewProject.new(["my-super-app"])
+
+    installer = mock("cms_installer")
+    installer.expects(:call).with(provider: "keystatic").returns(0)
+
+    step_runner = mock("step_runner")
+    step_runner.expects(:ruby).with("Install optional CMS feature (keystatic)").yields.returns(true)
+
+    service.stubs(:cms_installer).returns(installer)
+    service.stubs(:step_runner).returns(step_runner)
+
+    assert_equal true, service.send(:install_optional_cms_if_enabled, options)
+  end
+
   private
 
   def write_manifest(root, installation_id:)
