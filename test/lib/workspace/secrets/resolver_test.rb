@@ -82,22 +82,11 @@ class SecretsResolverTest < Minitest::Test
     assert_empty adapter.writes
   end
 
-  def test_returns_existing_workspace_token_when_approved
+  def test_returns_existing_workspace_token_without_prompting
     adapter = FakeWorkspaceAdapter.new(
       { "DIGITALOCEAN_ACCESS_TOKEN" => "workspace-token" }
     )
-    prompt = mock("prompt")
-
-    prompt.expects(:yes?).with(
-      "Use existing DigitalOcean access token from workspace credentials?",
-      default: true
-    ).returns(true)
-
-    prompt.expects(:mask).never
-    prompt.expects(:ask).never
-    prompt.expects(:say).with(
-      "Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials."
-    )
+    prompt = strict_prompt
 
     resolver = build_resolver(adapter: adapter, prompt: prompt)
 
@@ -105,46 +94,7 @@ class SecretsResolverTest < Minitest::Test
       "workspace-token",
       resolver.digitalocean_token(interactive: true)
     )
-    assert_equal(
-      [
-        ["DIGITALOCEAN_ACCESS_TOKEN", "workspace-token"]
-      ],
-      adapter.writes
-    )
-  end
-
-  def test_existing_workspace_token_can_be_replaced
-    adapter = FakeWorkspaceAdapter.new(
-      { "DIGITALOCEAN_ACCESS_TOKEN" => "workspace-token" }
-    )
-    prompt = mock("prompt")
-
-    prompt.expects(:yes?).with(
-      "Use existing DigitalOcean access token from workspace credentials?",
-      default: true
-    ).returns(false)
-
-    prompt.expects(:mask)
-      .with("DigitalOcean access token")
-      .returns("replacement-token")
-
-    prompt.expects(:say).with(
-      "Saved DIGITALOCEAN_ACCESS_TOKEN to workspace credentials."
-    )
-
-    resolver = build_resolver(adapter: adapter, prompt: prompt)
-
-    assert_equal(
-      "replacement-token",
-      resolver.digitalocean_token(interactive: true)
-    )
-
-    assert_equal(
-      [
-        ["DIGITALOCEAN_ACCESS_TOKEN", "replacement-token"]
-      ],
-      adapter.writes
-    )
+    assert_empty adapter.writes
   end
 
   def test_prompts_for_token_when_missing_and_saves

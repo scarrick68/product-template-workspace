@@ -27,6 +27,7 @@ class InfraGithubAppAuthorizationTest < Minitest::Test
     assert_includes stdout.string, "Configuring DigitalOcean App Platform source access"
     assert_includes stdout.string, "org/api"
     assert_includes stdout.string, "org/web"
+    assert_includes stdout.string, "If it says 'Configure' next to the GitHub account you would like to connect to DigitalOcean"
   end
 
   def test_returns_false_when_user_skips_opening_authorization
