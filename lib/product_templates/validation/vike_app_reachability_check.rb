@@ -23,8 +23,13 @@ module ProductTemplates
         @stderr = stderr
       end
 
-      def call
-        wait_for_url(url: url, label: "vike dev")
+      def call(process_alive: nil, process_failure: nil)
+        wait_for_url(
+          url: url,
+          label: "vike dev",
+          process_alive: process_alive,
+          process_failure: process_failure
+        )
       end
 
       private
@@ -50,16 +55,25 @@ module ProductTemplates
         false
       end
 
-      def wait_for_url(url:, label:)
-        deadline = Time.now + timeout_seconds
+      def wait_for_url(url:, label:, process_alive:, process_failure:)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout_seconds
+        attempt = 0
 
         loop do
+          attempt += 1
+          stdout.puts "[info] Connecting to Vike web app: attempt #{attempt}"
+
           if http_ok?
             stdout.puts "[ok] #{label} reachable: #{url}"
             return true
           end
 
-          if Time.now >= deadline
+          if process_alive && !process_alive.call
+            process_failure&.call
+            return false
+          end
+
+          if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
             stderr.puts "[error] #{label} not reachable: #{url}"
             return false
           end

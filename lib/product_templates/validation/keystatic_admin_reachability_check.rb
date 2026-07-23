@@ -23,8 +23,13 @@ module ProductTemplates
         @stderr = stderr
       end
 
-      def call
-        wait_for_url(url: url, label: "keystatic admin")
+      def call(process_alive: nil, process_failure: nil)
+        wait_for_url(
+          url: url,
+          label: "keystatic admin",
+          process_alive: process_alive,
+          process_failure: process_failure
+        )
       end
 
       private
@@ -50,8 +55,8 @@ module ProductTemplates
         false
       end
 
-      def wait_for_url(url:, label:)
-        deadline = Time.now + timeout_seconds
+      def wait_for_url(url:, label:, process_alive:, process_failure:)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout_seconds
 
         loop do
           if http_ok?
@@ -59,7 +64,12 @@ module ProductTemplates
             return true
           end
 
-          if Time.now >= deadline
+          if process_alive && !process_alive.call
+            process_failure&.call
+            return false
+          end
+
+          if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
             stderr.puts "[error] #{label} not reachable: #{url}"
             return false
           end
