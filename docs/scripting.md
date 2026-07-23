@@ -132,6 +132,8 @@ Use scripts in three categories to avoid overlap and confusion. These are only h
 - `bin/workspace repository rename`: perform template rename orchestration only.
 - `bin/workspace repository verify`: run post-rename validation checks and checklist.
 - `bin/workspace infra <doctor|configure|plan|apply>`: infrastructure workflows for DigitalOcean Terraform/OpenTofu provisioning. See `../infra/digitalocean_v2/README.md` for launch flow details.
+- `bin/workspace infra digitalocean resources --environment=production`: inspect matching DO project/account resources before destructive cleanup.
+- `bin/workspace infra digitalocean purge --environment=production [--confirm-project=<name>] [--yes]`: emergency-only destructive cleanup helper for stuck resources; in typical one-project-per-environment setups this effectively tears down that environment, so do not use for normal live operations.
 
 ## Notes
 

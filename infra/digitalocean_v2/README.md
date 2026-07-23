@@ -83,6 +83,30 @@ flowchart TD
 - `bin/workspace infra plan production` and `bin/workspace infra apply production`
 	- Run terraform init then selected action using generated tfvars.
 
+## Emergency DigitalOcean Resource Destruction
+
+These DigitalOcean commands are **not** part of normal day-to-day infra operations.
+Use them only when resources are stuck and you want to destroy everything (EVERYTHING, DATA INCLUDED) in some kind of initial test launch. (for example, Terraform can no longer destroy a dependency cleanly bc you deleted TF references to it or edited TF and it doesn't work normally anymore).
+These are dangerous tools and you are responsible for understanding the consequences of running them. Use at your own risk. We are not responsible for any data loss or downtime caused by running these commands.
+
+- Inventory matching DigitalOcean resources before destructive actions:
+	- `bin/workspace infra digitalocean resources --environment=production`
+- Purge matching resources (destructive emergency command):
+	- `bin/workspace infra digitalocean purge --environment=production`
+	- `bin/workspace infra digitalocean purge --environment=production --confirm-project=my-super-app --yes`
+
+Scope note:
+
+- Purge targets the DigitalOcean project resolved from the selected `--environment` and deletes that project plus matched app/database resources and the configured Spaces bucket.
+- In the standard one-project-per-environment setup, this is effectively a full teardown of that environment's managed DigitalOcean resources.
+
+Safety guidance:
+
+- Avoid running purge against already-live applications unless you are intentionally tearing down that environment. It will tear everything down. Your whole app will be gone.
+- Purge now requires an explicit destructive confirmation (`type yes` interactively, or `--yes` for non-interactive execution).
+- The purge flow uses force/non-interactive deletion flags after confirmation so it does not repeatedly stop for additional prompts.
+- Known DigitalOcean Spaces caveat: bucket deletion can be queued for a long period; while queued, the bucket name cannot be reused. This can cause both Terraform and emergency purge workflows to fail when trying to immediately re-provision with the same bucket name.
+
 ## Launch Guide
 
 Recommended production flow:

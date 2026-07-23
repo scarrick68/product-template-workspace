@@ -43,6 +43,7 @@ module Workspace
           inventory = build_inventory(environment: environment).call
 
           print_summary(inventory)
+          print_destructive_warning
 
           expected_project_name = inventory.fetch(:project).fetch("name")
           confirmation = options.fetch(:confirm_project, nil)
@@ -52,6 +53,8 @@ module Workspace
             Workspace.info("DigitalOcean purge cancelled.")
             return 1
           end
+
+          return 1 unless destructive_confirmation_accepted?(options)
 
           build_purger(environment: environment, inventory: inventory).call
           Workspace.ok("DigitalOcean resources deleted.")
@@ -85,14 +88,38 @@ module Workspace
             opts.on("--confirm-project=NAME", "Non-interactive confirmation token") do |value|
               options[:confirm_project] = value.to_s.strip
             end
+            opts.on("--yes", "Confirm destructive purge without interactive yes prompt") do
+              options[:yes] = true
+            end
           end
 
           parser.parse!(arguments)
           options
         rescue OptionParser::InvalidOption => e
           stderr.puts(e.message)
-          stderr.puts("Usage: bin/workspace infra digitalocean purge [--environment=production] [--confirm-project=my-super-app]")
+          stderr.puts("Usage: bin/workspace infra digitalocean purge [--environment=production] [--confirm-project=my-super-app] [--yes]")
           { exit_code: 1 }
+        end
+
+        def destructive_confirmation_accepted?(options)
+          return true if options.fetch(:yes, false)
+
+          if interactive_input?
+            response = prompt.ask("DANGER: This will permanently delete infra resources. Type 'yes' to continue:").to_s.strip.downcase
+            return true if response == "yes"
+
+            Workspace.info("DigitalOcean purge cancelled.")
+            return false
+          end
+
+          Workspace.fail_with_help(
+            "DigitalOcean purge requires explicit --yes confirmation.",
+            fixes: [
+              "Re-run with --yes when you are certain this environment is safe to purge.",
+              "Use --confirm-project=<expected-project-name> to prevent deleting the wrong project."
+            ]
+          )
+          false
         end
 
         def export_digitalocean_token!
@@ -237,6 +264,13 @@ module Workspace
 
           Workspace.warn("Spaces bucket: #{inventory.fetch(:spaces_bucket_name)}")
           Workspace.warn("Project: #{inventory.fetch(:project).fetch('name')}")
+        end
+
+        def print_destructive_warning
+          Workspace.section("DANGER")
+          Workspace.warn("This command is for teardown/destruction only, not normal operations.")
+          Workspace.warn("Do not run against a live application unless you are intentionally tearing down infra. ALL DATA WILL BE LOST.")
+          Workspace.warn("Spaces bucket deletion can be delayed by DigitalOcean; bucket names may remain unavailable during queued deletion. This may temporarily affect future project creation if the same bucket name is used.")
         end
 
         def interactive_input?
