@@ -72,6 +72,7 @@ module Workspace
 
         return 1 unless step_runner.ruby("Rename templates for new project") { Workspace::Services::RenameProductCommand.new([product_slug], context: context).call }
         return 1 unless install_optional_cms_if_enabled(options)
+        return 1 unless install_cms_frontend_dependencies_if_enabled(options)
         return 1 unless step_runner.ruby("Post-rename validation (tests/build checks)") { Workspace::Services::ValidateProduct.new([product_slug], context: context, stdin: stdin, stdout: stdout).call }
         return 1 unless repository_remote_setup.call(remote_setup)
 
@@ -147,6 +148,30 @@ module Workspace
 
         step_runner.ruby("Install optional CMS feature (#{options.cms_provider})") do
           cms_installer.call(provider: options.cms_provider)
+        end
+      end
+
+      def install_cms_frontend_dependencies_if_enabled(options)
+        return true unless options.cms_enabled?
+
+        frontend_relative_path = repository_path_for(FRONTEND_PURPOSE) || "repos/#{options.product_slug}-web"
+        frontend_root = context.path(frontend_relative_path)
+
+        step_runner.ruby("Install frontend dependencies for CMS feature") do
+          installed = Workspace.run(
+            "npm install",
+            chdir: frontend_root,
+            allow_failure: true,
+            summary: "Failed to install frontend dependencies for CMS feature.",
+            details: "Command: npm install | Directory: #{frontend_root}",
+            fixes: [
+              "Run npm install manually in #{frontend_relative_path}.",
+              "Resolve dependency/auth/network issues, then re-run bin/init_new_project.",
+              "After install succeeds, rerun validation with bin/workspace repository verify #{options.product_slug}."
+            ]
+          )
+
+          installed ? 0 : 1
         end
       end
 

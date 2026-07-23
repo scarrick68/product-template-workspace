@@ -6,6 +6,11 @@ require_relative "../../test_helper"
 require_relative "../../../lib/product_templates/validator"
 
 class ProductTemplatesValidatorTest < Minitest::Test
+  def setup
+    reachability = stub(call: true)
+    ProductTemplates::Validation::ContentReachability.stubs(:new).returns(reachability)
+  end
+
   def test_happy_path_uses_purpose_paths_for_validation
     Dir.mktmpdir do |tmpdir|
       api_dir = File.join(tmpdir, "repos", "my-super-app-api")
@@ -41,6 +46,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
         chdir: tmpdir,
         allow_failure: true
       ).returns(true)
+      ProductTemplates::Validation::ContentReachability.expects(:new).never
 
       validator = ProductTemplates::Validator.new("my-super-app", workspace_root: tmpdir)
 
@@ -125,11 +131,13 @@ class ProductTemplatesValidatorTest < Minitest::Test
       ProductTemplates::Validation::ContentReachability.expects(:new).with(
         root: web_dir,
         target: :vike,
+        stdin: instance_of(IO),
         stdout: instance_of(IO)
       ).returns(vike_check)
       ProductTemplates::Validation::ContentReachability.expects(:new).with(
         root: web_dir,
         target: :keystatic,
+        stdin: instance_of(IO),
         stdout: instance_of(IO)
       ).returns(keystatic_check)
 
@@ -496,11 +504,18 @@ class ProductTemplatesValidatorTest < Minitest::Test
       Workspace.stubs(:warn)
       Workspace.stubs(:info)
       Workspace.stubs(:command_exists?).with("docker").returns(true)
-      Workspace.stubs(:command_exists?).with("open").returns(true)
 
       sequence = sequence("validator-daemon-drop-recovery-sequence")
 
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
+      Workspace.expects(:ensure_docker_daemon_running)
+               .with(
+                 has_entries(
+                   wait_attempts: 30,
+                    wait_interval: 1
+                 )
+               )
+               .in_sequence(sequence)
+               .returns(true)
       Workspace.expects(:capture).with("lsof -tiTCP:9200 -sTCP:LISTEN").in_sequence(sequence).returns(["", false])
       Workspace.expects(:capture)
                .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
@@ -510,9 +525,17 @@ class ProductTemplatesValidatorTest < Minitest::Test
                .with("docker compose up -d opensearch", chdir: api_dir)
                .in_sequence(sequence)
                .returns(["Cannot connect to the Docker daemon", false])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
+      Workspace.expects(:docker_daemon_running?).in_sequence(sequence).returns(false)
+      Workspace.expects(:ensure_docker_daemon_running)
+               .with(
+                 has_entries(
+                   wait_attempts: 30,
+                   wait_interval: 1,
+                   launch_if_not_running: false
+                 )
+               )
+               .in_sequence(sequence)
+               .returns(true)
       Workspace.expects(:capture)
                .with("docker compose up -d opensearch", chdir: api_dir)
                .in_sequence(sequence)
@@ -590,23 +613,18 @@ class ProductTemplatesValidatorTest < Minitest::Test
       Workspace.stubs(:warn)
       Workspace.stubs(:info)
       Workspace.stubs(:command_exists?).with("docker").returns(true)
-      Workspace.stubs(:command_exists?).with("open").returns(true)
 
       sequence = sequence("validator-single-docker-open-sequence")
 
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("pgrep -x Docker").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:run)
+      Workspace.expects(:ensure_docker_daemon_running)
                .with(
-                 "open -g -a Docker",
                  has_entries(
-                   allow_failure: true,
-                   summary: "Could not start Docker Desktop."
+                   wait_attempts: 30,
+                    wait_interval: 1
                  )
                )
                .in_sequence(sequence)
                .returns(true)
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
       Workspace.expects(:capture).with("lsof -tiTCP:9200 -sTCP:LISTEN").in_sequence(sequence).returns(["", false])
       Workspace.expects(:capture)
                .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
@@ -616,9 +634,17 @@ class ProductTemplatesValidatorTest < Minitest::Test
                .with("docker compose up -d opensearch", chdir: api_dir)
                .in_sequence(sequence)
                .returns(["Cannot connect to the Docker daemon", false])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
+      Workspace.expects(:docker_daemon_running?).in_sequence(sequence).returns(false)
+      Workspace.expects(:ensure_docker_daemon_running)
+               .with(
+                 has_entries(
+                   wait_attempts: 30,
+                   wait_interval: 1,
+                   launch_if_not_running: false
+                 )
+               )
+               .in_sequence(sequence)
+               .returns(true)
       Workspace.expects(:capture)
                .with("docker compose up -d opensearch", chdir: api_dir)
                .in_sequence(sequence)
@@ -693,13 +719,18 @@ class ProductTemplatesValidatorTest < Minitest::Test
       Workspace.stubs(:warn)
       Workspace.stubs(:info)
       Workspace.stubs(:command_exists?).with("docker").returns(true)
-      Workspace.stubs(:command_exists?).with("open").returns(true)
 
       sequence = sequence("validator-no-reopen-docker-sequence")
 
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", false])
-      Workspace.expects(:capture).with("pgrep -x Docker").in_sequence(sequence).returns(["12345\n", true])
-      Workspace.expects(:capture).with("docker info").in_sequence(sequence).returns(["", true])
+      Workspace.expects(:ensure_docker_daemon_running)
+               .with(
+                 has_entries(
+                   wait_attempts: 30,
+                    wait_interval: 1
+                 )
+               )
+               .in_sequence(sequence)
+               .returns(true)
       Workspace.expects(:capture).with("lsof -tiTCP:9200 -sTCP:LISTEN").in_sequence(sequence).returns(["", false])
       Workspace.expects(:capture)
                .with("docker ps --format '{{.ID}}|{{.Names}}' --filter publish=9200")
@@ -709,9 +740,6 @@ class ProductTemplatesValidatorTest < Minitest::Test
                .with("docker compose up -d opensearch", chdir: api_dir)
                .in_sequence(sequence)
                .returns(["", true])
-      Workspace.expects(:run)
-           .with("open -g -a Docker", has_entry(allow_failure: true))
-           .never
       Workspace.expects(:run).with("bin/ci", chdir: api_dir, allow_failure: true).in_sequence(sequence).returns(true)
       Workspace.expects(:run).with("npm run lint", chdir: web_dir, allow_failure: true).in_sequence(sequence).returns(true)
       Workspace.expects(:run).with("npm run test", chdir: web_dir, allow_failure: true).in_sequence(sequence).returns(true)

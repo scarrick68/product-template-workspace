@@ -68,6 +68,54 @@ class InitNewProjectTest < Minitest::Test
     assert_equal true, service.send(:install_optional_cms_if_enabled, options)
   end
 
+  def test_skips_cms_frontend_dependency_install_when_disabled
+    options = Struct.new(:cms_enabled?, :cms_provider, :product_slug).new(false, "none", "my-super-app")
+    service = Workspace::Services::InitNewProject.new(["my-super-app"])
+
+    step_runner = mock("step_runner")
+    step_runner.expects(:ruby).never
+    service.stubs(:step_runner).returns(step_runner)
+
+    Workspace.expects(:run).never
+
+    assert_equal true, service.send(:install_cms_frontend_dependencies_if_enabled, options)
+  end
+
+  def test_installs_cms_frontend_dependencies_when_enabled
+    options = Struct.new(:cms_enabled?, :cms_provider, :product_slug).new(true, "keystatic", "my-super-app")
+
+    Dir.mktmpdir("init-new-project") do |root|
+      context = Workspace::Context.new(root: root)
+      service = Workspace::Services::InitNewProject.new(["my-super-app"], context: context)
+
+      repositories = [
+        {
+          "purpose" => "frontend-web-client",
+          "path" => "repos/my-super-app-web"
+        }
+      ]
+      Workspace.stubs(:repositories).returns(repositories)
+
+      frontend_root = File.join(root, "repos", "my-super-app-web")
+      FileUtils.mkdir_p(frontend_root)
+
+      step_runner = mock("step_runner")
+      step_runner.expects(:ruby).with("Install frontend dependencies for CMS feature").yields.returns(true)
+      service.stubs(:step_runner).returns(step_runner)
+
+      Workspace.expects(:run).with(
+        "npm install",
+        has_entries(
+          chdir: frontend_root,
+          allow_failure: true,
+          summary: "Failed to install frontend dependencies for CMS feature."
+        )
+      ).returns(true)
+
+      assert_equal true, service.send(:install_cms_frontend_dependencies_if_enabled, options)
+    end
+  end
+
   private
 
   def write_manifest(root, installation_id:)

@@ -47,21 +47,21 @@ module ProductTemplates
       ]
 
       if cms_enabled?
-        checks.insert(4, check("WEB content check", "npm run content:check", paths.frontend_current_path, paths.frontend_current_relative_path))
-        checks.insert(5, check(
+        checks << check(
           "WEB vike dev reachability",
           nil,
           paths.frontend_current_path,
           paths.frontend_current_relative_path,
           callable: -> { cms_reachability_check(:vike) }
-        ))
-        checks.insert(6, check(
+        )
+        checks << check("WEB content check", "npm run content:check", paths.frontend_current_path, paths.frontend_current_relative_path)
+        checks << check(
           "WEB keystatic admin reachability",
           nil,
           paths.frontend_current_path,
           paths.frontend_current_relative_path,
           callable: -> { cms_reachability_check(:keystatic) }
-        ))
+        )
       end
 
       checks
@@ -171,6 +171,7 @@ module ProductTemplates
       Validation::ContentReachability.new(
         root: paths.frontend_current_path,
         target: target,
+        stdin: stdin,
         stdout: stdout
       ).call
     end
