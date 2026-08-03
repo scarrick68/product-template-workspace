@@ -1,3 +1,4 @@
 - For utility scripts, prefer well namespaced classes with matching directory tree structure, like in a Rails app
 - Use Ruby standard optparse for command line argument parsing in ruby scripts. Avoid custom argument parsing logic.
 - Do not optimize for hypothetical misuse. Optimize for the current workflow and its established preconditions.
+- Use symbol keys for in-memory domain hashes. Normalize JSON or database payloads to symbol keys once when they enter application logic, and let serialization handle conversion when persisted.
