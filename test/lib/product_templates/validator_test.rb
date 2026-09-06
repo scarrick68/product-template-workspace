@@ -15,8 +15,10 @@ class ProductTemplatesValidatorTest < Minitest::Test
     Dir.mktmpdir do |tmpdir|
       api_dir = File.join(tmpdir, "repos", "my-super-app-api")
       web_dir = File.join(tmpdir, "repos", "my-super-app-web")
+      dsml_dir = File.join(tmpdir, "repos", "my-super-app-dsml")
       FileUtils.mkdir_p(api_dir)
       FileUtils.mkdir_p(web_dir)
+      FileUtils.mkdir_p(dsml_dir)
 
       fake_repos = [
         {
@@ -30,6 +32,12 @@ class ProductTemplatesValidatorTest < Minitest::Test
           "name" => "my-super-app-web",
           "path" => "repos/my-super-app-web",
           "github" => "example-org/my-super-app-web"
+        },
+        {
+          "purpose" => "data-science-ml",
+          "name" => "my-super-app-dsml",
+          "path" => "repos/my-super-app-dsml",
+          "github" => "example-org/my-super-app-dsml"
         }
       ]
 
@@ -41,6 +49,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
       Workspace.expects(:run).with("npm run lint", chdir: web_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run test", chdir: web_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run build", chdir: web_dir, allow_failure: true).returns(true)
+      Workspace.expects(:run).with("bin/check", chdir: dsml_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with(
         "bin/status",
         chdir: tmpdir,
@@ -58,8 +67,10 @@ class ProductTemplatesValidatorTest < Minitest::Test
     Dir.mktmpdir do |tmpdir|
       api_dir = File.join(tmpdir, "repos", "my-super-app-api")
       web_dir = File.join(tmpdir, "repos", "my-super-app-web")
+      dsml_dir = File.join(tmpdir, "repos", "my-super-app-dsml")
       FileUtils.mkdir_p(api_dir)
       FileUtils.mkdir_p(web_dir)
+      FileUtils.mkdir_p(dsml_dir)
       FileUtils.mkdir_p(File.join(tmpdir, "config"))
       FileUtils.mkdir_p(File.join(web_dir, "bin"))
       FileUtils.mkdir_p(File.join(web_dir, "packages", "keystatic-admin"))
@@ -110,6 +121,11 @@ class ProductTemplatesValidatorTest < Minitest::Test
           "purpose" => "frontend-web-client",
           "name" => "my-super-app-web",
           "path" => "repos/my-super-app-web"
+        },
+        {
+          "purpose" => "data-science-ml",
+          "name" => "my-super-app-dsml",
+          "path" => "repos/my-super-app-dsml"
         }
       ]
 
@@ -121,6 +137,7 @@ class ProductTemplatesValidatorTest < Minitest::Test
       Workspace.expects(:run).with("npm run lint", chdir: web_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run test", chdir: web_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run build", chdir: web_dir, allow_failure: true).returns(true)
+      Workspace.expects(:run).with("bin/check", chdir: dsml_dir, allow_failure: true).returns(true)
       Workspace.expects(:run).with("npm run content:check", chdir: web_dir, allow_failure: true).returns(true)
 
       vike_check = mock("vike-check")

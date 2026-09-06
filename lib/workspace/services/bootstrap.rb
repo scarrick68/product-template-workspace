@@ -127,10 +127,31 @@ module Workspace
         name = Workspace.repo_name(repo)
         path = Workspace.repo_path(repo, context: context)
 
+        run_repository_bootstrap_script(name, path)
         install_ruby_dependencies(name, path)
         install_node_dependencies(name, path)
         prepare_database(name, path)
         install_default_blazer_content(name, path)
+      end
+
+      def run_repository_bootstrap_script(name, path)
+        bootstrap_script = File.join(path, "bin", "bootstrap")
+        return unless File.executable?(bootstrap_script)
+
+        Workspace.warn("running repository bootstrap in #{name}")
+        ok = Workspace.run(
+          "bin/bootstrap",
+          chdir: path,
+          allow_failure: true,
+          summary: "Repository bootstrap failed for #{name}.",
+          details: "bin/bootstrap returned a non-zero status in #{path}.",
+          fixes: [
+            "Run bin/bootstrap manually in #{path} to inspect the first error.",
+            "Resolve runtime/dependency tool errors, then retry workspace bootstrap.",
+            "If #{name} does not require custom bootstrap, remove or fix bin/bootstrap."
+          ]
+        )
+        failures << "#{name}:bootstrap" unless ok
       end
 
       def install_ruby_dependencies(name, path)

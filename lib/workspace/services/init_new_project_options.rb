@@ -8,9 +8,10 @@ module Workspace
   module Services
     class InitNewProjectOptions
       PROVIDER_USAGE = Workspace::Services::Cms::Options::SUPPORTED_PROVIDERS.join("|")
-      FLAGS_USAGE = "[--cms=#{PROVIDER_USAGE}] [--with-cms]".freeze
+      FLAGS_USAGE = "[--cms=#{PROVIDER_USAGE}] [--with-cms] [--with-dsml]".freeze
       ENABLE_OPTION_DESCRIPTION = "Enable optional local CMS provider (#{PROVIDER_USAGE})".freeze
       WITH_CMS_OPTION_DESCRIPTION = "Alias for --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER}".freeze
+      WITH_DSML_OPTION_DESCRIPTION = "Provision optional DSML repository for this project".freeze
       USAGE_TEXT = "bin/init_new_project <product-slug> [--no-dev] [--skip-setup-tools] [--assume-repos-ready] [--create-remotes] [--public|--private] [--push|--no-push] #{FLAGS_USAGE}".freeze
 
       attr_reader :product_slug, :visibility, :failure_summary, :failure_details, :failure_fixes
@@ -33,6 +34,7 @@ module Workspace
         @visibility = nil
         @push_after_setup = true
         @push_explicit = false
+        @with_dsml = false
         @cms_provider = Workspace::Services::Cms::Options::DEFAULT_PROVIDER
         @cms_provider_explicit = false
         @help_requested = false
@@ -120,6 +122,10 @@ module Workspace
         cms_provider != Workspace::Services::Cms::Options::DEFAULT_PROVIDER
       end
 
+      def with_dsml?
+        @with_dsml
+      end
+
       private
 
       attr_reader :argv, :stdout
@@ -171,6 +177,10 @@ module Workspace
           opts.on("--with-cms", WITH_CMS_OPTION_DESCRIPTION) do
             @cms_provider = Workspace::Services::Cms::Options::WITH_CMS_PROVIDER
             @cms_provider_explicit = true
+          end
+
+          opts.on("--with-dsml", WITH_DSML_OPTION_DESCRIPTION) do
+            @with_dsml = true
           end
 
           opts.on("-h", "--help", "Show help") do
@@ -261,7 +271,8 @@ module Workspace
           "Use --no-dev if you want setup without launching long-running services.",
           "Use --skip-setup-tools if your machine is already configured and you want to skip guided installs/auth prompts.",
           "Use --assume-repos-ready if remote backend/frontend repos are already created.",
-          "Use --create-remotes to create backend/frontend GitHub repositories automatically."
+          "Use --create-remotes to create backend/frontend GitHub repositories automatically.",
+          "Use --with-dsml to provision the optional DSML repository."
         ]
       end
     end

@@ -28,7 +28,8 @@ module Workspace
               new(id: "docker", label: "Docker", command: "docker", installer_class: Workspace::Services::LocalEnvSetup::Installers::InstallDocker),
               new(id: "doctl", label: "doctl", command: "doctl", installer_class: Workspace::Services::LocalEnvSetup::Installers::InstallDoctl),
               new(id: "gh", label: "GitHub CLI", command: "gh", installer_class: Workspace::Services::LocalEnvSetup::Installers::InstallGh),
-              new(id: "terraform", label: "Terraform", command: "terraform", installer_class: Workspace::Services::LocalEnvSetup::Installers::InstallTerraform)
+              new(id: "terraform", label: "Terraform", command: "terraform", installer_class: Workspace::Services::LocalEnvSetup::Installers::InstallTerraform),
+              new(id: "uv", label: "uv", command: "uv", installer_class: Workspace::Services::LocalEnvSetup::Installers::InstallUv)
             ].freeze
           end
         end

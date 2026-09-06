@@ -7,6 +7,7 @@ module ProductTemplates
   class ProjectPaths
     BACKEND_PURPOSE = "backend-api"
     FRONTEND_PURPOSE = "frontend-web-client"
+    DSML_PURPOSE = "data-science-ml"
 
     attr_reader :product_slug, :workspace_root
 
@@ -24,12 +25,20 @@ module ProductTemplates
       "#{product_slug}-web"
     end
 
+    def dsml_app_name
+      "#{product_slug}-dsml"
+    end
+
     def backend_current_relative_path
       backend_repo.fetch("path")
     end
 
     def frontend_current_relative_path
       frontend_repo.fetch("path")
+    end
+
+    def dsml_current_relative_path
+      dsml_repo.fetch("path")
     end
 
     def backend_current_path
@@ -40,12 +49,20 @@ module ProductTemplates
       absolute_path(frontend_current_relative_path)
     end
 
+    def dsml_current_path
+      absolute_path(dsml_current_relative_path)
+    end
+
     def backend_app_relative_path
       sibling_path(backend_current_relative_path, backend_app_name)
     end
 
     def frontend_app_relative_path
       sibling_path(frontend_current_relative_path, frontend_app_name)
+    end
+
+    def dsml_app_relative_path
+      sibling_path(dsml_current_relative_path, dsml_app_name)
     end
 
     def backend_app_path
@@ -56,12 +73,20 @@ module ProductTemplates
       absolute_path(frontend_app_relative_path)
     end
 
+    def dsml_app_path
+      absolute_path(dsml_app_relative_path)
+    end
+
     def backend_rename_script_relative
       File.join(backend_current_relative_path, "bin", "template_rename")
     end
 
     def frontend_rename_script_relative
       File.join(frontend_current_relative_path, "bin", "template_rename")
+    end
+
+    def dsml_rename_script_relative
+      File.join(dsml_current_relative_path, "bin", "template_rename")
     end
 
     def backend_rename_script_path
@@ -72,12 +97,22 @@ module ProductTemplates
       absolute_path(frontend_rename_script_relative)
     end
 
+    def dsml_rename_script_path
+      absolute_path(dsml_rename_script_relative)
+    end
+
+    def dsml_available?
+      !dsml_repo.nil?
+    end
+
     def update_repo_entry!(repo)
       case repo["purpose"]
       when BACKEND_PURPOSE
         update_repo(repo, backend_app_name)
       when FRONTEND_PURPOSE
         update_repo(repo, frontend_app_name)
+      when DSML_PURPOSE
+        update_repo(repo, dsml_app_name)
       end
     end
 
@@ -91,6 +126,12 @@ module ProductTemplates
 
     def frontend_repo
       @frontend_repo ||= repository_for_purpose(FRONTEND_PURPOSE)
+    end
+
+    def dsml_repo
+      return @dsml_repo if instance_variable_defined?(:@dsml_repo)
+
+      @dsml_repo = repositories.find { |entry| entry["purpose"].to_s == DSML_PURPOSE }
     end
 
     def repository_for_purpose(purpose)

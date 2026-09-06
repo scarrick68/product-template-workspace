@@ -47,6 +47,7 @@ product-template-workspace/
 ├── docs/               # Workspace-level architecture and workflow docs
 └── repos/              # Independently versioned template repositories
     ├── api-template/
+    ├── dsml-template/
     ├── web-template/
     └── template-work-tracking/
 ```
@@ -83,6 +84,7 @@ Start here:
 
 - API template feature list: `repos/api-template/docs/template-features.md`
 - API template data import pipeline feature details: `repos/api-template/docs/data-import-pipeline.md`
+- DSML template feature list: `repos/dsml-template/README.md`
 
 ## Scripting Approach
 

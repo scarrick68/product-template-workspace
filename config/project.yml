@@ -15,6 +15,13 @@ repositories:
     name: web-template
     path: repos/web-template
     github: scarrick68/web-template
+  dsml:
+    purpose: data-science-ml
+    name: dsml-template
+    path: repos/dsml-template
+    github: scarrick68/dsml-template
+    runtime:
+      python_version: "3.13"
 services:
   api:
     repository: api

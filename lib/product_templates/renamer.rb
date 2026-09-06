@@ -56,6 +56,7 @@ module ProductTemplates
     def run_repo_renamers
       run_repo_renamer(backend_paths)
       run_repo_renamer(frontend_paths)
+      run_repo_renamer(dsml_paths) if dsml_paths
     end
 
     def run_repo_renamer(repo)
@@ -91,6 +92,7 @@ module ProductTemplates
     def rename_repo_directories
       rename_repo_directory(backend_paths)
       rename_repo_directory(frontend_paths)
+      rename_repo_directory(dsml_paths) if dsml_paths
     end
 
     def rename_repo_directory(repo)
@@ -147,6 +149,22 @@ module ProductTemplates
         target_path: paths.frontend_app_path,
         rename_script_relative: paths.frontend_rename_script_relative,
         rename_script_path: paths.frontend_rename_script_path
+      }
+    end
+
+    def dsml_paths
+      return nil unless paths.dsml_available?
+
+      {
+        label: "DSML",
+        template_name: "dsml-template",
+        target_name: paths.dsml_app_name,
+        current_relative_path: paths.dsml_current_relative_path,
+        current_path: paths.dsml_current_path,
+        target_relative_path: paths.dsml_app_relative_path,
+        target_path: paths.dsml_app_path,
+        rename_script_relative: paths.dsml_rename_script_relative,
+        rename_script_path: paths.dsml_rename_script_path
       }
     end
 
@@ -225,6 +243,7 @@ module ProductTemplates
       Workspace.ok("product rename complete")
       Workspace.info("API repository: #{paths.backend_app_relative_path}")
       Workspace.info("WEB repository: #{paths.frontend_app_relative_path}")
+      Workspace.info("DSML repository: #{paths.dsml_app_relative_path}") if paths.dsml_available?
     end
   end
 end

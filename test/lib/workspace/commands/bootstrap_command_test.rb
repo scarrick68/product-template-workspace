@@ -33,4 +33,40 @@ class BootstrapCommandSmokeTest < Minitest::Test
       assert_equal 0, result
     end
   end
+
+  def test_runs_repo_local_bootstrap_script_when_present
+    Dir.mktmpdir("workspace-bootstrap") do |repo_dir|
+      FileUtils.mkdir_p(File.join(repo_dir, "bin"))
+      bootstrap_script = File.join(repo_dir, "bin", "bootstrap")
+      File.write(bootstrap_script, "#!/usr/bin/env bash\n")
+      FileUtils.chmod("u+x", bootstrap_script)
+
+      repos = [{ "name" => "dsml-template", "path" => repo_dir }]
+
+      Workspace.stubs(:repositories).returns(repos)
+      Workspace.stubs(:existing_repositories).returns(repos)
+      Workspace.stubs(:repo_name).with(repos.first).returns("dsml-template")
+      Workspace.stubs(:repo_path).returns(repo_dir)
+      Workspace.stubs(:ok)
+      Workspace.stubs(:warn)
+      Workspace.stubs(:fail_with_help)
+      Workspace.stubs(:abort_with_help).raises("abort_with_help called unexpectedly")
+      Workspace.stubs(:script_path).returns("bin/preinstall_checks")
+
+      Workspace.expects(:run).with(
+        "bin/bootstrap",
+        has_entries(
+          chdir: repo_dir,
+          allow_failure: true,
+          summary: "Repository bootstrap failed for dsml-template."
+        )
+      ).returns(true)
+
+      command = Workspace::Services::Bootstrap.new(context: Workspace::Context.new(root: repo_dir))
+      command.stubs(:system).returns(true)
+
+      result = command.call
+      assert_equal 0, result
+    end
+  end
 end

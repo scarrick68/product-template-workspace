@@ -6,6 +6,7 @@ class DoctorCommandSmokeTest < Minitest::Test
   def test_happy_path_returns_zero
     Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
     Workspace.stubs(:command_exists?).returns(true)
+    Workspace.stubs(:repositories).returns([{"purpose" => "data-science-ml"}])
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:capture).returns(["ok\n", true])
     Workspace.stubs(:ok)
@@ -18,6 +19,7 @@ class DoctorCommandSmokeTest < Minitest::Test
 
   def test_missing_optional_tools_warns_but_returns_zero
     Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
+    Workspace.stubs(:repositories).returns([{"purpose" => "data-science-ml"}])
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:ok)
     Workspace.stubs(:fail_with_help)
@@ -29,6 +31,7 @@ class DoctorCommandSmokeTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("gh").returns(true)
     Workspace.stubs(:command_exists?).with("doctl").returns(true)
     Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("uv").returns(true)
     Workspace.stubs(:command_exists?).with("mise").returns(false)
     Workspace.stubs(:command_exists?).with("psql").returns(false)
 
@@ -43,6 +46,7 @@ class DoctorCommandSmokeTest < Minitest::Test
 
   def test_missing_required_tool_returns_one
     Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
+    Workspace.stubs(:repositories).returns([{"purpose" => "data-science-ml"}])
     Workspace.stubs(:ports).returns({})
     Workspace.stubs(:ok)
     Workspace.stubs(:warn)
@@ -55,6 +59,7 @@ class DoctorCommandSmokeTest < Minitest::Test
     Workspace.stubs(:command_exists?).with("gh").returns(true)
     Workspace.stubs(:command_exists?).with("doctl").returns(true)
     Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("uv").returns(true)
     Workspace.stubs(:command_exists?).with("mise").returns(true)
     Workspace.stubs(:command_exists?).with("psql").returns(true)
 
@@ -62,5 +67,33 @@ class DoctorCommandSmokeTest < Minitest::Test
 
     result = Workspace::Services::Doctor.new.call
     assert_equal 1, result
+  end
+
+  def test_does_not_require_uv_when_dsml_is_not_configured
+    Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
+    Workspace.stubs(:repositories).returns([
+      {"purpose" => "backend-api"},
+      {"purpose" => "frontend-web-client"}
+    ])
+    Workspace.stubs(:ports).returns({})
+    Workspace.stubs(:ok)
+    Workspace.stubs(:warn)
+    Workspace.stubs(:capture).returns(["ok\n", true])
+
+    Workspace.stubs(:command_exists?).with("ruby").returns(true)
+    Workspace.stubs(:command_exists?).with("node").returns(true)
+    Workspace.stubs(:command_exists?).with("npm").returns(true)
+    Workspace.stubs(:command_exists?).with("docker").returns(true)
+    Workspace.stubs(:command_exists?).with("gh").returns(true)
+    Workspace.stubs(:command_exists?).with("doctl").returns(true)
+    Workspace.stubs(:command_exists?).with("terraform").returns(true)
+    Workspace.stubs(:command_exists?).with("uv").returns(false)
+    Workspace.stubs(:command_exists?).with("mise").returns(true)
+    Workspace.stubs(:command_exists?).with("psql").returns(true)
+
+    Workspace.expects(:fail_with_help).never
+
+    result = Workspace::Services::Doctor.new.call
+    assert_equal 0, result
   end
 end

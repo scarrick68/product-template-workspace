@@ -9,6 +9,8 @@ require_relative "auth/github_auth"
 module Workspace
   module Services
     class Doctor
+      DSML_PURPOSE = "data-science-ml"
+
       REQUIRED_COMMANDS = {
         "Ruby" => ["ruby", "ruby --version"],
         "Node" => ["node", "node --version"],
@@ -18,6 +20,8 @@ module Workspace
         "doctl" => ["doctl", "doctl version"],
         "Terraform" => ["terraform", "terraform version"]
       }.freeze
+
+      UV_COMMAND = ["uv", "uv --version"].freeze
 
       OPTIONAL_COMMANDS = {
         "mise" => ["mise", "mise --version"],
@@ -53,7 +57,7 @@ module Workspace
       end
 
       def check_required_tools
-        REQUIRED_COMMANDS.each do |label, (command, version_command)|
+        required_commands.each do |label, (command, version_command)|
           if Workspace.command_exists?(command)
             output, _ok = Workspace.capture(version_command)
             Workspace.ok("#{label}: #{output.lines.first&.strip || 'installed'}")
@@ -74,6 +78,18 @@ module Workspace
             ]
           )
           mark_failed
+        end
+      end
+
+      def required_commands
+        commands = REQUIRED_COMMANDS.dup
+        commands["uv"] = UV_COMMAND if dsml_repository_present?
+        commands
+      end
+
+      def dsml_repository_present?
+        Workspace.repositories(context: context).any? do |repo|
+          repo["purpose"].to_s == DSML_PURPOSE
         end
       end
 

@@ -12,9 +12,10 @@ module Workspace
   module Services
     class NewProject
       PROVIDER_USAGE = Workspace::Services::Cms::Options::SUPPORTED_PROVIDERS.join("|")
-      FLAGS_USAGE = "[--cms=#{PROVIDER_USAGE}] [--with-cms]".freeze
+      FLAGS_USAGE = "[--cms=#{PROVIDER_USAGE}] [--with-cms] [--with-dsml]".freeze
       ENABLE_OPTION_DESCRIPTION = "Enable optional local CMS provider (#{PROVIDER_USAGE})".freeze
       WITH_CMS_OPTION_DESCRIPTION = "Alias for --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER}".freeze
+      WITH_DSML_OPTION_DESCRIPTION = "Provision optional DSML repository for this generated project".freeze
 
       def initialize(argv, stdin: $stdin, stdout: $stdout)
         @argv = argv.dup
@@ -67,6 +68,7 @@ module Workspace
         options = {
           destination: nil,
           cms_provider: nil,
+          with_dsml: false,
           forwarded_args: []
         }
 
@@ -83,6 +85,10 @@ module Workspace
 
           opts.on("--with-cms", WITH_CMS_OPTION_DESCRIPTION) do
             options[:cms_provider] = Workspace::Services::Cms::Options::WITH_CMS_PROVIDER
+          end
+
+          opts.on("--with-dsml", WITH_DSML_OPTION_DESCRIPTION) do
+            options[:with_dsml] = true
           end
 
           opts.on("-h", "--help", "Show usage") do
@@ -103,6 +109,8 @@ module Workspace
 
           options[:forwarded_args] = ["--cms=#{options[:cms_provider]}"] + options[:forwarded_args]
         end
+
+        options[:forwarded_args] = ["--with-dsml"] + options[:forwarded_args] if options[:with_dsml]
 
         options
       rescue OptionParser::ParseError => e
@@ -172,6 +180,7 @@ module Workspace
             "Run: bin/new_project my-super-app",
             "Optionally set destination: bin/new_project --destination ~/Code/my-super-app my-super-app",
             "Enable local CMS at setup time with --cms=#{Workspace::Services::Cms::Options::WITH_CMS_PROVIDER} (or --with-cms).",
+            "Provision optional DSML repository with --with-dsml.",
             "Forward flags to init_new_project after --, for example: -- --no-dev"
           ]
         )

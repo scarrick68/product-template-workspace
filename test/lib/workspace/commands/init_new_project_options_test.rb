@@ -18,6 +18,14 @@ class InitNewProjectOptionsTest < Minitest::Test
     assert_equal true, options.push_after_setup?
     assert_equal "none", options.cms_provider
     assert_equal false, options.cms_enabled?
+    assert_equal false, options.with_dsml?
+  end
+
+  def test_parses_with_dsml_flag
+    options = Workspace::Services::InitNewProjectOptions.parse(["my-super-app", "--with-dsml"], stdout: StringIO.new)
+
+    assert options.valid?
+    assert_equal true, options.with_dsml?
   end
 
   def test_parses_keystatic_cms_provider

@@ -15,17 +15,19 @@ require_relative "local_env_setup/installers/install_doctl"
 require_relative "local_env_setup/installers/install_gh"
 require_relative "local_env_setup/installers/install_ruby"
 require_relative "local_env_setup/installers/install_terraform"
+require_relative "local_env_setup/installers/install_uv"
 
 module Workspace
   module Services
     class InstallLocalDevTools
       PREFERENCES_PATH = File.join(Workspace::ROOT, ".workspace", "install_local_dev_tools.yml")
-      REQUIRED_TOOLS = LocalEnvSetup::Config::ServiceConfig.required_tools
+      DSML_PURPOSE = "data-science-ml"
       SERVICE_AUTH_CONFIGS = LocalEnvSetup::Config::ServiceAuthConfig.all
 
-      def initialize(stdin: $stdin, stdout: $stdout)
+      def initialize(stdin: $stdin, stdout: $stdout, context: Workspace::Context.new(root: Workspace::ROOT))
         @stdin = stdin
         @stdout = stdout
+        @context = context
         @prompt = nil
         @command_exists_cache = {}
         @preferences = {
@@ -53,7 +55,7 @@ module Workspace
 
       private
 
-      attr_reader :stdin, :stdout, :preferences
+      attr_reader :stdin, :stdout, :preferences, :context
 
       def host_os
         @host_os ||= RbConfig::CONFIG["host_os"].to_s
@@ -119,7 +121,7 @@ module Workspace
       def print_tool_status
         missing = []
 
-        REQUIRED_TOOLS.each do |tool|
+        required_tools.each do |tool|
           if tool_installed?(tool)
             Workspace.ok("#{tool.label}: installed")
           else
@@ -178,11 +180,15 @@ module Workspace
 
       def install_tool(tool)
         return Workspace.warn("No installer is configured for #{tool.label}.") unless tool.installable?
-        return unless ensure_homebrew
+        return if requires_homebrew_install_flow?(tool) && !ensure_homebrew
 
         tool.installer_class.new.call
         refresh_command_availability("mise") if tool.ruby?
         refresh_command_availability(tool.command)
+      end
+
+      def requires_homebrew_install_flow?(tool)
+        tool.id != "uv"
       end
 
       def ensure_homebrew
@@ -329,6 +335,19 @@ module Workspace
 
       def command_exists_cache
         @command_exists_cache
+      end
+
+      def required_tools
+        tools = LocalEnvSetup::Config::ServiceConfig.required_tools
+        return tools if dsml_repository_present?
+
+        tools.reject { |tool| tool.id == "uv" }
+      end
+
+      def dsml_repository_present?
+        Workspace.repositories(context: context).any? do |repo|
+          repo["purpose"].to_s == DSML_PURPOSE
+        end
       end
 
       def preferences_path
