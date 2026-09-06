@@ -7,7 +7,10 @@ require_relative "../../workspace"
 module Workspace
   module Services
     class PreinstallChecks
-      def initialize
+      DSML_PURPOSE = "data-science-ml"
+
+      def initialize(context: Workspace::Context.new(root: Workspace::ROOT))
+        @context = context
         @failed = false
       end
 
@@ -15,13 +18,14 @@ module Workspace
         Workspace.section("Preinstall: Environment Checks")
         check_ruby_compatibility
         check_github_cli_installation
+        check_uv_installation
         check_github_cli_authentication
         finalize
       end
 
       private
 
-      attr_reader :failed
+      attr_reader :failed, :context
 
       def mark_failed
         @failed = true
@@ -103,6 +107,33 @@ module Workspace
         mark_failed
       end
 
+      def check_uv_installation
+        return unless dsml_repository_present?
+        return if Workspace.command_exists?("uv")
+
+        Workspace.fail_with_help(
+          "uv is required but not installed.",
+          details: "The command 'uv' is not available in PATH.",
+          assumptions: [
+            "DSML template bootstrap and checks rely on uv for Python runtime and dependency management.",
+            "Without uv, the workspace cannot provision or validate the DSML repository."
+          ],
+          fixes: [
+            "Install uv with pipx: pipx install uv.",
+            "Or install via official script: curl -LsSf https://astral.sh/uv/install.sh | sh.",
+            "See official docs if needed: https://docs.astral.sh/uv/getting-started/installation/.",
+            "Restart your terminal and verify with: uv --version"
+          ]
+        )
+        mark_failed
+      end
+
+      def dsml_repository_present?
+        Workspace.repositories(context: context).any? do |repo|
+          repo["purpose"].to_s == DSML_PURPOSE
+        end
+      end
+
       def finalize
         return success unless failed?
 
@@ -110,7 +141,7 @@ module Workspace
           "Pre-installation checks failed.",
           details: "One or more prerequisites are missing or misconfigured.",
           assumptions: [
-            "Dependency installation and repository operations depend on a compatible Ruby and authenticated GitHub CLI.",
+            "Dependency installation and repository operations depend on a compatible Ruby, authenticated GitHub CLI, and uv.",
             "Proceeding without these prerequisites will likely produce cascading failures in later scripts."
           ],
           fixes: [

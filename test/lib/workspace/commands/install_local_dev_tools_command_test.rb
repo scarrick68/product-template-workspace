@@ -2,6 +2,7 @@
 
 require "stringio"
 require "tmpdir"
+require "yaml"
 
 require_relative "../../../test_helper"
 
@@ -95,6 +96,74 @@ class InstallLocalDevToolsCommandTest < Minitest::Test
     assert_equal 0, command.call
   end
 
+  def test_installs_uv_with_pipx_without_homebrew
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:command_exists?).with("uv").returns(false, true)
+    Workspace.stubs(:command_exists?).with("pipx").returns(true)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
+
+    Workspace.expects(:run).with("pipx install uv", has_entry(allow_failure: true)).returns(true)
+    Workspace.expects(:run).with(
+      "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"",
+      has_entry(allow_failure: true)
+    ).never
+
+    command = Workspace::Services::InstallLocalDevTools.new(stdin: StringIO.new("y\n"), stdout: StringIO.new)
+
+    assert_equal 0, command.call
+  end
+
+  def test_does_not_require_uv_when_dsml_is_not_configured
+    stub_tool_presence(all_installed: true)
+    Workspace.stubs(:command_exists?).with("uv").returns(false)
+    Workspace.stubs(:ruby_compatible?).returns(true)
+    Workspace::Services::Doctor.any_instance.stubs(:call).returns(0)
+
+    workspace_root = File.join(@tmpdir, "no-dsml-workspace")
+    FileUtils.mkdir_p(File.join(workspace_root, "config"))
+    File.write(File.join(workspace_root, "config", "project.yml"), YAML.dump({
+      "project" => {
+        "name" => "Product Template Workspace",
+        "slug" => "product-template-workspace",
+        "installation_id" => "a91d7c",
+        "default_environment" => "production"
+      },
+      "repositories" => {
+        "api" => {
+          "purpose" => "backend-api",
+          "name" => "api-template",
+          "path" => "repos/api-template"
+        },
+        "web" => {
+          "purpose" => "frontend-web-client",
+          "name" => "web-template",
+          "path" => "repos/web-template"
+        }
+      },
+      "services" => {
+        "api" => {
+          "repository" => "api",
+          "port" => 5001
+        }
+      },
+      "environments" => {
+        "production" => {
+          "infrastructure" => {}
+        }
+      }
+    }))
+
+    context = Workspace::Context.new(root: workspace_root)
+    command = Workspace::Services::InstallLocalDevTools.new(
+      stdin: StringIO.new(""),
+      stdout: StringIO.new,
+      context: context
+    )
+
+    assert_equal 0, command.call
+  end
+
   def test_starts_docker_desktop_when_prompt_uses_default_yes
     stub_tool_presence(all_installed: true)
     Workspace.stubs(:ruby_compatible?).returns(true)
@@ -169,7 +238,7 @@ class InstallLocalDevToolsCommandTest < Minitest::Test
   private
 
   def stub_tool_presence(all_installed:)
-    %w[ruby docker doctl gh terraform brew].each do |tool|
+    %w[ruby docker doctl gh terraform uv brew].each do |tool|
       Workspace.stubs(:command_exists?).with(tool).returns(all_installed)
     end
 

@@ -5,10 +5,27 @@
 require "fileutils"
 require_relative "../../workspace"
 require_relative "../context"
+require_relative "backend/bootstrap"
+require_relative "dsml/bootstrap"
+require_relative "frontend/bootstrap"
 
 module Workspace
   module Services
     class Bootstrap
+      BACKEND_PURPOSE = "backend-api"
+      DSML_PURPOSE = "data-science-ml"
+      FRONTEND_PURPOSE = "frontend-web-client"
+      BOOTSTRAPPERS = {
+        BACKEND_PURPOSE => Workspace::Services::Backend::Bootstrap,
+        FRONTEND_PURPOSE => Workspace::Services::Frontend::Bootstrap,
+        DSML_PURPOSE => Workspace::Services::Dsml::Bootstrap
+      }.freeze
+      BOOTSTRAP_ORDER = [
+        BACKEND_PURPOSE,
+        FRONTEND_PURPOSE,
+        DSML_PURPOSE
+      ].freeze
+
       def initialize(context: Workspace::Context.new(root: Workspace::ROOT))
         @context = context
         @failures = []
@@ -118,19 +135,63 @@ module Workspace
       end
 
       def install_repository_dependencies
-        Workspace.existing_repositories(context: context).each do |repo|
-          install_dependencies_for_repository(repo)
+        repositories = Workspace.existing_repositories(context: context)
+        run_ordered_bootstraps(repositories)
+        run_default_bootstraps(repositories)
+      end
+
+      def run_ordered_bootstraps(repositories)
+        BOOTSTRAP_ORDER.each do |purpose|
+          repo = repositories.find { |candidate| candidate["purpose"].to_s == purpose }
+          next unless repo
+
+          bootstrapper_for(purpose).call(repo: repo)
         end
       end
 
-      def install_dependencies_for_repository(repo)
+      def run_default_bootstraps(repositories)
+        repositories.each do |repo|
+          next if BOOTSTRAPPERS.key?(repo["purpose"].to_s)
+
+          install_default_dependencies_for_repository(repo)
+        end
+      end
+
+      def install_default_dependencies_for_repository(repo)
         name = Workspace.repo_name(repo)
         path = Workspace.repo_path(repo, context: context)
 
+        run_repository_bootstrap_script(name, path)
         install_ruby_dependencies(name, path)
         install_node_dependencies(name, path)
-        prepare_database(name, path)
-        install_default_blazer_content(name, path)
+      end
+
+      def bootstrapper_for(purpose)
+        @bootstrappers ||= {}
+        @bootstrappers[purpose] ||= BOOTSTRAPPERS.fetch(purpose).new(
+          context: context,
+          failures: failures
+        )
+      end
+
+      def run_repository_bootstrap_script(name, path)
+        bootstrap_script = File.join(path, "bin", "bootstrap")
+        return unless File.executable?(bootstrap_script)
+
+        Workspace.warn("running repository bootstrap in #{name}")
+        ok = Workspace.run(
+          "bin/bootstrap",
+          chdir: path,
+          allow_failure: true,
+          summary: "Repository bootstrap failed for #{name}.",
+          details: "bin/bootstrap returned a non-zero status in #{path}.",
+          fixes: [
+            "Run bin/bootstrap manually in #{path} to inspect the first error.",
+            "Resolve runtime/dependency tool errors, then retry workspace bootstrap.",
+            "If #{name} does not require custom bootstrap, remove or fix bin/bootstrap."
+          ]
+        )
+        failures << "#{name}:bootstrap" unless ok
       end
 
       def install_ruby_dependencies(name, path)
@@ -179,55 +240,6 @@ module Workspace
         failures << "#{name}:npm" unless ok
       end
 
-      def prepare_database(name, path)
-        return unless File.exist?(File.join(path, "config", "database.yml"))
-        return unless File.executable?(File.join(path, "bin", "rails"))
-
-        Workspace.warn("preparing database in #{name}")
-        ok = Workspace.run(
-          "bundle exec rails db:prepare",
-          chdir: path,
-          allow_failure: true,
-          summary: "Database preparation failed for #{name}.",
-          details: "Rails could not run db:prepare in #{path}.",
-          assumptions: [
-            "Database services are running and reachable with credentials from config/database.yml.",
-            "The repository has valid migrations/schema for the current environment."
-          ],
-          fixes: [
-            "Start required services (for example Postgres) before running db tasks.",
-            "Run bundle exec rails db:prepare manually in #{path} for detailed errors.",
-            "Fix connection, credential, or migration issues, then retry bootstrap."
-          ]
-        )
-        failures << "#{name}:db" unless ok
-      end
-
-      def install_default_blazer_content(name, path)
-        return unless File.executable?(File.join(path, "bin", "rails"))
-        return unless File.exist?(File.join(path, "lib", "tasks", "blazer_default_queries.rake"))
-        return unless File.exist?(File.join(path, "lib", "tasks", "blazer_dashboards.rake"))
-
-        Workspace.info("installing default Blazer content in #{name}")
-        ok = Workspace.run(
-          "bundle exec rails blazer:default_queries:install blazer:install_dashboards",
-          chdir: path,
-          allow_failure: true,
-          summary: "Default Blazer content installation failed for #{name}.",
-          details: "Rails could not install default Blazer queries/dashboards in #{path}.",
-          assumptions: [
-            "Blazer and its default query/dashboard tasks are present and loadable in this repository.",
-            "Database migrations and datasource configuration are already valid after db:prepare."
-          ],
-          fixes: [
-            "Run bundle exec rails blazer:default_queries:install manually in #{path} to inspect errors.",
-            "Run bundle exec rails blazer:install_dashboards manually in #{path} after fixing query install issues.",
-            "Verify Blazer database configuration and task definitions in lib/tasks."
-          ]
-        )
-        failures << "#{name}:blazer" unless ok
-      end
-
       def finalize
         return success if failures.empty?
 
@@ -251,6 +263,7 @@ module Workspace
         Workspace.ok("bootstrap complete")
         0
       end
+
     end
   end
 end

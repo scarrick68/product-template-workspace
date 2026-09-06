@@ -4,6 +4,7 @@
 
 require "securerandom"
 require "yaml"
+require "fileutils"
 require_relative "../../workspace"
 require_relative "../context"
 require_relative "bootstrap"
@@ -22,6 +23,7 @@ module Workspace
     class InitNewProject
       BACKEND_PURPOSE = "backend-api"
       FRONTEND_PURPOSE = "frontend-web-client"
+      DSML_PURPOSE = "data-science-ml"
 
       REFERENCE_DOCS = [
         "docs/local-development.md",
@@ -54,6 +56,7 @@ module Workspace
 
         product_slug = options.product_slug
         assign_installation_id_if_needed
+        configure_optional_dsml_repository(options)
 
         Workspace.section("Init: New Project Setup")
         Workspace.ok("Initializing new project: #{product_slug}")
@@ -91,12 +94,14 @@ module Workspace
       def print_summary(product_slug)
         api_repo = repository_path_for(BACKEND_PURPOSE) || "repos/#{product_slug}-api"
         web_repo = repository_path_for(FRONTEND_PURPOSE) || "repos/#{product_slug}-web"
+        dsml_repo = repository_path_for(DSML_PURPOSE)
 
         puts
         Workspace.ok("Project initialization completed successfully.")
         Workspace.info("Renamed repositories:")
         Workspace.info("- #{api_repo}")
         Workspace.info("- #{web_repo}")
+        Workspace.info("- #{dsml_repo}") if dsml_repo
 
         puts
         Workspace.info("Helpful references:")
@@ -181,6 +186,56 @@ module Workspace
 
       def generate_installation_id
         SecureRandom.hex(INSTALLATION_ID_HEX_BYTES)
+      end
+
+      def configure_optional_dsml_repository(options)
+        return if options.with_dsml?
+
+        dsml_repo = repository_by_purpose(DSML_PURPOSE)
+        return unless dsml_repo
+
+        remove_dsml_from_project_manifest
+        remove_dsml_from_repos_manifest
+        remove_dsml_repository_directory(dsml_repo)
+        Workspace.info("Skipping optional DSML repository (use --with-dsml to include it).")
+      end
+
+      def remove_dsml_from_project_manifest
+        path = context.path("config", "project.yml")
+        return unless File.exist?(path)
+
+        manifest = YAML.safe_load_file(path, permitted_classes: [], aliases: false) || {}
+        repositories = manifest["repositories"]
+        case repositories
+        when Hash
+          repositories.delete_if { |_key, repo| repo.is_a?(Hash) && repo["purpose"].to_s == DSML_PURPOSE }
+        when Array
+          repositories.reject! { |repo| repo.is_a?(Hash) && repo["purpose"].to_s == DSML_PURPOSE }
+        end
+
+        File.write(path, YAML.dump(manifest))
+      end
+
+      def remove_dsml_from_repos_manifest
+        path = context.path("config", "repos.yml")
+        return unless File.exist?(path)
+
+        config = YAML.safe_load_file(path, permitted_classes: [], aliases: false) || {}
+        repositories = config["repositories"]
+        return unless repositories.is_a?(Array)
+
+        repositories.reject! { |repo| repo.is_a?(Hash) && repo["purpose"].to_s == DSML_PURPOSE }
+        File.write(path, YAML.dump(config))
+      end
+
+      def remove_dsml_repository_directory(dsml_repo)
+        dsml_path = dsml_repo["path"].to_s.strip
+        return if dsml_path.empty?
+
+        absolute_path = context.path(dsml_path)
+        return unless Dir.exist?(absolute_path)
+
+        FileUtils.rm_rf(absolute_path)
       end
     end
   end
