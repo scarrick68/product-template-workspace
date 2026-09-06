@@ -55,6 +55,8 @@ module Workspace
         parser = option_parser
 
         begin
+          # Use parse! so flags forwarded from new-project are accepted even when
+          # they appear after the product slug.
           parser.parse!(argv)
         rescue OptionParser::ParseError => e
           set_failure(

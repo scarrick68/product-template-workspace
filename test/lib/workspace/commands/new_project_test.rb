@@ -68,7 +68,7 @@ class NewProjectTest < Minitest::Test
     ).once
 
     Workspace::Services::InitNewProject.expects(:new).with do |init_args, kwargs|
-      init_args == ["my-super-app", "--", "--no-dev"] &&
+      init_args == ["--no-dev", "my-super-app"] &&
         kwargs[:context].respond_to?(:root) &&
         kwargs[:context].root == destination_root
     end.returns(init_service)
@@ -136,7 +136,7 @@ class NewProjectTest < Minitest::Test
     ).once
 
     Workspace::Services::InitNewProject.expects(:new).with do |init_args, kwargs|
-      init_args == ["my-super-app", "--cms=keystatic"] &&
+      init_args == ["--cms=keystatic", "my-super-app"] &&
         kwargs[:context].respond_to?(:root) &&
         kwargs[:context].root == destination_root
     end.returns(init_service)
@@ -170,7 +170,7 @@ class NewProjectTest < Minitest::Test
     ).once
 
     Workspace::Services::InitNewProject.expects(:new).with do |init_args, kwargs|
-      init_args == ["my-super-app", "--with-dsml"] &&
+      init_args == ["--with-dsml", "my-super-app"] &&
         kwargs[:context].respond_to?(:root) &&
         kwargs[:context].root == destination_root
     end.returns(init_service)

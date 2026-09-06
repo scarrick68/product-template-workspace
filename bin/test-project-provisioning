@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+ENV["RUN_PROJECT_PROVISIONING_INTEGRATION"] = "1"
+
+exec(File.join(__dir__, "test"), "test/integration/project_provisioning_test.rb")

@@ -50,7 +50,7 @@ module Workspace
         # This ensures that the initialization is done in the new app instance and
         # not in the original template workspace.
         destination_context = Workspace::Context.new(root: destination_root)
-        init_args = [slug] + options[:forwarded_args]
+        init_args = options[:forwarded_args] + [slug]
 
         InitNewProject.new(
           init_args,
@@ -100,6 +100,7 @@ module Workspace
 
         options[:product_slug] = args.shift
         options[:forwarded_args] = args
+        options[:forwarded_args].shift if options[:forwarded_args].first == "--"
 
         if options[:cms_provider]
           unless Workspace::Services::Cms::Options.supported_provider?(options[:cms_provider])
