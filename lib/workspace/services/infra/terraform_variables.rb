@@ -24,6 +24,7 @@ module Workspace
             "rails_web_run_command" => "bundle exec puma -C config/puma.rb",
             "rails_worker_run_command" => "bundle exec good_job start",
             "rails_cors_allowed_origins" => backend_cors_allowed_origins,
+            "rails_app_protocol" => backend_app_protocol,
             "web_instance_size_slug" => sizes.fetch("api", "basic-xxs"),
             "worker_instance_size_slug" => sizes.fetch("worker", "basic-xxs"),
             "frontend_app_name" => github.fetch("web_repo", "#{app_name}-web"),
@@ -97,6 +98,13 @@ module Workspace
           return candidate if candidate.start_with?("http://", "https://")
 
           "https://#{candidate}"
+        end
+
+        def backend_app_protocol
+          value = configuration.fetch("rails_app_protocol", "https").to_s.strip.downcase
+          return value if %w[http https].include?(value)
+
+          "https"
         end
 
         def spaces_enabled?

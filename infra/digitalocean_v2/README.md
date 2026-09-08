@@ -67,6 +67,7 @@ flowchart TD
 	- `aws_secret_access_key`
 	- optional `s3_endpoint` (typically not needed for AWS S3)
 - App Platform receives these env vars when present:
+	- `APP_PROTOCOL` (defaults to `https` for production behavior)
 	- `ACTIVE_STORAGE_SERVICE` (defaults to `amazon` when spaces are enabled)
 	- `DATA_ARTIFACT_BUCKET`
 	- `S3_ENDPOINT`

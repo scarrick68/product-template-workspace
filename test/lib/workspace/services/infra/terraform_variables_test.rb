@@ -46,6 +46,7 @@ class TerraformVariablesTest < Minitest::Test
     assert_equal "bundle exec puma -C config/puma.rb", tfvars.fetch("rails_web_run_command")
     assert_equal "bundle exec good_job start", tfvars.fetch("rails_worker_run_command")
     assert_equal "https://app.example.com", tfvars.fetch("rails_cors_allowed_origins")
+    assert_equal "https", tfvars.fetch("rails_app_protocol")
     assert_equal "basic-xxs", tfvars.fetch("web_instance_size_slug")
     assert_equal "basic-xs", tfvars.fetch("worker_instance_size_slug")
     assert_equal "my-product-web", tfvars.fetch("frontend_app_name")
@@ -129,5 +130,40 @@ class TerraformVariablesTest < Minitest::Test
     tfvars = Workspace::Services::Infra::TerraformVariables.new(config).to_h
 
     assert_equal "", tfvars.fetch("rails_cors_allowed_origins")
+    assert_equal "https", tfvars.fetch("rails_app_protocol")
+  end
+
+  def test_to_h_normalizes_invalid_rails_app_protocol_to_https
+    config = {
+      "app_name" => "my-product",
+      "project_slug" => "my-super-app",
+      "installation_id" => "a91d7c",
+      "region" => "nyc",
+      "do_region" => "nyc3",
+      "frontend_domain" => "",
+      "rails_app_protocol" => "ftp", # Invalid protocol, should normalize to "https"
+      "github" => {
+        "owner" => "example-org",
+        "api_repo" => "my-product-api",
+        "web_repo" => "my-product-web",
+        "branch" => "main",
+        "auto_deploy" => false
+      },
+      "components" => {
+        "spaces" => true
+      },
+      "blob_store_provider" => "digitalocean_spaces",
+      "sizes" => {
+        "api" => "basic-xxs",
+        "worker" => "basic-xs",
+        "web" => "basic-s",
+        "postgres" => "db-s-1vcpu-1gb",
+        "opensearch" => "db-s-1vcpu-2gb"
+      }
+    }
+
+    tfvars = Workspace::Services::Infra::TerraformVariables.new(config).to_h
+
+    assert_equal "https", tfvars.fetch("rails_app_protocol")
   end
 end

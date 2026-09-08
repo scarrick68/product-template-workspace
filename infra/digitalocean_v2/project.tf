@@ -65,6 +65,13 @@ resource "digitalocean_app" "rails" {
       type  = "GENERAL"
     }
 
+    env {
+      key   = "APP_PROTOCOL"
+      value = var.rails_app_protocol
+      scope = "RUN_AND_BUILD_TIME"
+      type  = "GENERAL"
+    }
+
     dynamic "env" {
       for_each = local.spaces_general_env
       content {

@@ -72,6 +72,12 @@ variable "rails_cors_allowed_origins" {
   default     = ""
 }
 
+variable "rails_app_protocol" {
+  description = "Protocol exposed to Rails for production URL generation and SSL behavior."
+  type        = string
+  default     = "https"
+}
+
 variable "web_instance_size_slug" {
   type    = string
   default = "apps-s-1vcpu-1gb"
