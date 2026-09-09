@@ -14,30 +14,37 @@ class ProductTemplatesProjectPathsTest < Minitest::Test
 
       assert_equal "my-super-app-api", paths.backend_app_name
       assert_equal "my-super-app-web", paths.frontend_app_name
+      assert_equal "my-super-app-mobile", paths.mobile_app_name
       assert_equal "my-super-app-dsml", paths.dsml_app_name
 
       assert_equal "repos/api-template", paths.backend_current_relative_path
       assert_equal "repos/web-template", paths.frontend_current_relative_path
+      assert_equal "repos/mobile-app-template", paths.mobile_current_relative_path
       assert_equal "repos/dsml-template", paths.dsml_current_relative_path
 
       assert_equal File.join(tmpdir, "repos", "api-template"), paths.backend_current_path
       assert_equal File.join(tmpdir, "repos", "web-template"), paths.frontend_current_path
+      assert_equal File.join(tmpdir, "repos", "mobile-app-template"), paths.mobile_current_path
       assert_equal File.join(tmpdir, "repos", "dsml-template"), paths.dsml_current_path
 
       assert_equal "repos/my-super-app-api", paths.backend_app_relative_path
       assert_equal "repos/my-super-app-web", paths.frontend_app_relative_path
+      assert_equal "repos/my-super-app-mobile", paths.mobile_app_relative_path
       assert_equal "repos/my-super-app-dsml", paths.dsml_app_relative_path
 
       assert_equal File.join(tmpdir, "repos", "my-super-app-api"), paths.backend_app_path
       assert_equal File.join(tmpdir, "repos", "my-super-app-web"), paths.frontend_app_path
+      assert_equal File.join(tmpdir, "repos", "my-super-app-mobile"), paths.mobile_app_path
       assert_equal File.join(tmpdir, "repos", "my-super-app-dsml"), paths.dsml_app_path
 
       assert_equal "repos/api-template/bin/template_rename", paths.backend_rename_script_relative
       assert_equal "repos/web-template/bin/template_rename", paths.frontend_rename_script_relative
+      assert_equal "repos/mobile-app-template/bin/template_rename", paths.mobile_rename_script_relative
       assert_equal "repos/dsml-template/bin/template_rename", paths.dsml_rename_script_relative
 
       assert_equal File.join(tmpdir, "repos", "api-template", "bin", "template_rename"), paths.backend_rename_script_path
       assert_equal File.join(tmpdir, "repos", "web-template", "bin", "template_rename"), paths.frontend_rename_script_path
+      assert_equal File.join(tmpdir, "repos", "mobile-app-template", "bin", "template_rename"), paths.mobile_rename_script_path
       assert_equal File.join(tmpdir, "repos", "dsml-template", "bin", "template_rename"), paths.dsml_rename_script_path
     end
   end
@@ -70,8 +77,16 @@ class ProductTemplatesProjectPathsTest < Minitest::Test
       "github" => "example-org/dsml-template"
     }
 
+    mobile = {
+      "purpose" => "frontend-mobile-client",
+      "name" => "mobile-app-template",
+      "path" => "repos/mobile-app-template",
+      "github" => "example-org/mobile-app-template"
+    }
+
     paths.update_repo_entry!(backend)
     paths.update_repo_entry!(frontend)
+    paths.update_repo_entry!(mobile)
     paths.update_repo_entry!(dsml)
 
     assert_equal "my-super-app-api", backend["name"]
@@ -81,6 +96,10 @@ class ProductTemplatesProjectPathsTest < Minitest::Test
     assert_equal "my-super-app-web", frontend["name"]
     assert_equal "repos/my-super-app-web", frontend["path"]
     assert_equal "example-org/my-super-app-web", frontend["github"]
+
+    assert_equal "my-super-app-mobile", mobile["name"]
+    assert_equal "repos/my-super-app-mobile", mobile["path"]
+    assert_equal "example-org/my-super-app-mobile", mobile["github"]
 
     assert_equal "my-super-app-dsml", dsml["name"]
     assert_equal "repos/my-super-app-dsml", dsml["path"]
@@ -147,6 +166,12 @@ class ProductTemplatesProjectPathsTest < Minitest::Test
         "name" => "web-template",
         "path" => "repos/web-template",
         "github" => "example-org/web-template"
+      },
+      {
+        "purpose" => "frontend-mobile-client",
+        "name" => "mobile-app-template",
+        "path" => "repos/mobile-app-template",
+        "github" => "example-org/mobile-app-template"
       },
       {
         "purpose" => "data-science-ml",

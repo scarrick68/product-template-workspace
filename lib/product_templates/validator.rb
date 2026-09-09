@@ -15,6 +15,7 @@ require_relative "./validation/report"
 module ProductTemplates
   class Validator
     DSML_PURPOSE = "data-science-ml"
+    MOBILE_PURPOSE = "frontend-mobile-client"
 
     attr_reader :product_slug, :workspace_root, :repositories, :stdin, :stdout
 
@@ -47,6 +48,12 @@ module ProductTemplates
         check("WEB build", "npm run build", paths.frontend_current_path, paths.frontend_current_relative_path),
         check("Workspace status", "bin/status", workspace_root, ".")
       ]
+
+      if mobile_repo
+        checks << check("MOBILE lint", "npm run lint", mobile_repo_path, mobile_repo.fetch("path"))
+        checks << check("MOBILE tests", "npm run test", mobile_repo_path, mobile_repo.fetch("path"))
+        checks << check("MOBILE typecheck", "npm run typecheck", mobile_repo_path, mobile_repo.fetch("path"))
+      end
 
       if dsml_repo
         checks << check("DSML check", "bin/check", dsml_repo_path, dsml_repo.fetch("path"))
@@ -210,6 +217,14 @@ module ProductTemplates
 
     def dsml_repo_path
       @dsml_repo_path ||= File.join(workspace_root, dsml_repo.fetch("path"))
+    end
+
+    def mobile_repo
+      @mobile_repo ||= repositories.find { |repo| repo["purpose"].to_s == MOBILE_PURPOSE }
+    end
+
+    def mobile_repo_path
+      @mobile_repo_path ||= File.join(workspace_root, mobile_repo.fetch("path"))
     end
 
     def report

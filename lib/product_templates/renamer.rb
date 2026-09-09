@@ -56,6 +56,7 @@ module ProductTemplates
     def run_repo_renamers
       run_repo_renamer(backend_paths)
       run_repo_renamer(frontend_paths)
+      run_repo_renamer(mobile_paths) if mobile_paths
       run_repo_renamer(dsml_paths) if dsml_paths
     end
 
@@ -92,6 +93,7 @@ module ProductTemplates
     def rename_repo_directories
       rename_repo_directory(backend_paths)
       rename_repo_directory(frontend_paths)
+      rename_repo_directory(mobile_paths) if mobile_paths
       rename_repo_directory(dsml_paths) if dsml_paths
     end
 
@@ -165,6 +167,22 @@ module ProductTemplates
         target_path: paths.dsml_app_path,
         rename_script_relative: paths.dsml_rename_script_relative,
         rename_script_path: paths.dsml_rename_script_path
+      }
+    end
+
+    def mobile_paths
+      return nil unless paths.mobile_available?
+
+      {
+        label: "MOBILE",
+        template_name: "mobile-app-template",
+        target_name: paths.mobile_app_name,
+        current_relative_path: paths.mobile_current_relative_path,
+        current_path: paths.mobile_current_path,
+        target_relative_path: paths.mobile_app_relative_path,
+        target_path: paths.mobile_app_path,
+        rename_script_relative: paths.mobile_rename_script_relative,
+        rename_script_path: paths.mobile_rename_script_path
       }
     end
 
@@ -243,6 +261,7 @@ module ProductTemplates
       Workspace.ok("product rename complete")
       Workspace.info("API repository: #{paths.backend_app_relative_path}")
       Workspace.info("WEB repository: #{paths.frontend_app_relative_path}")
+      Workspace.info("MOBILE repository: #{paths.mobile_app_relative_path}") if paths.mobile_available?
       Workspace.info("DSML repository: #{paths.dsml_app_relative_path}") if paths.dsml_available?
     end
   end

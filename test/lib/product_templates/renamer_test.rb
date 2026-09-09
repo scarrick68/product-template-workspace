@@ -10,6 +10,7 @@ class ProductTemplatesRenamerTest < Minitest::Test
     Dir.mktmpdir do |tmpdir|
       FileUtils.mkdir_p(File.join(tmpdir, "repos", "api-template", "bin"))
       FileUtils.mkdir_p(File.join(tmpdir, "repos", "web-template", "bin"))
+      FileUtils.mkdir_p(File.join(tmpdir, "repos", "mobile-app-template", "bin"))
       FileUtils.mkdir_p(File.join(tmpdir, "repos", "dsml-template", "bin"))
       FileUtils.mkdir_p(File.join(tmpdir, "config"))
 
@@ -26,6 +27,10 @@ class ProductTemplatesRenamerTest < Minitest::Test
               name: web-template
               path: repos/web-template
               github: example-org/web-template
+            - purpose: frontend-mobile-client
+              name: mobile-app-template
+              path: repos/mobile-app-template
+              github: example-org/mobile-app-template
             - purpose: data-science-ml
               name: dsml-template
               path: repos/dsml-template
@@ -53,6 +58,11 @@ class ProductTemplatesRenamerTest < Minitest::Test
               name: web-template
               path: repos/web-template
               github: example-org/web-template
+            mobile:
+              purpose: frontend-mobile-client
+              name: mobile-app-template
+              path: repos/mobile-app-template
+              github: example-org/mobile-app-template
             dsml:
               purpose: data-science-ml
               name: dsml-template
@@ -86,6 +96,12 @@ class ProductTemplatesRenamerTest < Minitest::Test
           "github" => "example-org/web-template"
         },
         {
+          "purpose" => "frontend-mobile-client",
+          "name" => "mobile-app-template",
+          "path" => "repos/mobile-app-template",
+          "github" => "example-org/mobile-app-template"
+        },
+        {
           "purpose" => "data-science-ml",
           "name" => "dsml-template",
           "path" => "repos/dsml-template",
@@ -106,11 +122,13 @@ class ProductTemplatesRenamerTest < Minitest::Test
 
       assert Dir.exist?(File.join(tmpdir, "repos", "my-super-app-api"))
       assert Dir.exist?(File.join(tmpdir, "repos", "my-super-app-web"))
+      assert Dir.exist?(File.join(tmpdir, "repos", "my-super-app-mobile"))
       assert Dir.exist?(File.join(tmpdir, "repos", "my-super-app-dsml"))
 
       updated = YAML.safe_load(File.read(repos_config_path), permitted_classes: [], aliases: false)
       backend = updated.fetch("repositories").find { |r| r["purpose"] == "backend-api" }
       frontend = updated.fetch("repositories").find { |r| r["purpose"] == "frontend-web-client" }
+      mobile = updated.fetch("repositories").find { |r| r["purpose"] == "frontend-mobile-client" }
       dsml = updated.fetch("repositories").find { |r| r["purpose"] == "data-science-ml" }
 
       assert_equal "my-super-app-api", backend["name"]
@@ -121,6 +139,10 @@ class ProductTemplatesRenamerTest < Minitest::Test
       assert_equal "repos/my-super-app-web", frontend["path"]
       assert_equal "example-org/my-super-app-web", frontend["github"]
 
+      assert_equal "my-super-app-mobile", mobile["name"]
+      assert_equal "repos/my-super-app-mobile", mobile["path"]
+      assert_equal "example-org/my-super-app-mobile", mobile["github"]
+
       assert_equal "my-super-app-dsml", dsml["name"]
       assert_equal "repos/my-super-app-dsml", dsml["path"]
       assert_equal "example-org/my-super-app-dsml", dsml["github"]
@@ -129,6 +151,7 @@ class ProductTemplatesRenamerTest < Minitest::Test
       assert_equal "my-super-app", updated_manifest.fetch("project").fetch("slug")
       backend_manifest = updated_manifest.fetch("repositories").fetch("api")
       frontend_manifest = updated_manifest.fetch("repositories").fetch("web")
+      mobile_manifest = updated_manifest.fetch("repositories").fetch("mobile")
       dsml_manifest = updated_manifest.fetch("repositories").fetch("dsml")
       production_infra = updated_manifest.fetch("environments").fetch("production").fetch("infrastructure")
 
@@ -139,6 +162,10 @@ class ProductTemplatesRenamerTest < Minitest::Test
       assert_equal "my-super-app-web", frontend_manifest["name"]
       assert_equal "repos/my-super-app-web", frontend_manifest["path"]
       assert_equal "example-org/my-super-app-web", frontend_manifest["github"]
+
+      assert_equal "my-super-app-mobile", mobile_manifest["name"]
+      assert_equal "repos/my-super-app-mobile", mobile_manifest["path"]
+      assert_equal "example-org/my-super-app-mobile", mobile_manifest["github"]
 
       assert_equal "my-super-app-dsml", dsml_manifest["name"]
       assert_equal "repos/my-super-app-dsml", dsml_manifest["path"]

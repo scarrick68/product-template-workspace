@@ -50,6 +50,12 @@ class GithubRepositorySetupTest < Minitest::Test
         "name" => "my-super-app-web",
         "path" => "repos/my-super-app-web",
         "github" => "example-org/template-web"
+      },
+      {
+        "purpose" => "frontend-mobile-client",
+        "name" => "my-super-app-mobile",
+        "path" => "repos/my-super-app-mobile",
+        "github" => "example-org/template-mobile"
       }
     ])
   end
@@ -67,6 +73,7 @@ class GithubRepositorySetupTest < Minitest::Test
     Workspace::Services::Auth::GithubAuth.any_instance.stubs(:call).returns(0)
     Workspace.expects(:capture).with("gh repo view example-org/my-super-app-api").returns(["", false])
     Workspace.expects(:capture).with("gh repo view example-org/my-super-app-web").returns(["", true])
+    Workspace.expects(:capture).with("gh repo view example-org/my-super-app-mobile").returns(["", true])
     Workspace.expects(:run).with(
       "gh repo create example-org/my-super-app-api --private --confirm",
       chdir: Workspace::ROOT,
@@ -82,7 +89,7 @@ class GithubRepositorySetupTest < Minitest::Test
     assert result.create_remotes?
     refute result.push_after_setup?
     assert_equal "private", result.visibility
-    assert_equal ["example-org/my-super-app-api", "example-org/my-super-app-web"], result.targets.map { |target| target[:github_ref] }
+    assert_equal ["example-org/my-super-app-api", "example-org/my-super-app-web", "example-org/my-super-app-mobile"], result.targets.map { |target| target[:github_ref] }
   end
 
   def test_manual_mode_requires_confirmation_when_not_assumed_ready
@@ -97,7 +104,7 @@ class GithubRepositorySetupTest < Minitest::Test
 
     TTY::Prompt.any_instance.expects(:yes?)
       .with("Have you created this repo or confirmed it already exists?", default: false)
-      .twice
+      .times(3)
       .returns(true)
 
     result = Workspace::Services::GithubRepositorySetup.new.call(options: options, product_slug: "my-super-app")

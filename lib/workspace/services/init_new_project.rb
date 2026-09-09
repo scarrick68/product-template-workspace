@@ -23,6 +23,7 @@ module Workspace
     class InitNewProject
       BACKEND_PURPOSE = "backend-api"
       FRONTEND_PURPOSE = "frontend-web-client"
+      MOBILE_PURPOSE = "frontend-mobile-client"
       DSML_PURPOSE = "data-science-ml"
 
       REFERENCE_DOCS = [
@@ -94,6 +95,7 @@ module Workspace
       def print_summary(product_slug)
         api_repo = repository_path_for(BACKEND_PURPOSE) || "repos/#{product_slug}-api"
         web_repo = repository_path_for(FRONTEND_PURPOSE) || "repos/#{product_slug}-web"
+        mobile_repo = repository_path_for(MOBILE_PURPOSE) || "repos/#{product_slug}-mobile"
         dsml_repo = repository_path_for(DSML_PURPOSE)
 
         puts
@@ -101,6 +103,7 @@ module Workspace
         Workspace.info("Renamed repositories:")
         Workspace.info("- #{api_repo}")
         Workspace.info("- #{web_repo}")
+        Workspace.info("- #{mobile_repo}")
         Workspace.info("- #{dsml_repo}") if dsml_repo
 
         puts
@@ -108,6 +111,7 @@ module Workspace
         REFERENCE_DOCS.each { |path| Workspace.info("- #{path}") }
         Workspace.info("- #{api_repo}/docs/template-rename.md")
         Workspace.info("- #{web_repo}/docs/template-rename.md")
+        Workspace.info("- #{mobile_repo}/README.md")
       end
 
       def github_repository_setup

@@ -9,6 +9,11 @@ repositories:
     path: repos/web-template
     github: scarrick68/web-template
 
+  - purpose: frontend-mobile-client
+    name: mobile-app-template
+    path: repos/mobile-app-template
+    github: scarrick68/mobile-app-template
+
   - purpose: data-science-ml
     name: dsml-template
     path: repos/dsml-template

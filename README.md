@@ -48,6 +48,7 @@ product-template-workspace/
 └── repos/              # Independently versioned template repositories
     ├── api-template/
     ├── dsml-template/
+    ├── mobile-app-template/
     ├── web-template/
     └── template-work-tracking/
 ```
@@ -85,6 +86,7 @@ Start here:
 - API template feature list: `repos/api-template/docs/template-features.md`
 - API template data import pipeline feature details: `repos/api-template/docs/data-import-pipeline.md`
 - DSML template feature list: `repos/dsml-template/README.md`
+- Mobile template feature list: `repos/mobile-app-template/template-features.md`
 
 ## Scripting Approach
 
@@ -121,6 +123,12 @@ The first priority scripts for developer ergonomics:
 - `bin/workspace repository setup <product-slug>`: guided first-time setup flow (install_local_dev_tools (required software installation), environment checks, bootstrap, rename, validation, optional dev launch).
 - `bin/workspace repository rename <product-slug>`: orchestrate template-to-product rename across repos.
 - `bin/workspace repository verify <product-slug>`: run post-rename validation checks and checklist.
+
+Rename orchestration notes:
+
+- The workspace rename flow calls each repository's own bin/template_rename script (API, web, mobile, DSML when present).
+- Keep rename logic near the owning repository so repository-specific metadata and interface defaults can be updated safely.
+- Ruby is required for workspace orchestration tooling, but not for running the Expo mobile app itself.
 
 ## Local Port Conventions
 

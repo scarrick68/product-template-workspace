@@ -9,7 +9,7 @@ require_relative "../../workspace"
 module Workspace
   module Services
     class SyncOpenapi
-      TYPE_GENERATION_SCRIPT = "gen:api"
+      TYPE_GENERATION_SCRIPTS = ["gen:api", "api:generate"].freeze
 
       def call
         return 1 unless source_openapi_exists?
@@ -99,9 +99,10 @@ module Workspace
 
         package = JSON.parse(File.read(package_json))
         scripts = package.fetch("scripts", {})
-        return skip_type_generation(repo_root) unless scripts.key?(TYPE_GENERATION_SCRIPT)
+        script = type_generation_script_for(scripts)
+        return skip_type_generation(repo_root) if script.nil?
 
-        command = "npm run #{TYPE_GENERATION_SCRIPT}"
+        command = "npm run #{script}"
         Workspace.info("regenerating #{repo_label} types via #{command}")
         ok = Workspace.run(command, chdir: repo_root, allow_failure: true)
         return true if ok
@@ -123,8 +124,14 @@ module Workspace
       end
 
       def skip_type_generation(repo_root)
-        Workspace.warn("#{relative_path(repo_root)} has no #{TYPE_GENERATION_SCRIPT} script; skipping type generation")
+        Workspace.warn(
+          "#{relative_path(repo_root)} has no #{TYPE_GENERATION_SCRIPTS.join(' or ')} script; skipping type generation"
+        )
         true
+      end
+
+      def type_generation_script_for(scripts)
+        TYPE_GENERATION_SCRIPTS.find { |script| scripts.key?(script) }
       end
 
       def web_repo

@@ -7,6 +7,7 @@ module ProductTemplates
   class ProjectPaths
     BACKEND_PURPOSE = "backend-api"
     FRONTEND_PURPOSE = "frontend-web-client"
+    MOBILE_PURPOSE = "frontend-mobile-client"
     DSML_PURPOSE = "data-science-ml"
 
     attr_reader :product_slug, :workspace_root
@@ -29,6 +30,10 @@ module ProductTemplates
       "#{product_slug}-dsml"
     end
 
+    def mobile_app_name
+      "#{product_slug}-mobile"
+    end
+
     def backend_current_relative_path
       backend_repo.fetch("path")
     end
@@ -39,6 +44,10 @@ module ProductTemplates
 
     def dsml_current_relative_path
       dsml_repo.fetch("path")
+    end
+
+    def mobile_current_relative_path
+      mobile_repo.fetch("path")
     end
 
     def backend_current_path
@@ -53,6 +62,10 @@ module ProductTemplates
       absolute_path(dsml_current_relative_path)
     end
 
+    def mobile_current_path
+      absolute_path(mobile_current_relative_path)
+    end
+
     def backend_app_relative_path
       sibling_path(backend_current_relative_path, backend_app_name)
     end
@@ -63,6 +76,10 @@ module ProductTemplates
 
     def dsml_app_relative_path
       sibling_path(dsml_current_relative_path, dsml_app_name)
+    end
+
+    def mobile_app_relative_path
+      sibling_path(mobile_current_relative_path, mobile_app_name)
     end
 
     def backend_app_path
@@ -77,6 +94,10 @@ module ProductTemplates
       absolute_path(dsml_app_relative_path)
     end
 
+    def mobile_app_path
+      absolute_path(mobile_app_relative_path)
+    end
+
     def backend_rename_script_relative
       File.join(backend_current_relative_path, "bin", "template_rename")
     end
@@ -87,6 +108,10 @@ module ProductTemplates
 
     def dsml_rename_script_relative
       File.join(dsml_current_relative_path, "bin", "template_rename")
+    end
+
+    def mobile_rename_script_relative
+      File.join(mobile_current_relative_path, "bin", "template_rename")
     end
 
     def backend_rename_script_path
@@ -101,8 +126,16 @@ module ProductTemplates
       absolute_path(dsml_rename_script_relative)
     end
 
+    def mobile_rename_script_path
+      absolute_path(mobile_rename_script_relative)
+    end
+
     def dsml_available?
       !dsml_repo.nil?
+    end
+
+    def mobile_available?
+      !mobile_repo.nil?
     end
 
     def update_repo_entry!(repo)
@@ -111,6 +144,8 @@ module ProductTemplates
         update_repo(repo, backend_app_name)
       when FRONTEND_PURPOSE
         update_repo(repo, frontend_app_name)
+      when MOBILE_PURPOSE
+        update_repo(repo, mobile_app_name)
       when DSML_PURPOSE
         update_repo(repo, dsml_app_name)
       end
@@ -132,6 +167,12 @@ module ProductTemplates
       return @dsml_repo if instance_variable_defined?(:@dsml_repo)
 
       @dsml_repo = repositories.find { |entry| entry["purpose"].to_s == DSML_PURPOSE }
+    end
+
+    def mobile_repo
+      return @mobile_repo if instance_variable_defined?(:@mobile_repo)
+
+      @mobile_repo = repositories.find { |entry| entry["purpose"].to_s == MOBILE_PURPOSE }
     end
 
     def repository_for_purpose(purpose)

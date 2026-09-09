@@ -12,6 +12,8 @@ module Workspace
     class GithubRepositorySetup
       BACKEND_PURPOSE = "backend-api"
       FRONTEND_PURPOSE = "frontend-web-client"
+      MOBILE_PURPOSE = "frontend-mobile-client"
+      DSML_PURPOSE = "data-science-ml"
 
       class Result
         attr_reader :create_remotes, :push_after_setup, :visibility, :targets
@@ -70,7 +72,7 @@ module Workspace
       def should_create_remotes?(options)
         return options.create_remotes? if options.create_remotes_explicit?
 
-        prompt.yes?("Would you like this script to create backend/frontend remotes automatically?", default: true)
+        prompt.yes?("Would you like this script to create backend/frontend/mobile remotes automatically?", default: true)
       end
 
       def resolved_visibility(options)
@@ -160,7 +162,7 @@ module Workspace
       end
 
       def remote_repo_targets(product_slug)
-        [
+        targets = [
           {
             label: "backend",
             local_path: repository_path_for(BACKEND_PURPOSE),
@@ -170,8 +172,23 @@ module Workspace
             label: "frontend",
             local_path: repository_path_for(FRONTEND_PURPOSE),
             github_ref: expected_remote_ref(FRONTEND_PURPOSE, "#{product_slug}-web")
+          },
+          {
+            label: "mobile",
+            local_path: repository_path_for(MOBILE_PURPOSE),
+            github_ref: expected_remote_ref(MOBILE_PURPOSE, "#{product_slug}-mobile")
           }
         ]
+
+        if repository_by_purpose(DSML_PURPOSE)
+          targets << {
+            label: "dsml",
+            local_path: repository_path_for(DSML_PURPOSE),
+            github_ref: expected_remote_ref(DSML_PURPOSE, "#{product_slug}-dsml")
+          }
+        end
+
+        targets
       end
 
       def repository_path_for(purpose)

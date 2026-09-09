@@ -8,8 +8,8 @@ require_relative "../../../test_helper"
 require_relative "../../../../lib/workspace/services/init_new_project"
 
 class InitNewProjectTest < Minitest::Test
-  # Verifies the DSML repo participates in the standard init workflow summary and orchestration.
-  def test_call_runs_full_init_flow_and_includes_dsml_repo_in_summary
+  # Verifies mobile and DSML repositories participate in the init summary and orchestration.
+  def test_call_runs_full_init_flow_and_includes_mobile_and_dsml_repo_in_summary
     Dir.mktmpdir("init-new-project") do |root|
       write_manifest(root, installation_id: "a91d7c", include_dsml: true)
       context = Workspace::Context.new(root: root)
@@ -60,6 +60,7 @@ class InitNewProjectTest < Minitest::Test
 
       Workspace.stubs(:ok)
       Workspace.stubs(:info)
+      Workspace.expects(:info).with("- repos/mobile-app-template").once
       Workspace.expects(:info).with("- repos/dsml-template").once
 
       assert_equal 0, service.call
@@ -260,6 +261,11 @@ class InitNewProjectTest < Minitest::Test
           "purpose" => "frontend-web-client",
           "name" => "web-template",
           "path" => "repos/web-template"
+        },
+        "mobile" => {
+          "purpose" => "frontend-mobile-client",
+          "name" => "mobile-app-template",
+          "path" => "repos/mobile-app-template"
         }
       },
       "services" => {
